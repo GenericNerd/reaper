@@ -12,6 +12,8 @@ pub struct Handler {
 
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::fmt::init();
+
     let token = match env::var("DISCORD_TOKEN") {
         Ok(token) => token,
         Err(err) => {
