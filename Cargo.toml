@@ -1,0 +1,15 @@
+[package]
+name = "reaper"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = {version = "1.21.0", features = ["full"]}
+serde = { version = "1.0.144" }
+serde_derive = "1.0.144"
+serde_json = "1.0.85"
+mongodb = { version = "2.3", features = ["tokio-runtime"] }
+serenity = { version = "0.11.5"}
+tracing = "0.1.37"
