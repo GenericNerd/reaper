@@ -6,7 +6,6 @@ use tracing::error;
 pub struct Database {
     pub client: Client
 }
-assert_eq!(i64::MAX, 18446744073709551615);
 
 impl Database {
     pub async fn get_user(&self, guild_id: i64, user_id: i64) -> Result<Option<structs::User>, Error> {
