@@ -1,7 +1,22 @@
 use serde_derive::{Deserialize, Serialize};
+use mongodb::error::Error;
+use tracing::warn;
+
+pub struct MongoError {
+    pub message: String,
+    pub mongo_error: Option<Error>
+}
+
+impl std::fmt::Display for MongoError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Permissions {
+    #[serde(rename = "unknown")]
+    Unknown,
     #[serde(rename = "moderation.kick")]
     ModerationKick
 }
@@ -9,6 +24,27 @@ pub enum Permissions {
 impl PartialEq for Permissions {
     fn eq(&self, other: &Self) -> bool {
         return self == other;
+    }
+}
+
+impl From<String> for Permissions {
+    fn from(s: String) -> Self {
+        match s.as_str() {
+            "moderation.kick" => Permissions::ModerationKick,
+            _ => {
+                warn!("Unknown permission: {}", s);
+                Permissions::Unknown
+            }
+        }
+    }
+}
+
+impl ToString for Permissions {
+    fn to_string(&self) -> String {
+        match self {
+            Permissions::Unknown => "unknown".to_string(),
+            Permissions::ModerationKick => "moderation.kick".to_string()
+        }
     }
 }
 
