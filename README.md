@@ -1,6 +1,6 @@
 <h1 align="center" style="font-size: 48px;">Reaper</h1>
 <div align="center">
-A Discord bot designed to make you work less for the same results
+A Discord bot designed to make your users reap what they sow.
 </div>
 <div align="center">
 
