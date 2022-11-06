@@ -1,13 +1,15 @@
-use serenity::{prelude::{SerenityError, Context}, model::prelude::interaction::Interaction};
+use serenity::{prelude::{Context}, model::prelude::interaction::Interaction};
 use tracing::error;
-use crate::Handler;
+use crate::{Handler, commands};
+
+use super::structs::CommandError;
 
 impl Handler {
     pub async fn on_command(&self, ctx: Context, interaction: Interaction) {
         if let Interaction::ApplicationCommand(command) = interaction {
-            let cmd_result: Result<(), SerenityError> = match command.data.name.as_str() {
+            let cmd_result: Result<(), CommandError> = match command.data.name.as_str() {
                 "permissions" => {
-                    Ok(())
+                    commands::permissions::router::route(self, &ctx, &command).await
                 },
                 _ => {Ok(())}
             };

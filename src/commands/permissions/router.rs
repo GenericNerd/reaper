@@ -1,4 +1,33 @@
-use serenity::{model::prelude::command::CommandOptionType, builder::CreateApplicationCommand};
+use serenity::{model::prelude::{command::CommandOptionType, interaction::application_command::ApplicationCommandInteraction}, builder::CreateApplicationCommand, prelude::Context};
+
+use crate::{Handler, commands::{permissions, structs::CommandError}};
+
+pub async fn route(handler: &Handler, ctx: &Context, cmd: &ApplicationCommandInteraction) -> Result<(), CommandError> {
+    for options in cmd.data.options.iter() {
+        match options.kind {
+            CommandOptionType::SubCommand => {
+                match options.name.as_str() {
+                    "add" => {
+                        return permissions::add::user_run(&handler, &ctx, &cmd).await;
+                    },
+                    _ => {}
+                }
+            },
+            CommandOptionType::SubCommandGroup => {
+                for options in cmd.data.options.iter() {
+                    match options.name.as_str() {
+                        "add" => {
+
+                        },
+                        _ => {}
+                    }
+                }
+            },
+            _ => {}
+        }
+    }
+    return permissions::add::user_run(&handler, &ctx, &cmd).await;
+}
 
 pub fn register(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
     command
