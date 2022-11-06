@@ -1,23 +1,49 @@
 use serenity::{model::prelude::{command::CommandOptionType, interaction::application_command::ApplicationCommandInteraction}, builder::CreateApplicationCommand, prelude::Context};
-
-use crate::{Handler, commands::{permissions, structs::CommandError}};
+use tracing::error;
+use crate::{Handler, commands::{permissions, structs::CommandError, utils::send_message}, mongo::structs::Permissions};
 
 pub async fn route(handler: &Handler, ctx: &Context, cmd: &ApplicationCommandInteraction) -> Result<(), CommandError> {
-    for options in cmd.data.options.iter() {
-        match options.kind {
+    for option in cmd.data.options.iter() {
+        match option.kind {
             CommandOptionType::SubCommand => {
-                match options.name.as_str() {
+                match option.name.as_str() {
                     "add" => {
-                        return permissions::add::user_run(&handler, &ctx, &cmd).await;
+                        match ctx.cache.guild(cmd.guild_id.expect("Could not obtain a guild ID. Was this command executed in a guild?")) {
+                            Some(guild) => {
+                                match handler.has_permission(&guild, cmd.member.as_ref().unwrap(), Permissions::PermissionsAdd).await {
+                                    Ok(permission) => {
+                                        if permission {
+                                            return permissions::add::user_run(&handler, &ctx, &cmd).await;
+                                        }
+                                        else {
+                                            // Get from guild config whether to show an error
+                                        }
+                                    },
+                                    Err(err) => {
+                                        error!("An error occurred while checking permissions. The error was: {}", err);
+                                        return send_message(&ctx, cmd, format!("An error occurred while checking your permissions. The error was: {}", err)).await;
+                                    }
+                                }
+                            },
+                            None => {
+                                error!("The guild requested is not in cache, meaning permissions cannot be evaluated")
+                            }
+                        }
                     },
+                    "view" => {
+                        return permissions::view::user_run(&handler, &ctx, &cmd).await;
+                    }
+                    "list" => {
+                        return permissions::list::run(&ctx, &cmd).await;
+                    }
                     _ => {}
                 }
             },
             CommandOptionType::SubCommandGroup => {
-                for options in cmd.data.options.iter() {
+                for options in option.options.iter() {
                     match options.name.as_str() {
                         "add" => {
-
+                            return permissions::add::role_run(&handler, &ctx, &cmd).await;
                         },
                         _ => {}
                     }
@@ -33,11 +59,11 @@ pub fn register(command: &mut CreateApplicationCommand) -> &mut CreateApplicatio
     command
         .name("permissions")
         .dm_permission(false)
-        .description("Modify and list permissions to users and roles")
+        .description("Modify and view permissions to users and roles")
         .create_option(|option| {
             option
                 .name("add")
-                .description("Add a Workless permission to a specific user")
+                .description("Add a Reaper permission to a specific user")
                 .kind(CommandOptionType::SubCommand)
                 .create_sub_option(|option| {
                     option
@@ -57,7 +83,7 @@ pub fn register(command: &mut CreateApplicationCommand) -> &mut CreateApplicatio
         .create_option(|option| {
             option
                 .name("remove")
-                .description("Remove a Workless permission from a specific user")
+                .description("Remove a Reaper permission from a specific user")
                 .kind(CommandOptionType::SubCommand)
                 .create_sub_option(|option| {
                     option
@@ -76,26 +102,31 @@ pub fn register(command: &mut CreateApplicationCommand) -> &mut CreateApplicatio
         })
         .create_option(|option| {
             option
-                .name("list")
-                .description("List the permissions to a user")
+                .name("view")
+                .description("View the permissions to a user")
                 .kind(CommandOptionType::SubCommand)
                 .create_sub_option(|option| {
                     option
                         .name("user")
-                        .description("The user to list the permissions of")
+                        .description("The user to view the permissions of")
                         .kind(CommandOptionType::User)
-                        .required(true)
                 })
         })
         .create_option(|option| {
             option
+                .name("list")
+                .description("List all available permissions")
+                .kind(CommandOptionType::SubCommand)
+        })
+        .create_option(|option| {
+            option
                 .name("role")
-                .description("Modify and list permissions to roles")
+                .description("Modify and view permissions to roles")
                 .kind(CommandOptionType::SubCommandGroup)
                 .create_sub_option(|option| {
                     option
                         .name("add")
-                        .description("Add a Workless permission to a specific role")
+                        .description("Add a Reaper permission to a specific role")
                         .kind(CommandOptionType::SubCommand)
                         .create_sub_option(|option| {
                             option
@@ -115,7 +146,7 @@ pub fn register(command: &mut CreateApplicationCommand) -> &mut CreateApplicatio
                 .create_sub_option(|option| {
                     option
                         .name("remove")
-                        .description("Remove a Workless permission from a specific role")
+                        .description("Remove a Reaper permission from a specific role")
                         .kind(CommandOptionType::SubCommand)
                         .create_sub_option(|option| {
                             option
@@ -134,13 +165,13 @@ pub fn register(command: &mut CreateApplicationCommand) -> &mut CreateApplicatio
                 })
                 .create_sub_option(|option| {
                     option
-                        .name("list")
-                        .description("List the permissions to a role")
+                        .name("view")
+                        .description("View the permissions to a role")
                         .kind(CommandOptionType::SubCommand)
                         .create_sub_option(|option| {
                             option
                                 .name("role")
-                                .description("The role to list the permissions of")
+                                .description("The role to view the permissions of")
                                 .kind(CommandOptionType::Role)
                                 .required(true)
                         })

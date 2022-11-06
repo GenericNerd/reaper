@@ -69,6 +69,69 @@ impl Database {
             }
         }
     }
+
+    pub async fn add_role(&self, guild_id: i64, role_id: i64) -> Result<structs::Role, structs::MongoError> {
+        let collection = self.client.database("reaper").collection("roles");
+        let role = structs::Role {
+            guild_id,
+            id: role_id,
+            permissions: vec![]
+        };
+
+        let permisions: Vec<String> = Vec::new();
+        match collection.insert_one(doc!{"guildID": role.guild_id, "id": role.id, "permissions": permisions}, None).await {
+            Ok(_) => {
+                return Ok(role);
+            },
+            Err(err) => {
+                return Err(structs::MongoError {
+                    message: "An error occurred while adding the role to the database".to_string(),
+                    mongo_error: Some(err)
+                });
+            }
+        }
+    }
+
+    pub async fn get_role(&self, guild_id: i64, role_id: i64) -> Result<structs::Role, structs::MongoError> {
+        let roles: Collection<structs::Role> = self.client.database("reaper").collection("roles");
+        match roles.find_one(doc!{"guildID": guild_id, "id": role_id}, None).await {
+            Ok(role) => {
+                match role {
+                    Some(role) => {
+                        return Ok(role);
+                    },
+                    None => {
+                        return self.add_role(guild_id, role_id).await;
+                    }
+                }
+            },
+            Err(err) => {
+                error!("An error occurred while retrieving a role from the database. The error was: {}", err);
+                Err(structs::MongoError {
+                    message: "An error occurred while retrieving a role from the database".to_string(),
+                    mongo_error: Some(err)
+                })
+            }
+        }
+    }
+
+    pub async fn update_role_permissions(&self, guild_id: i64, role_id: i64, permissions: Vec<structs::Permissions>) -> Result<(), structs::MongoError> {
+        let roles: Collection<structs::Role> = self.client.database("reaper").collection("roles");
+        let mut permission_strings: Vec<String> = Vec::new();
+        for permission in permissions.iter() {
+            permission_strings.push(permission.to_string());
+        }
+        match roles.update_one(doc!{"guildID": guild_id, "id": role_id}, doc!{"$set": {"permissions": permission_strings}}, None).await {
+            Ok(_) => Ok(()),
+            Err(err) => {
+                error!("An error occurred while updating a role's permissions in the database. The error was: {}", err);
+                Err(structs::MongoError {
+                    message: "An error occurred while updating a role's permissions in the database".to_string(),
+                    mongo_error: Some(err)
+                })
+            }
+        }
+    }
 }
 
 pub async fn connect() -> Result<Database, structs::MongoError> {

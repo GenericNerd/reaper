@@ -14,3 +14,5 @@ mongodb = { version = "2.3", features = ["tokio-runtime"] }
 serenity = { version = "0.11.5"}
 tracing = "0.1.37"
 tracing-subscriber = "0.3.16"
+strum = "0.24.1"
+strum_macros = "0.24.1"
