@@ -1,7 +1,9 @@
+use std::collections::HashMap;
+
 use serde_json::Value;
 use serenity::{prelude::Context, model::prelude::{interaction::application_command::ApplicationCommandInteraction, command::CommandOptionType}};
 use tracing::{error, warn};
-use crate::{Handler, commands::{structs::CommandError, utils::send_message}, mongo::structs::User};
+use crate::{Handler, commands::{structs::CommandError, utils::send_message}, mongo::structs::{User, Permissions}};
 
 pub async fn user_run(handler: &Handler, ctx: &Context, cmd: &ApplicationCommandInteraction) -> Result<(), CommandError> {
     let mut user_id: i64 = 0;
@@ -59,13 +61,57 @@ pub async fn user_run(handler: &Handler, ctx: &Context, cmd: &ApplicationCommand
         }
     }
 
-    if user.as_ref().unwrap().permissions.is_empty() {
-        return send_message(&ctx, cmd, format!("<@{}> has no permissions", user.unwrap().id)).await;
+    let mut role_permissions: HashMap<String, Permissions> = HashMap::new();
+    for role in cmd.member.as_ref().unwrap().roles.iter() {
+        match handler.database.get_role(
+            cmd.guild_id.expect("Could not obtain a guild ID. Was this command executed in a guild?").0 as i64,
+            role.0 as i64
+        ).await {
+            Ok(role) => {
+                for permission in role.permissions.iter() {
+                    if !user.as_ref().unwrap().permissions.contains(&permission) {
+                        role_permissions.insert(role.id.to_string(), permission.clone());
+                    }
+                }
+            },
+            Err(err) => {
+                return Err(CommandError {
+                    message: format!("An error occurred while fetching the role from the database. The error was: {}", err),
+                    command_error: None
+                });
+            }
+        }
     }
 
-    let mut message_content = format!("<@{}> has the following permissions:\n", user_id).to_string();
-    for permission in user.unwrap().permissions.iter() {
-        message_content.push_str(&format!("`{}`\n", permission.to_string()));
+    let mut message_content = format!("<@{}>", user_id).to_string();
+    if user.as_ref().unwrap().permissions.is_empty() && role_permissions.is_empty() {
+        message_content.push_str(" has no permissions");
     }
+
+    if !user.as_ref().unwrap().permissions.is_empty() && role_permissions.is_empty() {
+        message_content.push_str(" has the following permissions:\n");
+        for permission in user.as_ref().unwrap().permissions.iter() {
+            message_content.push_str(&format!("`{}`\n", permission.to_string()));
+        }
+    }
+
+    if user.as_ref().unwrap().permissions.is_empty() && !role_permissions.is_empty() {
+        message_content.push_str(" has no permissions, but they have inherited these permissions from their roles:\n");
+        for (id, permission) in role_permissions.iter() {
+            message_content.push_str(&format!("`{}` from <@&{}>\n", permission.to_string(), id));
+        }
+    }
+
+    if !user.as_ref().unwrap().permissions.is_empty() && !role_permissions.is_empty() {
+        message_content.push_str(" has the following permissions:\n");
+        for permission in user.as_ref().unwrap().permissions.iter() {
+            message_content.push_str(&format!("`{}`\n", permission.to_string()));
+        }
+        message_content.push_str("\nThey have also inherited these permissions from their roles:\n");
+        for (id, permission) in role_permissions.iter() {
+            message_content.push_str(&format!("`{}` from <@&{}>\n", permission.to_string(), id));
+        }
+    }
+
     return send_message(&ctx, cmd, message_content).await;
 }

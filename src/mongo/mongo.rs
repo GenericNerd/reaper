@@ -132,6 +132,60 @@ impl Database {
             }
         }
     }
+
+    pub async fn add_guild(&self, guild_id: i64) -> Result<structs::Guild, structs::MongoError> {
+        let collection = self.client.database("reaper").collection("guilds");
+        let guild = structs::Guild {
+            id: guild_id,
+            config: structs::GuildConfig {
+                logging: structs::LoggingConfig {
+                    channel_id: None
+                },
+                notify_missing_permissions: true
+            }
+        };
+
+        match collection.insert_one(doc!{
+            "id": guild.id,
+            "config": {
+                "logging": {},
+                "notify_missing_permissions": guild.config.notify_missing_permissions
+            }
+        }, None).await {
+            Ok(_) => {
+                return Ok(guild);
+            },
+            Err(err) => {
+                return Err(structs::MongoError {
+                    message: "An error occurred while adding the guild to the database".to_string(),
+                    mongo_error: Some(err)
+                });
+            }
+        }
+    }
+
+    pub async fn get_guild(&self, guild_id: i64) -> Result<structs::Guild, structs::MongoError> {
+        let guilds: Collection<structs::Guild> = self.client.database("reaper").collection("guilds");
+        match guilds.find_one(doc!{"id": guild_id}, None).await {
+            Ok(guild) => {
+                match guild {
+                    Some(guild) => {
+                        return Ok(guild);
+                    },
+                    None => {
+                        return self.add_guild(guild_id).await;
+                    }
+                }
+            },
+            Err(err) => {
+                error!("An error occurred while retrieving a guild from the database. The error was: {}", err);
+                Err(structs::MongoError {
+                    message: "An error occurred while retrieving a guild from the database".to_string(),
+                    mongo_error: Some(err)
+                })
+            }
+        }
+    }
 }
 
 pub async fn connect() -> Result<Database, structs::MongoError> {

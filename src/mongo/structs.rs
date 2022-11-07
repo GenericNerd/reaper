@@ -31,7 +31,7 @@ pub enum Permissions {
 
 impl PartialEq for Permissions {
     fn eq(&self, other: &Self) -> bool {
-        return self == other;
+        return self.to_string() == other.to_string();
     }
 }
 
@@ -64,6 +64,8 @@ impl ToString for Permissions {
     }
 }
 
+
+
 impl Permissions {
     pub fn variants() -> Vec<Permissions> {
         return vec![Permissions::PermissionsView, Permissions::PermissionsAdd, Permissions::PermissionsRemove, Permissions::PermissionsList, Permissions::ModerationKick];
@@ -92,4 +94,26 @@ pub struct Role {
     pub guild_id: i64,
     pub id: i64,
     pub permissions: Vec<Permissions>
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LoggingConfig {
+    #[serde(rename = "channelID")]
+    pub channel_id: Option<i64>
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GuildConfig {
+    pub logging: LoggingConfig,
+    pub notify_missing_permissions: bool
+
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Guild {
+    pub id: i64,
+    pub config: GuildConfig
 }

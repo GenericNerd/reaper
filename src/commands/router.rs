@@ -1,6 +1,6 @@
-use serenity::{prelude::{Context}, model::{prelude::{interaction::Interaction, Guild, Member}, permissions}};
+use serenity::{prelude::{Context}, model::{prelude::{interaction::{Interaction, application_command::ApplicationCommandInteraction}, Guild, Member}, permissions}};
 use tracing::error;
-use crate::{Handler, commands, mongo::structs::Permissions};
+use crate::{Handler, commands::{self, utils::send_message}, mongo::structs::Permissions};
 
 use super::structs::CommandError;
 
@@ -31,12 +31,15 @@ impl Handler {
                 return Ok(true);
             }
         }
+
         match self.database.get_user(
             guild.id.0 as i64,
             member.user.id.0 as i64
         ).await {
             Ok(user) => {
-                return Ok(user.permissions.contains(&permission));
+                if user.permissions.contains(&permission) {
+                    return Ok(true);
+                }
             },
             Err(err) => {
                 return Err(CommandError {
@@ -45,5 +48,72 @@ impl Handler {
                 });
             }
         }
+        for role in member.roles.iter() {
+            match self.database.get_role(
+                guild.id.0 as i64,
+                role.0 as i64
+            ).await {
+                Ok(role) => {
+                    if role.permissions.contains(&permission) {
+                        return Ok(true);
+                    }
+                },
+                Err(err) => {
+                    return Err(CommandError {
+                        message: format!("An error occurred while fetching the role from the database. The error was: {}", err),
+                        command_error: None
+                    });
+                }
+            }
+        }
+
+        Ok(false)
+    }
+
+    pub async fn requires_permission(&self, ctx: &Context, cmd: &ApplicationCommandInteraction, permission: Permissions) -> Result<bool, CommandError> {
+        match ctx.cache.guild(cmd.guild_id.expect("Could not obtain a guild ID. Was this command executed in a guild?")) {
+            Some(guild) => {
+                match self.has_permission(&guild, cmd.member.as_ref().unwrap(), permission.clone()).await {
+                    Ok(has_permission) => {
+                        if !has_permission {
+                            match self.database.get_guild(guild.id.0 as i64).await {
+                                Ok(guild) => {
+                                    if guild.config.notify_missing_permissions {
+                                        if let Err(err) = send_message(&ctx, &cmd, format!("You are missing the `{}` permission", permission.to_string())).await {
+                                            return Err(CommandError {
+                                                message: format!("An error occurred while sending a message to the user. The error was: {}", err),
+                                                command_error: None
+                                            });
+                                        }
+                                        return Ok(false);
+                                    }
+                                }
+                                Err(err) => {
+                                    return Err(CommandError {
+                                        message: format!("An error occurred while fetching the guild from the database. The error was: {}", err),
+                                        command_error: None
+                                    });
+                                }
+                            }
+                        }
+                        return Ok(has_permission);
+                    },
+                    Err(err) => {
+                        error!("An error occurred while checking permissions. The error was: {}", err);
+                        let msg = send_message(&ctx, cmd, format!("An error occurred while checking your permissions. The error was: {}", err)).await;
+                        if msg.is_ok() {
+                            return Ok(false);
+                        }
+                        else {
+                            return Err(msg.err().unwrap());
+                        }
+                    }
+                }
+            },
+            None => {
+                error!("The guild requested is not in cache, meaning permissions cannot be evaluated");
+            }
+        }
+        Ok(false)
     }
 }

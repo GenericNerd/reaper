@@ -1,6 +1,5 @@
 use serenity::{model::prelude::{command::CommandOptionType, interaction::application_command::ApplicationCommandInteraction}, builder::CreateApplicationCommand, prelude::Context};
-use tracing::error;
-use crate::{Handler, commands::{permissions, structs::CommandError, utils::send_message}, mongo::structs::Permissions};
+use crate::{Handler, commands::{permissions, structs::CommandError}, mongo::structs::Permissions};
 
 pub async fn route(handler: &Handler, ctx: &Context, cmd: &ApplicationCommandInteraction) -> Result<(), CommandError> {
     for option in cmd.data.options.iter() {
@@ -8,33 +7,40 @@ pub async fn route(handler: &Handler, ctx: &Context, cmd: &ApplicationCommandInt
             CommandOptionType::SubCommand => {
                 match option.name.as_str() {
                     "add" => {
-                        match ctx.cache.guild(cmd.guild_id.expect("Could not obtain a guild ID. Was this command executed in a guild?")) {
-                            Some(guild) => {
-                                match handler.has_permission(&guild, cmd.member.as_ref().unwrap(), Permissions::PermissionsAdd).await {
-                                    Ok(permission) => {
-                                        if permission {
-                                            return permissions::add::user_run(&handler, &ctx, &cmd).await;
-                                        }
-                                        else {
-                                            // Get from guild config whether to show an error
-                                        }
-                                    },
-                                    Err(err) => {
-                                        error!("An error occurred while checking permissions. The error was: {}", err);
-                                        return send_message(&ctx, cmd, format!("An error occurred while checking your permissions. The error was: {}", err)).await;
-                                    }
+                        match handler.requires_permission(&ctx, &cmd, Permissions::PermissionsAdd).await {
+                            Ok(has_permission) => {
+                                if has_permission {
+                                    return permissions::add::user_run(&handler, &ctx, &cmd).await;
                                 }
                             },
-                            None => {
-                                error!("The guild requested is not in cache, meaning permissions cannot be evaluated")
+                            Err(err) => {
+                                return Err(err);
                             }
                         }
                     },
                     "view" => {
-                        return permissions::view::user_run(&handler, &ctx, &cmd).await;
+                        match handler.requires_permission(&ctx, &cmd, Permissions::PermissionsView).await {
+                            Ok(has_permission) => {
+                                if has_permission {
+                                    return permissions::view::user_run(&handler, &ctx, &cmd).await;
+                                }
+                            },
+                            Err(err) => {
+                                return Err(err);
+                            }
+                        }
                     }
                     "list" => {
-                        return permissions::list::run(&ctx, &cmd).await;
+                        match handler.requires_permission(&ctx, &cmd, Permissions::PermissionsList).await {
+                            Ok(has_permission) => {
+                                if has_permission {
+                                    return permissions::list::run(&ctx, &cmd).await;
+                                }
+                            },
+                            Err(err) => {
+                                return Err(err);
+                            }
+                        }
                     }
                     _ => {}
                 }
@@ -43,7 +49,16 @@ pub async fn route(handler: &Handler, ctx: &Context, cmd: &ApplicationCommandInt
                 for options in option.options.iter() {
                     match options.name.as_str() {
                         "add" => {
-                            return permissions::add::role_run(&handler, &ctx, &cmd).await;
+                            match handler.requires_permission(&ctx, &cmd, Permissions::PermissionsAdd).await {
+                                Ok(has_permission) => {
+                                    if has_permission {
+                                        return permissions::add::role_run(&handler, &ctx, &cmd).await;
+                                    }
+                                },
+                                Err(err) => {
+                                    return Err(err);
+                                }
+                            }
                         },
                         _ => {}
                     }
@@ -52,7 +67,7 @@ pub async fn route(handler: &Handler, ctx: &Context, cmd: &ApplicationCommandInt
             _ => {}
         }
     }
-    return permissions::add::user_run(&handler, &ctx, &cmd).await;
+    Ok(())
 }
 
 pub fn register(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
