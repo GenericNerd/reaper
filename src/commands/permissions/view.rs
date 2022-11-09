@@ -3,45 +3,41 @@ use std::collections::HashMap;
 use serde_json::Value;
 use serenity::{prelude::Context, model::prelude::{interaction::application_command::ApplicationCommandInteraction, command::CommandOptionType}};
 use tracing::{error, warn};
-use crate::{Handler, commands::{structs::CommandError, utils::send_message}, mongo::structs::{User, Permissions}};
+use crate::{Handler, commands::{structs::CommandError, utils::send_message}, mongo::structs::{User, Permissions, Role}};
 
 pub async fn user_run(handler: &Handler, ctx: &Context, cmd: &ApplicationCommandInteraction) -> Result<(), CommandError> {
     let mut user_id: i64 = 0;
     let mut user: Option<User> = None;
 
-    for option in cmd.data.options.iter() {
-        if option.kind == CommandOptionType::SubCommand {
-            for option in option.options.iter() {
-                match option.kind {
-                    CommandOptionType::User => {
-                        match Value::to_string(&option.value.clone().unwrap()).replace("\"", "").parse::<i64>() {
-                            Ok(id) => {
-                                user_id = id
-                            },
-                            Err(err) => {
-                                error!("Failed to parse user ID. This is because: {}", err);
-                                return Err(CommandError {
-                                    message: "Failed to parse user ID".to_string(),
-                                    command_error: None
-                                })
-                            }
-                        }
-                        match handler.database.get_user(
-                            cmd.guild_id.expect("Could not obtain a guild ID. Was this command executed in a guild?").0 as i64,
-                            user_id.clone()
-                        ).await {
-                            Ok(usr) => user = Some(usr),
-                            Err(err) => {
-                                return Err(CommandError {
-                                    message: format!("An error occurred while fetching the user from the database. The error was: {}", err),
-                                    command_error: None
-                                });
-                            }
-                        }
+    for option in cmd.data.options[0].options.iter() {
+        match option.kind {
+            CommandOptionType::User => {
+                match Value::to_string(&option.value.clone().unwrap()).replace("\"", "").parse::<i64>() {
+                    Ok(id) => {
+                        user_id = id
                     },
-                    _ => {warn!("Option type not handled: {:?}", option.kind)}
+                    Err(err) => {
+                        error!("Failed to parse user ID. This is because: {}", err);
+                        return Err(CommandError {
+                            message: "Failed to parse user ID".to_string(),
+                            command_error: None
+                        });
+                    }
                 }
-            }
+                match handler.database.get_user(
+                    cmd.guild_id.expect("Could not obtain a guild ID. Was this command executed in a guild?").0 as i64,
+                    user_id.clone()
+                ).await {
+                    Ok(usr) => user = Some(usr),
+                    Err(err) => {
+                        return Err(CommandError {
+                            message: format!("An error occurred while fetching the user from the database. The error was: {}", err),
+                            command_error: None
+                        });
+                    }
+                }
+            },
+            _ => {warn!("Option type not handled: {:?}", option.kind)}
         }
     }
 
@@ -110,6 +106,59 @@ pub async fn user_run(handler: &Handler, ctx: &Context, cmd: &ApplicationCommand
         message_content.push_str("\nThey have also inherited these permissions from their roles:\n");
         for (id, permission) in role_permissions.iter() {
             message_content.push_str(&format!("`{}` from <@&{}>\n", permission.to_string(), id));
+        }
+    }
+
+    return send_message(&ctx, cmd, message_content).await;
+}
+
+pub async fn role_run(handler: &Handler, ctx: &Context, cmd: &ApplicationCommandInteraction) -> Result<(), CommandError> {
+    let mut role_id: i64 = 0;
+    let mut role: Option<Role> = None;
+
+    for option in cmd.data.options[0].options[0].options.iter() {
+        match option.kind {
+            CommandOptionType::Role => {
+                match Value::to_string(&option.value.clone().unwrap()).replace("\"", "").parse::<i64>() {
+                    Ok(id) => {
+                        role_id = id
+                    },
+                    Err(err) => {
+                        error!("Failed to parse role ID. This is because: {}", err);
+                        return Err(CommandError {
+                            message: "Failed to parse role ID".to_string(),
+                            command_error: None
+                        });
+                    }
+                }
+                match handler.database.get_role(
+                    cmd.guild_id.expect("Could not obtain a guild ID. Was this command executed in a guild?").0 as i64,
+                    role_id.clone()
+                ).await {
+                    Ok(rl) => role = Some(rl),
+                    Err(err) => {
+                        return Err(CommandError {
+                            message: format!("An error occurred while fetching the role from the database. The error was: {}", err),
+                            command_error: None
+                        });
+                    }
+                }
+            },
+            _ => {warn!("Option type not handled: {:?}", option.kind)}
+        }
+    }
+
+    if role.is_none() {
+        return send_message(&ctx, cmd, "You must specify a role to view the permission for".to_string()).await;
+    }
+
+    let mut message_content = format!("<@&{}>", role_id).to_string();
+    if role.as_ref().unwrap().permissions.is_empty() {
+        message_content.push_str(" has no permissions");
+    } else {
+        message_content.push_str(" has the following permissions:\n");
+        for permission in role.as_ref().unwrap().permissions.iter() {
+            message_content.push_str(&format!("`{}`\n", permission.to_string()));
         }
     }
 

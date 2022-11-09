@@ -9,51 +9,46 @@ pub async fn user_run(handler: &Handler, ctx: &Context, cmd: &ApplicationCommand
     let mut user: Option<User> = None;
     let mut permission: Option<String> = None;
 
-    for option in cmd.data.options.iter() {
-        if option.kind == CommandOptionType::SubCommand {
-            for option in option.options.iter() {
-                match option.kind {
-                    CommandOptionType::User => {
-                        match Value::to_string(&option.value.clone().unwrap()).replace("\"", "").parse::<i64>() {
-                            Ok(id) => {
-                                user_id = id
-                            },
-                            Err(err) => {
-                                error!("Failed to parse user ID. This is because: {}", err);
-                                return Err(CommandError {
-                                    message: "Failed to parse user ID".to_string(),
-                                    command_error: None
-                                })
-                            }
-                        }
-                        match handler.database.get_user(
-                            cmd.guild_id.expect("Could not obtain a guild ID. Was this command executed in a guild?").0 as i64,
-                            user_id.clone()
-                        ).await {
-                            Ok(usr) => user = Some(usr),
-                            Err(err) => {
-                                return Err(CommandError {
-                                    message: format!("An error occurred while fetching the user from the database. The error was: {}", err),
-                                    command_error: None
-                                });
-                            }
-                        }
+    for option in cmd.data.options[0].options.iter() {
+        match option.kind {
+            CommandOptionType::User => {
+                match Value::to_string(&option.value.clone().unwrap()).replace("\"", "").parse::<i64>() {
+                    Ok(id) => {
+                        user_id = id
                     },
-                    CommandOptionType::String => {
-                        match Permissions::from(option.value.as_ref().unwrap().as_str().unwrap().to_string()) {
-                            Permissions::Unknown => {
-                                return send_message(&ctx, cmd, format!("The permission `{}` is not valid. You can run `/permissions list` to see all valid permissions", option.value.as_ref().unwrap().as_str().unwrap())).await;
-                            },
-                            _ => {
-                                permission = Some(option.value.as_ref().unwrap().as_str().unwrap().to_string());
-                            }
-                        }
-                    },
-                    _ => {warn!("Option type not handled: {:?}", option.kind)}
+                    Err(err) => {
+                        error!("Failed to parse user ID. This is because: {}", err);
+                        return Err(CommandError {
+                            message: "Failed to parse user ID".to_string(),
+                            command_error: None
+                        })
+                    }
                 }
-            }
+                match handler.database.get_user(
+                    cmd.guild_id.expect("Could not obtain a guild ID. Was this command executed in a guild?").0 as i64,
+                    user_id.clone()
+                ).await {
+                    Ok(usr) => user = Some(usr),
+                    Err(err) => {
+                        return Err(CommandError {
+                            message: format!("An error occurred while fetching the user from the database. The error was: {}", err),
+                            command_error: None
+                        });
+                    }
+                }
+            },
+            CommandOptionType::String => {
+                match Permissions::from(option.value.as_ref().unwrap().as_str().unwrap().to_string()) {
+                    Permissions::Unknown => {
+                        return send_message(&ctx, cmd, format!("The permission `{}` is not valid. You can run `/permissions list` to see all valid permissions", option.value.as_ref().unwrap().as_str().unwrap())).await;
+                    },
+                    _ => {
+                        permission = Some(option.value.as_ref().unwrap().as_str().unwrap().to_string());
+                    }
+                }
+            },
+            _ => {warn!("Option type not handled: {:?}", option.kind)}
         }
-        
     }
 
     if user.is_none() {
@@ -64,15 +59,7 @@ pub async fn user_run(handler: &Handler, ctx: &Context, cmd: &ApplicationCommand
     }
 
     let mut permissions = user.clone().unwrap().permissions.clone();
-    
-    // I'm not really a fan of this
-    // I was having issues with code stalling if trying to do .contains() in a vector of permissions
-
-    let mut permission_strings: Vec<String> = Vec::new();
-    for perm in permissions.iter() {
-        permission_strings.push(perm.to_string());
-    }
-    if permission_strings.contains(&permission.clone().unwrap()) {
+    if permissions.contains(&Permissions::from(permission.clone().unwrap())) {
         return send_message(&ctx, cmd, format!("<@{}> already has the `{}` permission", user.unwrap().id, permission.clone().unwrap())).await;
     }
     permissions.push(Permissions::from(permission.clone().unwrap()));
@@ -96,55 +83,46 @@ pub async fn role_run(handler: &Handler, ctx: &Context, cmd: &ApplicationCommand
     let mut role: Option<Role> = None;
     let mut permission: Option<String> = None;
 
-    for option in cmd.data.options.iter() {
-        if option.kind == CommandOptionType::SubCommandGroup {
-            for option in option.options.iter() {
-                if option.kind == CommandOptionType::SubCommand {
-                    for option in option.options.iter() {
-                        match option.kind {
-                            CommandOptionType::Role => {
-                                match Value::to_string(&option.value.clone().unwrap()).replace("\"", "").parse::<i64>() {
-                                    Ok(id) => {
-                                        role_id = id
-                                    },
-                                    Err(err) => {
-                                        error!("Failed to parse role ID. This is because: {}", err);
-                                        return Err(CommandError {
-                                            message: "Failed to parse role ID".to_string(),
-                                            command_error: None
-                                        })
-                                    }
-                                }
-                                match handler.database.get_role(
-                                    cmd.guild_id.expect("Could not obtain a guild ID. Was this command executed in a guild?").0 as i64,
-                                    role_id.clone()
-                                ).await {
-                                    Ok(rl) => role = Some(rl),
-                                    Err(err) => {
-                                        return Err(CommandError {
-                                            message: format!("An error occurred while fetching the role from the database. The error was: {}", err),
-                                            command_error: None
-                                        });
-                                    }
-                                }
-                            },
-                            CommandOptionType::String => {
-                                match Permissions::from(option.value.as_ref().unwrap().as_str().unwrap().to_string()) {
-                                    Permissions::Unknown => {
-                                        return send_message(&ctx, cmd, format!("The permission `{}` is not valid. You can run `/permissions list` to see all valid permissions", option.value.as_ref().unwrap().as_str().unwrap())).await;
-                                    },
-                                    _ => {
-                                        permission = Some(option.value.as_ref().unwrap().as_str().unwrap().to_string());
-                                    }
-                                }
-                            },
-                            _ => {warn!("Option type not handled: {:?}", option.kind)}
-                        }
+    for option in cmd.data.options[0].options[0].options.iter() {
+        match option.kind {
+            CommandOptionType::Role => {
+                match Value::to_string(&option.value.clone().unwrap()).replace("\"", "").parse::<i64>() {
+                    Ok(id) => {
+                        role_id = id
+                    },
+                    Err(err) => {
+                        error!("Failed to parse role ID. This is because: {}", err);
+                        return Err(CommandError {
+                            message: "Failed to parse role ID".to_string(),
+                            command_error: None
+                        })
                     }
                 }
-            }
+                match handler.database.get_role(
+                    cmd.guild_id.expect("Could not obtain a guild ID. Was this command executed in a guild?").0 as i64,
+                    role_id.clone()
+                ).await {
+                    Ok(rl) => role = Some(rl),
+                    Err(err) => {
+                        return Err(CommandError {
+                            message: format!("An error occurred while fetching the role from the database. The error was: {}", err),
+                            command_error: None
+                        });
+                    }
+                }
+            },
+            CommandOptionType::String => {
+                match Permissions::from(option.value.as_ref().unwrap().as_str().unwrap().to_string()) {
+                    Permissions::Unknown => {
+                        return send_message(&ctx, cmd, format!("The permission `{}` is not valid. You can run `/permissions list` to see all valid permissions", option.value.as_ref().unwrap().as_str().unwrap())).await;
+                    },
+                    _ => {
+                        permission = Some(option.value.as_ref().unwrap().as_str().unwrap().to_string());
+                    }
+                }
+            },
+            _ => {warn!("Option type not handled: {:?}", option.kind)}
         }
-        
     }
 
     if role.is_none() {
@@ -155,15 +133,7 @@ pub async fn role_run(handler: &Handler, ctx: &Context, cmd: &ApplicationCommand
     }
 
     let mut permissions = role.clone().unwrap().permissions.clone();
-
-    // I'm not really a fan of this
-    // I was having issues with code stalling if trying to do .contains() in a vector of permissions
-
-    let mut permission_strings: Vec<String> = Vec::new();
-    for perm in permissions.iter() {
-        permission_strings.push(perm.to_string());
-    }
-    if permission_strings.contains(&permission.clone().unwrap()) {
+    if permissions.contains(&Permissions::from(permission.clone().unwrap())) {
         return send_message(&ctx, cmd, format!("<@&{}> already has the `{}` permission", role.unwrap().id, permission.clone().unwrap())).await;
     }
     permissions.push(Permissions::from(permission.clone().unwrap()));

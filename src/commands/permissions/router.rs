@@ -60,6 +60,18 @@ pub async fn route(handler: &Handler, ctx: &Context, cmd: &ApplicationCommandInt
                                 }
                             }
                         },
+                        "view" => {
+                            match handler.requires_permission(&ctx, &cmd, Permissions::PermissionsView).await {
+                                Ok(has_permission) => {
+                                    if has_permission {
+                                        return permissions::view::role_run(&handler, &ctx, &cmd).await;
+                                    }
+                                },
+                                Err(err) => {
+                                    return Err(err);
+                                }
+                            }
+                        }
                         _ => {}
                     }
                 }
