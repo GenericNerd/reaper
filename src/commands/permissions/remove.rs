@@ -52,25 +52,24 @@ pub async fn user_run(handler: &Handler, ctx: &Context, cmd: &ApplicationCommand
     }
 
     if user.is_none() {
-        return send_message(&ctx, cmd, "You must specify a user to add the permission to".to_string()).await;
+        return send_message(&ctx, cmd, "You must specify a user to remove the permission from".to_string()).await;
     }
     if permission.is_none() {
-        return send_message(&ctx, cmd, "You must supply a permission to add to the user".to_string()).await;
+        return send_message(&ctx, cmd, "You must supply a permission to remove from the user".to_string()).await;
     }
-
     let mut permissions = user.clone().unwrap().permissions.clone();
-    if permissions.contains(&Permissions::from(permission.clone().unwrap())) {
-        return send_message(&ctx, cmd, format!("<@{}> already has the `{}` permission", user.unwrap().id, permission.clone().unwrap())).await;
+    if !permissions.contains(&Permissions::from(permission.clone().unwrap())) {
+        return send_message(&ctx, cmd, format!("<@{}> does not has the `{}` permission", user.unwrap().id, permission.clone().unwrap())).await;
     }
-    permissions.push(Permissions::from(permission.clone().unwrap()));
-
+    permissions.retain(|perm| perm != &Permissions::from(permission.clone().unwrap()));
+    
     match handler.database.update_user_permissions(
         cmd.guild_id.expect("Could not obtain a guild ID. Was this command executed in a guild?").0 as i64,
         user.clone().unwrap().id,
         permissions
     ).await {
         Ok(_) => {
-            return send_message(&ctx, cmd, format!("Successfully added the permission `{}` to <@{}>", permission.unwrap(), user.unwrap().id)).await;
+            return send_message(&ctx, cmd, format!("Successfully removed the permission `{}` from <@{}>", permission.unwrap(), user.unwrap().id)).await;
         },
         Err(_) => {
             return send_message(&ctx, cmd, "An error occured while updating permissions. Please contact a developer".to_string()).await;
@@ -126,17 +125,17 @@ pub async fn role_run(handler: &Handler, ctx: &Context, cmd: &ApplicationCommand
     }
 
     if role.is_none() {
-        return send_message(&ctx, cmd, "You must specify a role to add the permission to".to_string()).await;
+        return send_message(&ctx, cmd, "You must specify a role to remove the permission from".to_string()).await;
     }
     if permission.is_none() {
-        return send_message(&ctx, cmd, "You must supply a permission to add to the role".to_string()).await;
+        return send_message(&ctx, cmd, "You must supply a permission to remove from the role".to_string()).await;
     }
 
     let mut permissions = role.clone().unwrap().permissions.clone();
-    if permissions.contains(&Permissions::from(permission.clone().unwrap())) {
-        return send_message(&ctx, cmd, format!("<@&{}> already has the `{}` permission", role.unwrap().id, permission.clone().unwrap())).await;
+    if !permissions.contains(&Permissions::from(permission.clone().unwrap())) {
+        return send_message(&ctx, cmd, format!("<@&{}> does not has the `{}` permission", role.unwrap().id, permission.clone().unwrap())).await;
     }
-    permissions.push(Permissions::from(permission.clone().unwrap()));
+    permissions.retain(|perm| perm != &Permissions::from(permission.clone().unwrap()));
 
     match handler.database.update_role_permissions(
         cmd.guild_id.expect("Could not obtain a guild ID. Was this command executed in a guild?").0 as i64,
@@ -144,7 +143,7 @@ pub async fn role_run(handler: &Handler, ctx: &Context, cmd: &ApplicationCommand
         permissions
     ).await {
         Ok(_) => {
-            return send_message(&ctx, cmd, format!("Successfully added the permission `{}` to the <@&{}>", permission.unwrap(), role.unwrap().id)).await;
+            return send_message(&ctx, cmd, format!("Successfully removed the permission `{}` from the <@&{}>", permission.unwrap(), role.unwrap().id)).await;
         },
         Err(_) => {
             return send_message(&ctx, cmd, "An error occured while updating permissions. Please contact a developer".to_string()).await;

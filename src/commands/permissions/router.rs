@@ -29,7 +29,19 @@ pub async fn route(handler: &Handler, ctx: &Context, cmd: &ApplicationCommandInt
                                 return Err(err);
                             }
                         }
-                    }
+                    },
+                    "remove" => {
+                        match handler.requires_permission(&ctx, &cmd, Permissions::PermissionsRemove).await {
+                            Ok(has_permission) => {
+                                if has_permission {
+                                    return permissions::remove::user_run(&handler, &ctx, &cmd).await;
+                                }
+                            },
+                            Err(err) => {
+                                return Err(err);
+                            }
+                        }
+                    },
                     "list" => {
                         match handler.requires_permission(&ctx, &cmd, Permissions::PermissionsList).await {
                             Ok(has_permission) => {
@@ -65,6 +77,18 @@ pub async fn route(handler: &Handler, ctx: &Context, cmd: &ApplicationCommandInt
                                 Ok(has_permission) => {
                                     if has_permission {
                                         return permissions::view::role_run(&handler, &ctx, &cmd).await;
+                                    }
+                                },
+                                Err(err) => {
+                                    return Err(err);
+                                }
+                            }
+                        },
+                        "remove" => {
+                            match handler.requires_permission(&ctx, &cmd, Permissions::PermissionsRemove).await {
+                                Ok(has_permission) => {
+                                    if has_permission {
+                                        return permissions::remove::role_run(&handler, &ctx, &cmd).await;
                                     }
                                 },
                                 Err(err) => {
