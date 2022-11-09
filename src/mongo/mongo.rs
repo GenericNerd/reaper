@@ -149,7 +149,7 @@ impl Database {
             "id": guild.id,
             "config": {
                 "logging": {},
-                "notify_missing_permissions": guild.config.notify_missing_permissions
+                "notifyMissingPermissions": guild.config.notify_missing_permissions
             }
         }, None).await {
             Ok(_) => {
