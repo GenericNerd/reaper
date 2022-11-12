@@ -5,6 +5,7 @@ use tracing::error;
 mod mongo;
 mod commands;
 mod events;
+
 mod redis;
 pub struct Handler {
     pub database: mongo::mongo::Database,
