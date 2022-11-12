@@ -1,5 +1,6 @@
-use std::env;
+use std::{env, collections::HashMap, time::SystemTime};
 use mongodb::{Client, options::ClientOptions, bson::doc, Collection};
+use serenity::futures::StreamExt;
 use crate::mongo::structs;
 use tracing::error;
 
@@ -64,6 +65,66 @@ impl Database {
                 error!("An error occurred while updating a user's permissions in the database. The error was: {}", err);
                 Err(structs::MongoError {
                     message: "An error occurred while updating a user's permissions in the database".to_string(),
+                    mongo_error: Some(err)
+                })
+            }
+        }
+    }
+
+    pub async fn action_user(&self, action_type: structs::ActionType, user_id: i64, guild_id: i64, moderator_id: i64, reason: String, expiry: Option<i64>) -> Result<structs::Action, structs::MongoError> {
+        let user = self.get_user(guild_id, user_id).await;
+        if let Err(err) = user {
+            return Err(err);
+        }
+        let user = user.ok().unwrap();
+        let actions: Collection<structs::Action> = self.client.database("reaper").collection("actions");
+        let action = structs::Action {
+            action_type: action_type.clone(),
+            user_id: user.id.clone(),
+            guild_id: user.guild_id.clone(),
+            moderator_id: moderator_id,
+            created_at: SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).expect("System time was before Unix epoch").as_secs() as i64,
+            reason: reason,
+            active: true,
+            uuid: uuid::Uuid::new_v4().to_string(),
+            expiry: expiry
+        };
+
+        match actions.insert_one(action.clone(), None).await {
+            Ok(_) => Ok(action),
+            Err(err) => {
+                error!("An error occurred while adding an action to the database. The error was: {}", err);
+                Err(structs::MongoError {
+                    message: "An error occurred while adding an action to the database".to_string(),
+                    mongo_error: Some(err)
+                })
+            }
+        }
+    }
+
+    pub async fn get_user_actions(&self, guild_id: i64, user_id: i64) -> Result<Vec<structs::Action>, structs::MongoError> {
+        let actions: Collection<structs::Action> = self.client.database("reaper").collection("actions");
+        let mut user_actions: Vec<structs::Action> = vec![];
+        match actions.find(doc!{"guildID": guild_id, "userID": user_id}, None).await {
+            Ok(mut actions_cursor) => {
+                while let Some(action) = actions_cursor.next().await {
+                    match action {
+                        Ok(action) => user_actions.push(action),
+                        Err(err) => {
+                            error!("An error occurred while retrieving an action from the database. The error was: {}", err);
+                            return Err(structs::MongoError {
+                                message: "An error occurred while retrieving an action from the database".to_string(),
+                                mongo_error: Some(err)
+                            });
+                        }
+                    }
+                }
+                Ok(user_actions)
+            },
+            Err(err) => {
+                error!("An error occurred while retrieving a user's actions from the database. The error was: {}", err);
+                Err(structs::MongoError {
+                    message: "An error occurred while retrieving a user's actions from the database".to_string(),
                     mongo_error: Some(err)
                 })
             }
@@ -141,6 +202,7 @@ impl Database {
                 logging: structs::LoggingConfig {
                     channel_id: None
                 },
+                strike_escalations: HashMap::new(),
                 notify_missing_permissions: true
             }
         };

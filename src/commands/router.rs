@@ -11,6 +11,18 @@ impl Handler {
                 "permissions" => {
                     commands::permissions::router::route(self, &ctx, &command).await
                 },
+                "strike" => {
+                    commands::moderation::strike::run(self, &ctx, &command).await
+                },
+                "mute" => {
+                    commands::moderation::mute::run(self, &ctx, &command).await
+                },
+                "kick" => {
+                    commands::moderation::kick::run(self, &ctx, &command).await
+                },
+                "ban" => {
+                    commands::moderation::ban::run(self, &ctx, &command).await
+                }
                 _ => {Ok(())}
             };
             match cmd_result {
