@@ -41,7 +41,7 @@ async fn main() {
     };
 
     let mut client = match Client::builder(&token, intents)
-        .event_handler(Handler { database: database, redis })
+        .event_handler(Handler { database, redis })
         .framework(StandardFramework::new()
             .configure(|c| c.with_whitespace(true).prefix(">>")))
         .await {
