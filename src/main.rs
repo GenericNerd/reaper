@@ -8,7 +8,7 @@ mod events;
 mod redis;
 pub struct Handler {
     pub database: mongo::mongo::Database,
-    pub redis: redis::Redis
+    pub redis: redis::redis::Redis
 }
 
 #[tokio::main]
@@ -32,7 +32,7 @@ async fn main() {
         }
     };
 
-    let redis = match redis::connect().await {
+    let redis = match redis::redis::connect().await {
         Ok(ok) => ok,
         Err(err) => {
             error!("A redis database connection could not be established. The error was: {}", err);
