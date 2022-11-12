@@ -18,3 +18,4 @@ strum = "0.24.1"
 strum_macros = "0.24.1"
 uuid = { version = "1.2.1", features = ["v4"] }
 regex = "1.7.0"
+redis = { version = "0.22.1", features = ["tokio-comp"] }

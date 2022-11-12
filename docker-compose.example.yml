@@ -8,11 +8,14 @@ services:
     restart: unless-stopped
     links:
       - mongo
+      - redis
     depends_on:
       - mongo
+      - redis
     environment:
       - DISCORD_TOKEN=
       - MONGO_URI=mongodb://<username>:<password>@mongo:27017
+      - REDIS_URI=redis:6379
 
   mongo:
     image: mongo
@@ -25,9 +28,18 @@ services:
       - MONGO_INITDB_ROOT_USERNAME=<username>
       - MONGO_INITDB_ROOT_PASSWORD=<password>
 
+  redis:
+    image: redis
+    restart: unless-stopped
+    volumes:
+      - redisdata:/data/db
+    ports:
+      - 6379:6379
+
 networks:
   default:
     name: reaper-network
     
 volumes:
   mongodata:
+  redisdata:

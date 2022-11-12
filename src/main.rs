@@ -5,9 +5,10 @@ use tracing::error;
 mod mongo;
 mod commands;
 mod events;
-
+mod redis;
 pub struct Handler {
-    pub database: mongo::mongo::Database
+    pub database: mongo::mongo::Database,
+    pub redis: redis::Redis
 }
 
 #[tokio::main]
@@ -31,8 +32,16 @@ async fn main() {
         }
     };
 
+    let redis = match redis::connect().await {
+        Ok(ok) => ok,
+        Err(err) => {
+            error!("A redis database connection could not be established. The error was: {}", err);
+            return;
+        }
+    };
+
     let mut client = match Client::builder(&token, intents)
-        .event_handler(Handler { database: database })
+        .event_handler(Handler { database: database, redis })
         .framework(StandardFramework::new()
             .configure(|c| c.with_whitespace(true).prefix(">>")))
         .await {
