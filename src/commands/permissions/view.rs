@@ -84,6 +84,7 @@ pub async fn user_run(handler: &Handler, ctx: &Context, cmd: &ApplicationCommand
     }
 
     let mut role_permissions: HashMap<String, Permissions> = HashMap::new();
+    user_roles.push(RoleId{0: guild_id as u64});
     for role in user_roles.iter() {
         match handler.database.get_role(
             guild_id,
