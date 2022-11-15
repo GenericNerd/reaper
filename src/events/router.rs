@@ -15,9 +15,15 @@ impl EventHandler for Handler {
             commands
                 .create_application_command(|command| commands::permissions::router::register(command))
                 .create_application_command(|command| commands::moderation::strike::register(command))
+                .create_application_command(|command| commands::moderation::remove::register(command))
                 .create_application_command(|command| commands::moderation::mute::register(command))
+                .create_application_command(|command| commands::moderation::unmute::register(command))
                 .create_application_command(|command| commands::moderation::kick::register(command))
                 .create_application_command(|command| commands::moderation::ban::register(command))
+                .create_application_command(|command| commands::moderation::unban::register(command))
+                .create_application_command(|command| commands::moderation::search::register(command))
+                .create_application_command(|command| commands::moderation::reason::register(command))
+                .create_application_command(|command| commands::moderation::duration::register(command))
         }).await;
         match commands {
             Ok(commands) => {

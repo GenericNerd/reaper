@@ -35,6 +35,14 @@ pub enum Permissions {
     ModerationKick,
     #[serde(rename = "moderation.ban")]
     ModerationBan,
+    #[serde(rename = "moderation.search.self")]
+    ModerationSearchSelf,
+    #[serde(rename = "moderation.search.self.expired")]
+    ModerationSearchSelfExpired,
+    #[serde(rename = "moderation.search.others")]
+    ModerationSearchOthers,
+    #[serde(rename = "moderation.search.others.expired")]
+    ModerationSearchOthersExpired,
 }
 
 impl PartialEq for Permissions {
@@ -54,6 +62,10 @@ impl From<String> for Permissions {
             "moderation.mute" => Permissions::ModerationMute,
             "moderation.kick" => Permissions::ModerationKick,
             "moderation.ban" => Permissions::ModerationBan,
+            "moderation.search.self" => Permissions::ModerationSearchSelf,
+            "moderation.search.self.expired" => Permissions::ModerationSearchSelfExpired,
+            "moderation.search.others" => Permissions::ModerationSearchOthers,
+            "moderation.search.others.expired" => Permissions::ModerationSearchOthersExpired,
             _ => {
                 warn!("Unknown permission: {}", s);
                 Permissions::Unknown
@@ -73,7 +85,11 @@ impl ToString for Permissions {
             Permissions::ModerationStrike => "moderation.strike".to_string(),
             Permissions::ModerationMute => "moderation.mute".to_string(),
             Permissions::ModerationKick => "moderation.kick".to_string(),
-            Permissions::ModerationBan => "moderation.ban".to_string()
+            Permissions::ModerationBan => "moderation.ban".to_string(),
+            Permissions::ModerationSearchSelf => "moderation.search.self".to_string(),
+            Permissions::ModerationSearchSelfExpired => "moderation.search.self.expired".to_string(),
+            Permissions::ModerationSearchOthers => "moderation.search.others".to_string(),
+            Permissions::ModerationSearchOthersExpired => "moderation.search.others.expired".to_string(),
         }
     }
 }
@@ -88,7 +104,11 @@ impl Permissions {
             Permissions::ModerationStrike,
             Permissions::ModerationMute,
             Permissions::ModerationKick,
-            Permissions::ModerationBan
+            Permissions::ModerationBan,
+            Permissions::ModerationSearchSelf,
+            Permissions::ModerationSearchSelfExpired,
+            Permissions::ModerationSearchOthers,
+            Permissions::ModerationSearchOthersExpired,
         ];
     }
 }
@@ -121,16 +141,22 @@ pub struct Role {
 #[serde(rename_all = "camelCase")]
 pub struct LoggingConfig {
     #[serde(rename = "channelID")]
-    pub channel_id: Option<i64>
+    pub channel_id: i64
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModerationConfig {
+    pub strike_escalations: HashMap<u64, StrikeEscalation>,
+    pub mute_role: i64
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GuildConfig {
-    pub logging: LoggingConfig,
-    pub strike_escalations: HashMap<u64, StrikeEscalation>,
+    pub logging: Option<LoggingConfig>,
+    pub moderation: Option<ModerationConfig>,
     pub notify_missing_permissions: bool
-
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -196,6 +222,8 @@ pub struct StrikeEscalation {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Action {
+    #[serde(rename = "_id")]
+    pub uuid: mongodb::bson::oid::ObjectId,
     pub action_type: ActionType,
     #[serde(rename = "userID")]
     pub user_id: i64,
@@ -206,6 +234,5 @@ pub struct Action {
     pub created_at: i64,
     pub reason: String,
     pub active: bool,
-    pub uuid: String,
     pub expiry: Option<i64>
 }

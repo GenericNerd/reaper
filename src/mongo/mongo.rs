@@ -1,4 +1,4 @@
-use std::{env, collections::HashMap, time::SystemTime};
+use std::{env, time::SystemTime};
 use mongodb::{Client, options::ClientOptions, bson::doc, Collection};
 use serenity::futures::StreamExt;
 use crate::mongo::structs;
@@ -79,6 +79,7 @@ impl Database {
         let user = user.ok().unwrap();
         let actions: Collection<structs::Action> = self.client.database("reaper").collection("actions");
         let action = structs::Action {
+            uuid: mongodb::bson::oid::ObjectId::new(),
             action_type: action_type.clone(),
             user_id: user.id.clone(),
             guild_id: user.guild_id.clone(),
@@ -86,7 +87,6 @@ impl Database {
             created_at: SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).expect("System time was before Unix epoch").as_secs() as i64,
             reason: reason,
             active: true,
-            uuid: uuid::Uuid::new_v4().to_string(),
             expiry: expiry
         };
 
@@ -199,10 +199,8 @@ impl Database {
         let guild = structs::Guild {
             id: guild_id,
             config: structs::GuildConfig {
-                logging: structs::LoggingConfig {
-                    channel_id: None
-                },
-                strike_escalations: HashMap::new(),
+                logging: None,
+                moderation: None,
                 notify_missing_permissions: true
             }
         };
