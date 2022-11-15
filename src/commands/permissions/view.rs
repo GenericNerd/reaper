@@ -1,20 +1,45 @@
 use std::collections::HashMap;
 
 use serde_json::Value;
-use serenity::{prelude::Context, model::prelude::{interaction::application_command::ApplicationCommandInteraction, command::CommandOptionType}};
+use serenity::{prelude::Context, model::prelude::{interaction::application_command::ApplicationCommandInteraction, command::CommandOptionType, RoleId, UserId, GuildId}};
 use tracing::{error, warn};
 use crate::{Handler, commands::{structs::CommandError, utils::send_message}, mongo::structs::{User, Permissions, Role}};
 
 pub async fn user_run(handler: &Handler, ctx: &Context, cmd: &ApplicationCommandInteraction) -> Result<(), CommandError> {
+    let guild_id: i64 = cmd.guild_id.expect("Could not obtain a guild ID. Was this command executed in a guild?").0 as i64;
     let mut user_id: i64 = 0;
     let mut user: Option<User> = None;
+    let mut user_roles: Vec<RoleId> = vec![];
 
     for option in cmd.data.options[0].options.iter() {
         match option.kind {
             CommandOptionType::User => {
                 match Value::to_string(&option.value.clone().unwrap()).replace("\"", "").parse::<i64>() {
                     Ok(id) => {
-                        user_id = id
+                        user_id = id;
+                        match ctx.cache.member(
+                            GuildId{0: guild_id as u64},
+                            UserId{0: user_id as u64}
+                        ) {
+                            Some(member) => {
+                                user_roles = member.roles.clone();
+                            },
+                            None => {
+                                warn!("Could not obtain a member from the cache. Attempting to obtain through a HTTP request.");
+                                match ctx.http.get_member(guild_id as u64, user_id as u64).await {
+                                    Ok(member) => {
+                                        user_roles = member.roles.clone();
+                                    },
+                                    Err(err) => {
+                                        error!("Could not obtain a member through a HTTP request: {}", err);
+                                        return Err(CommandError {
+                                            message: "Could not obtain the member given.".to_string(),
+                                            command_error: None
+                                        });
+                                    }
+                                }
+                            }
+                        }
                     },
                     Err(err) => {
                         error!("Failed to parse user ID. This is because: {}", err);
@@ -25,7 +50,7 @@ pub async fn user_run(handler: &Handler, ctx: &Context, cmd: &ApplicationCommand
                     }
                 }
                 match handler.database.get_user(
-                    cmd.guild_id.expect("Could not obtain a guild ID. Was this command executed in a guild?").0 as i64,
+                    guild_id.clone(),
                     user_id.clone()
                 ).await {
                     Ok(usr) => user = Some(usr),
@@ -43,8 +68,9 @@ pub async fn user_run(handler: &Handler, ctx: &Context, cmd: &ApplicationCommand
 
     if user.is_none() {
         user_id = cmd.member.as_ref().expect("Could not obtain invoking member. Was this command executed in a guild?").user.id.0 as i64;
+        user_roles = cmd.member.as_ref().expect("Could not obtain invoking member. Was this command executed in a guild?").roles.clone();
         match handler.database.get_user(
-            cmd.guild_id.expect("Could not obtain a guild ID. Was this command executed in a guild?").0 as i64,
+            guild_id.clone(),
             user_id
         ).await {
             Ok(usr) => user = Some(usr),
@@ -58,9 +84,9 @@ pub async fn user_run(handler: &Handler, ctx: &Context, cmd: &ApplicationCommand
     }
 
     let mut role_permissions: HashMap<String, Permissions> = HashMap::new();
-    for role in cmd.member.as_ref().unwrap().roles.iter() {
+    for role in user_roles.iter() {
         match handler.database.get_role(
-            cmd.guild_id.expect("Could not obtain a guild ID. Was this command executed in a guild?").0 as i64,
+            guild_id,
             role.0 as i64
         ).await {
             Ok(role) => {
