@@ -1108,7 +1108,6 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
- "uuid 1.2.1",
 ]
 
 [[package]]

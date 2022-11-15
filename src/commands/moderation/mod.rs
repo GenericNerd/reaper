@@ -1,4 +1,10 @@
 pub mod strike;
+pub mod remove;
 pub mod mute;
+pub mod unmute;
 pub mod kick;
 pub mod ban;
+pub mod unban;
+pub mod search;
+pub mod reason;
+pub mod duration;

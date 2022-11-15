@@ -1,9 +1,20 @@
 use serde_json::Value;
-use serenity::{builder::CreateApplicationCommand, model::prelude::{command::CommandOptionType, interaction::application_command::ApplicationCommandInteraction, UserId}, prelude::Context};
+use serenity::{builder::CreateApplicationCommand, model::{prelude::{command::CommandOptionType, interaction::application_command::ApplicationCommandInteraction, UserId}, user::User}, prelude::Context};
 use tracing::{error, warn};
 use crate::{Handler, commands::{structs::CommandError, utils::{send_message, Duration}}, mongo::structs::{Permissions, ActionType}};
 
 pub async fn run(handler: &Handler, ctx: &Context, cmd: &ApplicationCommandInteraction) -> Result<(), CommandError> {
+    match handler.requires_permission(&ctx, &cmd, Permissions::ModerationStrike).await {
+        Ok(has_permission) => {
+            if !has_permission {
+                return Ok(())
+            }
+        }
+        Err(err) => {
+            return Err(err)
+        }
+    }
+
     let guild = match handler.database.get_guild(cmd.guild_id.expect("Could not obtain guild ID. Was this command executed in a guild?").0 as i64).await {
         Ok(guild) => guild,
         Err(err) => {
@@ -16,18 +27,10 @@ pub async fn run(handler: &Handler, ctx: &Context, cmd: &ApplicationCommandInter
             );
         }
     };
-
-    match handler.requires_permission(&ctx, &cmd, Permissions::ModerationStrike).await {
-        Ok(has_permission) => {
-            if !has_permission {
-                return Ok(())
-            }
-        }
-        Err(err) => {
-            return Err(err)
-        }
-    }
-    let user_id: i64;
+    #[allow(unused_assignments)]
+    let mut user_id: i64 = 0;
+    #[warn(unused_assignments)]
+    
     match Value::to_string(&cmd.data.options[0].value.clone().unwrap()).replace("\"", "").parse::<i64>() {
         Ok(id) => {
             user_id = id
@@ -82,8 +85,8 @@ pub async fn run(handler: &Handler, ctx: &Context, cmd: &ApplicationCommandInter
                     strikes += 1;
                 }
             }
-            match guild.config.strike_escalations.get(&strikes) {
-                Some(escalation) => {
+            if let Some(moderation_config) = guild.clone().config.moderation {
+                if let Some(escalation) = moderation_config.strike_escalations.get(&strikes) {
                     match escalation.action_type {
                         ActionType::Unknown => {
                             warn!("Unknown action type for escalation");
@@ -92,7 +95,16 @@ pub async fn run(handler: &Handler, ctx: &Context, cmd: &ApplicationCommandInter
                             warn!("Strike is not a valid action type for escalation");
                         }
                         ActionType::Mute => {
-
+                            match handler.mute_user(&ctx, guild.clone().id, user_id, format!("Strike escalation: {}", reason)).await {
+                                Ok(_) => {
+                                    if let Err(err) = handler.database.action_user(ActionType::Mute, user_id, guild.clone().id, ctx.cache.current_user().id.0 as i64, format!("Strike escalation: {}", reason), duration).await {
+                                        warn!("Failed to action user, but user was muted: {}", err);
+                                    }
+                                },
+                                Err(err) => {
+                                    warn!("Could not escalate strike (mute): {}", err);
+                                }
+                            }
                         },
                         ActionType::Kick => {
 
@@ -101,8 +113,7 @@ pub async fn run(handler: &Handler, ctx: &Context, cmd: &ApplicationCommandInter
 
                         }
                     }
-                },
-                None => {}
+                }
             }
         },
         Err(err) => {
@@ -124,23 +135,38 @@ pub async fn run(handler: &Handler, ctx: &Context, cmd: &ApplicationCommandInter
     ).await {
         Ok(action) => {
             let mut messaged_user = false;
+            let user: Option<User>;
             match ctx.cache.user(UserId(user_id as u64)) {
-                Some(user) => {
-                    let message_content = format!("You have been struck in {} by <@{}> for the following reason: `{}`", cmd.guild_id.expect("Could not obtain guild ID. Was this command executed in a guild?").to_partial_guild(&ctx).await.unwrap().name, action.moderator_id, reason);
-                    match user.direct_message(&ctx.http, |message| {
-                        message
-                            .content(message_content)
-                    }).await {
-                        Ok(_) => messaged_user = true,
-                        Err(err) => {
-                            warn!("Failed to message user. This is because: {}", err);
-                        }
-                    }
+                Some(usr) => {
+                    user = Some(usr);
                 },
                 None => {
-                    return send_message(&ctx, &cmd, format!("The user with ID `{}` does not exist", user_id)).await;
+                    warn!("Could not obtain user from cache. Attempting to obtain through a HTTP request");
+                    match ctx.http.get_user(user_id as u64).await {
+                        Ok(usr) => {
+                            user = Some(usr);
+                        },
+                        Err(err) => {
+                            warn!("Could not obtain user from HTTP request: {}", err);
+                            user = None;
+                        }
+                    }
+                    
                 }
             }
+            if user.is_some() {
+                let message_content = format!("You have been struck in {} by <@{}> for the following reason: `{}`", cmd.guild_id.expect("Could not obtain guild ID. Was this command executed in a guild?").to_partial_guild(&ctx).await.unwrap().name, action.moderator_id, reason);
+                match user.unwrap().direct_message(&ctx.http, |message| {
+                    message
+                        .content(message_content)
+                }).await {
+                    Ok(_) => messaged_user = true,
+                    Err(err) => {
+                        warn!("Failed to message user. This is because: {}", err);
+                    }
+                }
+            }
+            
             let mut content = format!("Striked <@{}>", user_id);
             if let Some(duration) = duration {
                 content.push_str(format!(" for <t:{}:R>", duration).as_str());

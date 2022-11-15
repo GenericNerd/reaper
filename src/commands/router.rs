@@ -22,6 +22,9 @@ impl Handler {
                 },
                 "ban" => {
                     commands::moderation::ban::run(self, &ctx, &command).await
+                },
+                "search" => {
+                    commands::moderation::search::run(self, &ctx, &command).await
                 }
                 _ => {Ok(())}
             };
@@ -76,6 +79,24 @@ impl Handler {
                         command_error: None
                     });
                 }
+            }
+        }
+
+        // Check for @everyone permissions
+        match self.database.get_role(
+            guild.id.0 as i64,
+            guild.id.0 as i64
+        ).await {
+            Ok(role) => {
+                if role.permissions.contains(&permission) {
+                    return Ok(true);
+                }
+            },
+            Err(err) => {
+                return Err(CommandError {
+                    message: format!("An error occurred while fetching the role from the database. The error was: {}", err),
+                    command_error: None
+                });
             }
         }
 
