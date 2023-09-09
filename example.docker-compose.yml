@@ -1,0 +1,34 @@
+name: reaper
+services:
+  bot:
+    build:
+      context: .
+    restart: unless-stopped
+    networks:
+      - database
+    environment:
+      - DB_USER=[USERNAME]
+      - DB_PASSWORD=[PASSWORD]
+      - DB_HOST=database
+      - DB_NAME=[NAME]
+    ports:
+      - 5000:5000
+    depends_on:
+      - database
+  database:
+    image: postgres:15.3
+    restart: unless-stopped
+    networks:
+      - database
+    environment:
+      - POSTGRES_USER=[USERNAME]
+      - POSTGRES_PASSWORD=[PASSWORD]
+    ports:
+      - 5432:5432
+    volumes: 
+      - database:/var/lib/postgresql/data
+networks:
+  database: {}
+volumes:
+  database:
+    driver: local
