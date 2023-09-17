@@ -1,3 +1,4 @@
+#[derive(strum::EnumIter)]
 pub enum Permission {
     PermissionsView,
     PermissionsEdit,
@@ -75,5 +76,11 @@ impl From<String> for Permission {
             "moderation.reason" => Permission::ModerationReason,
             _ => panic!("Invalid permission"),
         }
+    }
+}
+
+impl PartialEq for Permission {
+    fn eq(&self, other: &Self) -> bool {
+        self.to_string() == other.to_string()
     }
 }

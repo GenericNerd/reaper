@@ -1,4 +1,5 @@
 #![warn(clippy::pedantic)]
+#![allow(clippy::module_name_repetitions)]
 
 use serenity::{framework::StandardFramework, prelude::GatewayIntents, Client};
 use sqlx::postgres::PgPoolOptions;
@@ -13,7 +14,9 @@ mod models;
 #[tokio::main]
 async fn main() {
     println!("cargo:rerun-if-changed=migrations");
-    tracing_subscriber::fmt::init();
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::DEBUG)
+        .init();
 
     info!("Getting environment variables");
     let discord_token = std::env::var("DISCORD_TOKEN").unwrap();
@@ -25,8 +28,7 @@ async fn main() {
 
     // Main database connection
     let connection_url = format!(
-        "postgres://{}:{}@{}:{}/{}",
-        main_db_username, main_db_password, main_db_host, main_db_port, main_db_name
+        "postgres://{main_db_username}:{main_db_password}@{main_db_host}:{main_db_port}/{main_db_name}"
     );
     info!("Establishing connection to main database");
     let main_database = PgPoolOptions::new().connect(&connection_url).await.unwrap();

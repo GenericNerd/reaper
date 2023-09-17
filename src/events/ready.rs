@@ -13,12 +13,13 @@ impl Handler {
 
         info!("Adding current commands to slash commands list");
         let mut successful_commands = vec![];
-        for (name, command) in get_command_list() {
-            match Command::create_global_command(&ctx.http, command).await {
-                Ok(_) => successful_commands.push(name),
+        for command in get_command_list() {
+            match Command::create_global_command(&ctx.http, command.register()).await {
+                Ok(_) => successful_commands.push(command.name()),
                 Err(e) => error!(
                     "Attempted to register command {} but failed with error: {}",
-                    name, e
+                    command.name(),
+                    e
                 ),
             }
         }
