@@ -1,14 +1,13 @@
-use crate::models::command::Context;
 use serenity::{
     all::{CommandInteraction, CommandOptionType},
     builder::{CreateCommand, CreateCommandOption, CreateEmbed},
 };
 
 use crate::models::{
-    command::{Command, CommandContext, CommandResult},
+    command::{Command, CommandContext, CommandContextReply},
     handler::Handler,
     permissions::Permission,
-    response::Response,
+    response::{Response, ResponseError, ResponseResult},
 };
 
 pub mod user;
@@ -62,21 +61,12 @@ impl Command for PermissionsCommand {
         handler: &Handler,
         ctx: &CommandContext,
         cmd: &CommandInteraction,
-    ) -> CommandResult {
+    ) -> ResponseResult {
         if !ctx.user_permissions.contains(&Permission::PermissionsView) {
-            return ctx.reply(
-                cmd,
-                Response::new()
-                    .embed(CreateEmbed::new()
-                        .title("You do not have permission to do this!")
-                        .description(format!(
-                            "You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.",
-                            Permission::PermissionsView.to_string()
-                        ))
-                        .color(0xf00)
-                    )
-                )
-                .await;
+            return Err(ResponseError::ExecutionError(
+                "You do not have permission to do this!",
+                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::PermissionsView.to_string())),
+            ));
         }
 
         for option in cmd.data.options.iter() {

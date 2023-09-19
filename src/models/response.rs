@@ -5,7 +5,17 @@ pub struct Response {
     pub embeds: Option<Vec<CreateEmbed>>,
     pub allowed_mentions: Option<CreateAllowedMentions>,
     pub components: Option<Vec<CreateActionRow>>,
+    pub ephemeral: bool,
 }
+
+#[derive(Debug)]
+pub enum ResponseError {
+    SerenityError(serenity::Error),
+    ExecutionError(&'static str, Option<String>),
+    Other(Box<dyn std::error::Error + Sync + Send>),
+}
+
+pub type ResponseResult = Result<(), ResponseError>;
 
 impl Response {
     pub fn new() -> Self {
@@ -14,6 +24,7 @@ impl Response {
             embeds: None,
             allowed_mentions: None,
             components: None,
+            ephemeral: false,
         }
     }
 
@@ -39,6 +50,11 @@ impl Response {
 
     pub fn components(mut self, components: Vec<CreateActionRow>) -> Self {
         self.components = Some(components);
+        self
+    }
+
+    pub fn ephemeral(mut self, ephemeral: bool) -> Self {
+        self.ephemeral = ephemeral;
         self
     }
 }

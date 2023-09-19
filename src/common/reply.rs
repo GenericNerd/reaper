@@ -1,7 +1,7 @@
 use std::sync::atomic::Ordering;
 
 use serenity::{
-    all::CommandInteraction,
+    all::{CommandInteraction, Message},
     builder::{
         CreateInteractionResponse, CreateInteractionResponseMessage, EditInteractionResponse,
     },
@@ -9,15 +9,19 @@ use serenity::{
 use tracing::{debug, error};
 
 use crate::models::{
-    command::{CommandContext, CommandError, CommandResult, Context, FailedCommandContext},
-    response::Response,
+    command::{CommandContext, CommandContextReply, FailedCommandContext},
+    response::{Response, ResponseError, ResponseResult},
 };
 
 #[async_trait::async_trait]
-impl Context for CommandContext {
-    async fn reply(&self, cmd: &CommandInteraction, response: Response) -> CommandResult {
+impl CommandContextReply for CommandContext {
+    async fn reply_get_message(
+        &self,
+        cmd: &CommandInteraction,
+        response: Response,
+    ) -> Result<Message, ResponseError> {
         let start = std::time::Instant::now();
-        if self.has_responsed.load(Ordering::Relaxed) {
+        let message = if self.has_responsed.load(Ordering::Relaxed) {
             let mut edit = EditInteractionResponse::new();
             if let Some(content) = response.content {
                 edit = edit.content(content);
@@ -32,9 +36,12 @@ impl Context for CommandContext {
                 edit = edit.components(components);
             }
 
-            if let Err(err) = cmd.edit_response(&self.ctx.http, edit).await {
-                error!("Attempted to edit a response to a command, failed with error: {err}");
-                return Err(CommandError::SerenityError(err));
+            match cmd.edit_response(&self.ctx.http, edit).await {
+                Ok(message) => message,
+                Err(err) => {
+                    error!("Attempted to edit a response to a command, failed with error: {err}");
+                    return Err(ResponseError::SerenityError(err));
+                }
             }
         } else {
             let mut reply = CreateInteractionResponseMessage::new();
@@ -50,26 +57,51 @@ impl Context for CommandContext {
             if let Some(components) = response.components {
                 reply = reply.components(components);
             }
+            if response.ephemeral {
+                reply = reply.ephemeral(true);
+            }
 
             match cmd
                 .create_response(&self.ctx.http, CreateInteractionResponse::Message(reply))
                 .await
             {
-                Ok(_) => self.has_responsed.store(true, Ordering::Relaxed),
+                Ok(_) => {
+                    self.has_responsed.store(true, Ordering::Relaxed);
+                    match cmd.get_response(&self.ctx.http).await {
+                        Ok(message) => message,
+                        Err(err) => {
+                            error!(
+                                "A message was sent, but failed to fetch, failed with error: {err}"
+                            );
+                            return Err(ResponseError::SerenityError(err));
+                        }
+                    }
+                }
                 Err(err) => {
                     error!("Attempted to create a response to a command, failed with error: {err}");
-                    return Err(CommandError::SerenityError(err));
+                    return Err(ResponseError::SerenityError(err));
                 }
-            };
-        }
+            }
+        };
         debug!("Took {:?} to reply to a command", start.elapsed());
-        return Ok(());
+        return Ok(message);
+    }
+
+    async fn reply(&self, cmd: &CommandInteraction, response: Response) -> ResponseResult {
+        if let Err(err) = self.reply_get_message(cmd, response).await {
+            return Err(err);
+        }
+        Ok(())
     }
 }
 
 #[async_trait::async_trait]
-impl Context for FailedCommandContext {
-    async fn reply(&self, cmd: &CommandInteraction, response: Response) -> CommandResult {
+impl CommandContextReply for FailedCommandContext {
+    async fn reply_get_message(
+        &self,
+        cmd: &CommandInteraction,
+        response: Response,
+    ) -> Result<Message, ResponseError> {
         let start = std::time::Instant::now();
         let mut reply = CreateInteractionResponseMessage::new();
         if let Some(content) = response.content {
@@ -84,16 +116,35 @@ impl Context for FailedCommandContext {
         if let Some(components) = response.components {
             reply = reply.components(components);
         }
+        if response.ephemeral {
+            reply = reply.ephemeral(true);
+        }
 
-        if let Err(err) = cmd
+        let message = match cmd
             .create_response(&self.ctx.http, CreateInteractionResponse::Message(reply))
             .await
         {
-            error!("Attempted to create a response to a command, failed with error: {err}");
-            return Err(CommandError::SerenityError(err));
-        }
+            Ok(_) => match cmd.get_response(&self.ctx.http).await {
+                Ok(message) => message,
+                Err(err) => {
+                    error!("A message was sent, but failed to fetch, failed with error: {err}");
+                    return Err(ResponseError::SerenityError(err));
+                }
+            },
+            Err(err) => {
+                error!("Attempted to create a response to a command, failed with error: {err}");
+                return Err(ResponseError::SerenityError(err));
+            }
+        };
 
         debug!("Took {:?} to reply to a command", start.elapsed());
-        return Ok(());
+        return Ok(message);
+    }
+
+    async fn reply(&self, cmd: &CommandInteraction, response: Response) -> ResponseResult {
+        if let Err(err) = self.reply_get_message(cmd, response).await {
+            return Err(err);
+        }
+        Ok(())
     }
 }

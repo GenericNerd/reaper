@@ -1,4 +1,4 @@
-#[derive(strum::EnumIter)]
+#[derive(strum::EnumIter, Clone)]
 pub enum Permission {
     PermissionsView,
     PermissionsEdit,

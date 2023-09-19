@@ -1,9 +1,10 @@
-use crate::models::command::Context;
 use std::sync::atomic::AtomicBool;
 use strum::IntoEnumIterator;
 
 use serenity::{
     all::{CommandInteraction, PartialGuild},
+    builder::CreateEmbed,
+    model::Permissions,
     prelude::Context as IncomingContext,
 };
 use tracing::{debug, error};
@@ -12,10 +13,10 @@ use crate::{
     commands::get_command_list,
     database::postgres::permissions::{get_role, get_user},
     models::{
-        command::{CommandContext, FailedCommandContext},
+        command::{CommandContext, CommandContextReply, FailedCommandContext},
         handler::Handler,
         permissions::Permission,
-        response::Response,
+        response::{Response, ResponseError},
     },
 };
 
@@ -84,6 +85,13 @@ impl Handler {
                 }
             }
             for role in command.member.clone().unwrap().roles {
+                if let Some(role) = guild.roles.get(&role) {
+                    if role.permissions.contains(Permissions::ADMINISTRATOR) {
+                        user_permissions = Permission::iter().collect::<Vec<_>>();
+                        break;
+                    }
+                }
+
                 for role_permission in
                     get_role(self, guild_id.0.get() as i64, role.0.get() as i64).await
                 {
@@ -110,7 +118,57 @@ impl Handler {
                     .router(self, &command_context, &command)
                     .await
                 {
-                    error!("Failed to handle command: {:?}", err);
+                    error!("Failed to handle command: {:?}. Sending error message", err);
+                    match err {
+                        ResponseError::ExecutionError(title, description) => {
+                            if let Err(err) = command_context
+                                .reply(
+                                    &command,
+                                    Response::new().embed(
+                                        CreateEmbed::new()
+                                            .title(title)
+                                            .description(description.unwrap_or("".to_string()))
+                                            .color(0xf00),
+                                    ),
+                                )
+                                .await
+                            {
+                                error!("Failed to send error message: {:?}", err);
+                            }
+                        }
+                        ResponseError::SerenityError(err) => {
+                            if let Err(err) = command_context
+                                .reply(
+                                    &command,
+                                    Response::new().embed(
+                                        CreateEmbed::new()
+                                            .title("A Discord error occured while executing the command")
+                                            .description(format!("```{:?}```", err))
+                                            .color(0xf00),
+                                    ),
+                                )
+                                .await
+                            {
+                                error!("Failed to send error message: {:?}", err);
+                            }
+                        }
+                        ResponseError::Other(err) => {
+                            if let Err(err) = command_context
+                                .reply(
+                                    &command,
+                                    Response::new().embed(
+                                        CreateEmbed::new()
+                                            .title("An error occured while executing the command")
+                                            .description(format!("```{:?}```", err))
+                                            .color(0xf00),
+                                    ),
+                                )
+                                .await
+                            {
+                                error!("Failed to send error message: {:?}", err);
+                            }
+                        }
+                    }
                 }
             }
         }

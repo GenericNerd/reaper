@@ -32,6 +32,64 @@ pub async fn get_user(handler: &Handler, guild_id: i64, user_id: i64) -> Vec<Per
         .collect()
 }
 
+pub async fn add_permission_to_user(
+    handler: &Handler,
+    guild_id: i64,
+    user_id: i64,
+    permission: &Permission,
+) {
+    debug!(
+        "Querying main database to add permission {} to user {user_id} in guild {guild_id}",
+        permission.to_string()
+    );
+    match sqlx::query!(
+        "INSERT INTO users (guild_id, id, permission) VALUES ($1, $2, $3)",
+        guild_id,
+        user_id,
+        permission.to_string()
+    )
+    .execute(&handler.main_database)
+    .await
+    {
+        Ok(_) => (),
+        Err(err) => {
+            error!(
+                "Attempted to query main database to add permission {} to user {user_id} in guild {guild_id}, failed with error: {err}",
+                permission.to_string()
+            );
+        }
+    }
+}
+
+pub async fn remove_permission_from_user(
+    handler: &Handler,
+    guild_id: i64,
+    user_id: i64,
+    permission: &Permission,
+) {
+    debug!(
+        "Querying main database to remove permission {} from user {user_id} in guild {guild_id}",
+        permission.to_string()
+    );
+    match sqlx::query!(
+        "DELETE FROM users WHERE guild_id = $1 AND id = $2 AND permission = $3",
+        guild_id,
+        user_id,
+        permission.to_string()
+    )
+    .execute(&handler.main_database)
+    .await
+    {
+        Ok(_) => (),
+        Err(err) => {
+            error!(
+                "Attempted to query main database to remove permission {} from user {user_id} in guild {guild_id}, failed with error: {err}",
+                permission.to_string()
+            );
+        }
+    }
+}
+
 pub async fn get_role(handler: &Handler, guild_id: i64, role_id: i64) -> Vec<Permission> {
     debug!("Querying main database for role {role_id} permissions in guild {guild_id}");
     let permissions = match sqlx::query_as!(

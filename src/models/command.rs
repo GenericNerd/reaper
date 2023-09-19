@@ -1,26 +1,25 @@
 use std::sync::atomic::AtomicBool;
 
 use serenity::{
-    all::{CommandInteraction, PartialGuild},
+    all::{CommandInteraction, Message, PartialGuild},
     builder::CreateCommand,
     prelude::Context as IncomingContext,
-    Error as SerenityError,
 };
 
-use super::{handler::Handler, permissions::Permission, response::Response};
-
-#[derive(Debug)]
-pub enum CommandError {
-    SerenityError(SerenityError),
-    ExecutionError(&'static str),
-    Other(Box<dyn std::error::Error + Sync + Send>),
-}
-
-pub type CommandResult = Result<(), CommandError>;
+use super::{
+    handler::Handler,
+    permissions::Permission,
+    response::{Response, ResponseError, ResponseResult},
+};
 
 #[async_trait::async_trait]
-pub trait Context {
-    async fn reply(&self, cmd: &CommandInteraction, response: Response) -> CommandResult;
+pub trait CommandContextReply {
+    async fn reply(&self, cmd: &CommandInteraction, response: Response) -> ResponseResult;
+    async fn reply_get_message(
+        &self,
+        cmd: &CommandInteraction,
+        response: Response,
+    ) -> Result<Message, ResponseError>;
 }
 
 pub struct CommandContext {
@@ -43,5 +42,5 @@ pub trait Command: Send + Sync {
         handler: &Handler,
         ctx: &CommandContext,
         command: &CommandInteraction,
-    ) -> CommandResult;
+    ) -> ResponseResult;
 }
