@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM users WHERE guild_id = $1 AND id = $2 AND permission = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2acd7d65fde22fdb01a87431931fbd2c046aed3b8ffb4ff6ec5f7249f612e5b1"
+}
