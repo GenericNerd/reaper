@@ -15,7 +15,7 @@ use tracing::error;
 use crate::{
     common::options::Options,
     database::postgres::permissions::{
-        add_permission_to_user, get_user, remove_permission_from_user,
+        add_permission_to_role, get_role, get_user, remove_permission_from_role,
     },
     models::{
         command::{CommandContext, CommandContextReply},
@@ -49,7 +49,7 @@ fn create_components(permissions: &Vec<Permission>) -> Vec<CreateActionRow> {
     ]
 }
 
-pub async fn user(
+pub async fn role(
     handler: &Handler,
     ctx: &CommandContext,
     cmd: &CommandInteraction,
@@ -59,27 +59,21 @@ pub async fn user(
     let options = Options {
         options: cmd.data.options(),
     };
-    let user = match options.get_user("user").into_owned() {
-        Some(user) => user,
+    let role = match options.get_role("role").into_owned() {
+        Some(role) => role,
         None => {
-            return Err(ResponseError::ExecutionError("No member found!", Some("The user option either was not provided, or this command was not ran in a guild. Both of these should not occur, if they do, please contact a developer.".to_string())));
+            return Err(ResponseError::ExecutionError("No member found!", Some("The role option either was not provided, or this command was not ran in a guild. Both of these should not occur, if they do, please contact a developer.".to_string())));
         }
     };
 
-    let existing_permissions = if user.id == ctx.guild.owner_id {
-        Permission::iter().collect::<Vec<_>>()
-    } else {
-        get_user(
-            handler,
-            cmd.guild_id.unwrap().get() as i64,
-            user.id.get() as i64,
-        )
-        .await
-    };
+    let existing_permissions = get_role(
+        handler,
+        cmd.guild_id.unwrap().get() as i64,
+        role.id.get() as i64,
+    )
+    .await;
 
-    let components = if !ctx.user_permissions.contains(&Permission::PermissionsEdit)
-        || user.id == ctx.guild.owner_id
-    {
+    let components = if !ctx.user_permissions.contains(&Permission::PermissionsEdit) {
         vec![]
     } else {
         create_components(&existing_permissions)
@@ -91,7 +85,7 @@ pub async fn user(
             Response::new()
                 .embed(
                     CreateEmbed::new()
-                        .title(format!("{}'s permissions", user.name))
+                        .title(format!("{}'s permissions", role.name))
                         .description(
                             existing_permissions
                                 .iter()
@@ -111,8 +105,7 @@ pub async fn user(
         Err(err) => return Err(err),
     };
 
-    if !ctx.user_permissions.contains(&Permission::PermissionsEdit) || user.id == ctx.guild.owner_id
-    {
+    if !ctx.user_permissions.contains(&Permission::PermissionsEdit) {
         return Ok(());
     }
 
@@ -164,10 +157,10 @@ pub async fn user(
                 if interaction.data.custom_id == "done" {
                     for permission in &existing_permissions {
                         if !temp_permissions.contains(&permission) {
-                            remove_permission_from_user(
+                            remove_permission_from_role(
                                 &handler,
                                 ctx.guild.id.0.get() as i64,
-                                user.id.0.get() as i64,
+                                role.id.0.get() as i64,
                                 &permission,
                             )
                             .await;
@@ -175,10 +168,10 @@ pub async fn user(
                     }
                     for permission in temp_permissions {
                         if !existing_permissions.contains(&permission) {
-                            add_permission_to_user(
+                            add_permission_to_role(
                                 &handler,
                                 ctx.guild.id.0.get() as i64,
-                                user.id.0.get() as i64,
+                                role.id.0.get() as i64,
                                 &permission,
                             )
                             .await;
@@ -229,7 +222,7 @@ pub async fn user(
                 Response::new()
                     .embed(
                         CreateEmbed::new()
-                            .title(format!("{}'s permissions", user.name))
+                            .title(format!("{}'s permissions", role.name))
                             .description(
                                 temp_permissions
                                     .iter()

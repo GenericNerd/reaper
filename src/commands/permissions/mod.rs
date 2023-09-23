@@ -10,6 +10,7 @@ use crate::models::{
     response::{Response, ResponseError, ResponseResult},
 };
 
+pub mod role;
 pub mod user;
 
 pub struct PermissionsCommand;
@@ -72,6 +73,7 @@ impl Command for PermissionsCommand {
         for option in cmd.data.options.iter() {
             match option.name.as_str() {
                 "user" => return user::user(handler, ctx, cmd).await,
+                "role" => return role::role(handler, ctx, cmd).await,
                 _ => continue,
             }
         }
