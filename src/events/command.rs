@@ -24,45 +24,38 @@ impl Handler {
     pub async fn on_command(&self, ctx: IncomingContext, command: CommandInteraction) {
         let start = std::time::Instant::now();
 
-        let guild_id = match command.guild_id {
-            Some(guild_id) => guild_id,
-            None => {
-                let fail_context = FailedCommandContext { ctx };
+        let Some(guild_id) = command.guild_id else {
+            let fail_context = FailedCommandContext { ctx };
+            if let Err(err) = fail_context
+                .reply(
+                    &command,
+                    Response::new().content("Reaper cannot be used outside of guilds".to_string()),
+                )
+                .await
+            {
+                error!("Failed to reply to command: {:?}", err);
+            }
+            return;
+        };
+
+        let mut temp_guild = guild_id
+            .to_guild_cached(&ctx.cache)
+            .map(|guild| PartialGuild::from(guild.clone()));
+        if temp_guild.is_none() {
+            temp_guild = if let Ok(guild) = guild_id.to_partial_guild(&ctx.http).await {
+                Some(guild)
+            } else {
+                let fail_context = FailedCommandContext { ctx: ctx.clone() };
                 if let Err(err) = fail_context
                     .reply(
                         &command,
-                        Response::new()
-                            .content("Reaper cannot be used outside of guilds".to_string()),
+                        Response::new().content("Reaper could not obtain the guild".to_string()),
                     )
                     .await
                 {
                     error!("Failed to reply to command: {:?}", err);
                 }
                 return;
-            }
-        };
-
-        let mut temp_guild = match guild_id.to_guild_cached(&ctx.cache) {
-            Some(guild) => Some(PartialGuild::from(guild.clone())),
-            None => None,
-        };
-        if let None = temp_guild {
-            temp_guild = match guild_id.to_partial_guild(&ctx.http).await {
-                Ok(guild) => Some(guild),
-                Err(_) => {
-                    let fail_context = FailedCommandContext { ctx: ctx.clone() };
-                    if let Err(err) = fail_context
-                        .reply(
-                            &command,
-                            Response::new()
-                                .content("Reaper could not obtain the guild".to_string()),
-                        )
-                        .await
-                    {
-                        error!("Failed to reply to command: {:?}", err);
-                    }
-                    return;
-                }
             }
         }
         let guild = temp_guild.unwrap();
@@ -106,7 +99,7 @@ impl Handler {
         let command_context = CommandContext {
             ctx,
             has_responsed: AtomicBool::new(false),
-            user_permissions: user_permissions,
+            user_permissions,
             guild,
         };
 
@@ -127,7 +120,7 @@ impl Handler {
                                     Response::new().embed(
                                         CreateEmbed::new()
                                             .title(title)
-                                            .description(description.unwrap_or("".to_string()))
+                                            .description(description.unwrap_or(String::new()))
                                             .color(0xf00),
                                     ),
                                 )
@@ -143,13 +136,13 @@ impl Handler {
                                     Response::new().embed(
                                         CreateEmbed::new()
                                             .title("A Discord error occured while executing the command")
-                                            .description(format!("```{:?}```", err))
+                                            .description(format!("```{err:?}```"))
                                             .color(0xf00),
                                     ),
                                 )
                                 .await
                             {
-                                error!("Failed to send error message: {:?}", err);
+                                error!("Failed to send error message: {err:?}");
                             }
                         }
                         ResponseError::Other(err) => {
@@ -159,13 +152,13 @@ impl Handler {
                                     Response::new().embed(
                                         CreateEmbed::new()
                                             .title("An error occured while executing the command")
-                                            .description(format!("```{:?}```", err))
+                                            .description(format!("```{err:?}```"))
                                             .color(0xf00),
                                     ),
                                 )
                                 .await
                             {
-                                error!("Failed to send error message: {:?}", err);
+                                error!("Failed to send error message: {err:?}");
                             }
                         }
                     }

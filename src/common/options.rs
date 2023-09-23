@@ -9,18 +9,18 @@ pub struct Options<'a> {
 
 impl Options<'_> {
     pub fn get_user(&self, name: &str) -> Cow<Option<User>> {
-        for option in self.options.iter() {
+        for option in &self.options {
             if option.name == name {
                 match &option.value {
                     ResolvedValue::SubCommand(cmd) => {
                         let sub_options = Options {
-                            options: cmd.to_owned(),
+                            options: cmd.clone(),
                         };
                         let user = sub_options.get_user(name).into_owned().clone();
                         return Cow::Owned(user);
                     }
                     ResolvedValue::User(user, _) => {
-                        return Cow::Owned(Some(user.to_owned().to_owned()));
+                        return Cow::Owned(Some(user.to_owned().clone()));
                     }
                     _ => continue,
                 }
@@ -30,18 +30,18 @@ impl Options<'_> {
     }
 
     pub fn get_role(&self, name: &str) -> Cow<Option<Role>> {
-        for option in self.options.iter() {
+        for option in &self.options {
             if option.name == name {
                 match &option.value {
                     ResolvedValue::SubCommand(cmd) => {
                         let sub_options = Options {
-                            options: cmd.to_owned(),
+                            options: cmd.clone(),
                         };
                         let role = sub_options.get_role(name).into_owned().clone();
                         return Cow::Owned(role);
                     }
                     ResolvedValue::Role(role) => {
-                        return Cow::Owned(Some(role.to_owned().to_owned()));
+                        return Cow::Owned(Some(role.to_owned().clone()));
                     }
                     _ => continue,
                 }

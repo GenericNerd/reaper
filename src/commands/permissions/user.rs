@@ -25,17 +25,17 @@ use crate::{
     },
 };
 
-fn create_components(permissions: &Vec<Permission>) -> Vec<CreateActionRow> {
+fn create_components(permissions: &[Permission]) -> Vec<CreateActionRow> {
     vec![
         CreateActionRow::SelectMenu(CreateSelectMenu::new(
             "permissions".to_string(),
             CreateSelectMenuKind::String {
                 options: Permission::iter()
                     .map(|permission| {
-                        let label = if !permissions.contains(&permission) {
-                            format!("Add {}", permission.to_string())
-                        } else {
+                        let label = if permissions.contains(&permission) {
                             format!("Remove {}", permission.to_string())
+                        } else {
+                            format!("Add {}", permission.to_string())
                         };
 
                         CreateSelectMenuOption::new(label, permission.to_string())
@@ -59,11 +59,8 @@ pub async fn user(
     let options = Options {
         options: cmd.data.options(),
     };
-    let user = match options.get_user("user").into_owned() {
-        Some(user) => user,
-        None => {
-            return Err(ResponseError::ExecutionError("No member found!", Some("The user option either was not provided, or this command was not ran in a guild. Both of these should not occur, if they do, please contact a developer.".to_string())));
-        }
+    let Some(user) = options.get_user("user").into_owned() else {
+        return Err(ResponseError::ExecutionError("No member found!", Some("The user option either was not provided, or this command was not ran in a guild. Both of these should not occur, if they do, please contact a developer.".to_string())));
     };
 
     let existing_permissions = if user.id == ctx.guild.owner_id {
@@ -124,17 +121,17 @@ pub async fn user(
     while let Some(interaction) = interaction_stream.next().await {
         start = std::time::Instant::now();
 
-        if interaction.user.id != cmd.user.id {
-            if !get_user(
-                &handler,
+        if interaction.user.id != cmd.user.id
+            && !get_user(
+                handler,
                 ctx.guild.id.0.get() as i64,
                 interaction.user.id.0.get() as i64,
             )
             .await
             .contains(&Permission::PermissionsEdit)
-            {
-                // TODO: Investigate method to condense this
-                if let Err(err) = interaction
+        {
+            // TODO: Investigate method to condense this
+            if let Err(err) = interaction
                     .create_response(
                         &ctx.ctx.http,
                         CreateInteractionResponse::Message(
@@ -155,31 +152,30 @@ pub async fn user(
                         err
                     );
                 }
-                continue;
-            }
+            continue;
         }
 
         let permission_to_change = match &interaction.data.kind {
             ComponentInteractionDataKind::Button => {
                 if interaction.data.custom_id == "done" {
                     for permission in &existing_permissions {
-                        if !temp_permissions.contains(&permission) {
+                        if !temp_permissions.contains(permission) {
                             remove_permission_from_user(
-                                &handler,
+                                handler,
                                 ctx.guild.id.0.get() as i64,
                                 user.id.0.get() as i64,
-                                &permission,
+                                permission,
                             )
                             .await;
                         }
                     }
-                    for permission in temp_permissions {
-                        if !existing_permissions.contains(&permission) {
+                    for permission in &temp_permissions {
+                        if !existing_permissions.contains(permission) {
                             add_permission_to_user(
-                                &handler,
+                                handler,
                                 ctx.guild.id.0.get() as i64,
                                 user.id.0.get() as i64,
-                                &permission,
+                                permission,
                             )
                             .await;
                         }
@@ -216,7 +212,7 @@ pub async fn user(
             temp_permissions.remove(
                 temp_permissions
                     .iter()
-                    .position(|permission| permission == permission)
+                    .position(|permission| permission == &permission_to_change)
                     .unwrap(),
             );
         } else {

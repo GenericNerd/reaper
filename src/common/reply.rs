@@ -88,9 +88,7 @@ impl CommandContextReply for CommandContext {
     }
 
     async fn reply(&self, cmd: &CommandInteraction, response: Response) -> ResponseResult {
-        if let Err(err) = self.reply_get_message(cmd, response).await {
-            return Err(err);
-        }
+        self.reply_get_message(cmd, response).await?;
         Ok(())
     }
 }
@@ -142,9 +140,7 @@ impl CommandContextReply for FailedCommandContext {
     }
 
     async fn reply(&self, cmd: &CommandInteraction, response: Response) -> ResponseResult {
-        if let Err(err) = self.reply_get_message(cmd, response).await {
-            return Err(err);
-        }
+        self.reply_get_message(cmd, response).await?;
         Ok(())
     }
 }

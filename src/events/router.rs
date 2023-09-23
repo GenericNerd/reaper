@@ -13,9 +13,8 @@ impl EventHandler for Handler {
     }
 
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
-        match interaction.kind() {
-            InteractionType::Command => self.on_command(ctx, interaction.command().unwrap()).await,
-            _ => {}
+        if interaction.kind() == InteractionType::Command {
+            self.on_command(ctx, interaction.command().unwrap()).await;
         }
     }
 }

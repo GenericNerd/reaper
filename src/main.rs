@@ -1,5 +1,6 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::module_name_repetitions)]
+#![allow(clippy::cast_possible_wrap)]
 
 use serenity::{framework::StandardFramework, prelude::GatewayIntents, Client};
 use sqlx::postgres::PgPoolOptions;

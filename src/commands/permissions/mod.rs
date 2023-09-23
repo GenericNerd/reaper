@@ -70,7 +70,7 @@ impl Command for PermissionsCommand {
             ));
         }
 
-        for option in cmd.data.options.iter() {
+        for option in &cmd.data.options {
             match option.name.as_str() {
                 "user" => return user::user(handler, ctx, cmd).await,
                 "role" => return role::role(handler, ctx, cmd).await,
