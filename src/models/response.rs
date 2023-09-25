@@ -54,15 +54,11 @@ impl Response {
         self
     }
 
-    // TODO: Remove when used
-    #[allow(dead_code)]
     pub fn components(mut self, components: Vec<CreateActionRow>) -> Self {
         self.components = Some(components);
         self
     }
 
-    // TODO: Remove when used
-    #[allow(dead_code)]
     pub fn ephemeral(mut self, ephemeral: bool) -> Self {
         self.ephemeral = ephemeral;
         self

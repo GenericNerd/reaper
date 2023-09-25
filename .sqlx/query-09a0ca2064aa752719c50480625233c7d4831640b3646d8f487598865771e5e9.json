@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT mute_role, default_strike_duration FROM moderation_configuration WHERE guild_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "mute_role",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "default_strike_duration",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      true
+    ]
+  },
+  "hash": "09a0ca2064aa752719c50480625233c7d4831640b3646d8f487598865771e5e9"
+}

@@ -117,12 +117,14 @@ impl Handler {
                             if let Err(err) = command_context
                                 .reply(
                                     &command,
-                                    Response::new().embed(
-                                        CreateEmbed::new()
-                                            .title(title)
-                                            .description(description.unwrap_or(String::new()))
-                                            .color(0xf00),
-                                    ),
+                                    Response::new()
+                                        .embed(
+                                            CreateEmbed::new()
+                                                .title(title)
+                                                .description(description.unwrap_or(String::new()))
+                                                .color(0xf00),
+                                        )
+                                        .ephemeral(true),
                                 )
                                 .await
                             {
@@ -138,7 +140,8 @@ impl Handler {
                                             .title("A Discord error occured while executing the command")
                                             .description(format!("```{err:?}```"))
                                             .color(0xf00),
-                                    ),
+                                    )
+                                    .ephemeral(true),
                                 )
                                 .await
                             {
@@ -154,7 +157,8 @@ impl Handler {
                                             .title("An error occured while executing the command")
                                             .description(format!("```{err:?}```"))
                                             .color(0xf00),
-                                    ),
+                                    )
+                                    .ephemeral(true),
                                 )
                                 .await
                             {
