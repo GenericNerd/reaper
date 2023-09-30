@@ -1,3 +1,5 @@
+use std::sync::atomic::AtomicBool;
+
 #[derive(Clone)]
 pub enum ActionType {
     Strike,
@@ -53,7 +55,12 @@ pub struct Action {
     pub guild_id: i64,
     pub reason: String,
     pub active: bool,
-    pub expiry: Option<time::PrimitiveDateTime>,
+    pub expiry: Option<time::OffsetDateTime>,
+}
+
+pub struct ActionInsert {
+    pub action: Action,
+    pub dm_notified: AtomicBool,
 }
 
 pub struct ActionEscalation {

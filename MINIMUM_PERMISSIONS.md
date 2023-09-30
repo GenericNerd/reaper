@@ -1,2 +1,5 @@
 - Send Messages
-- application.commands
+- Use Application Commands (application.commands)
+- Kick Members
+- Ban Members
+- Manage Roles

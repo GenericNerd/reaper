@@ -1,7 +1,8 @@
 use lazy_static::lazy_static;
 use regex::Regex;
+use tracing::debug;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Duration {
     pub years: i64,
     pub months: i64,
@@ -16,6 +17,7 @@ pub struct Duration {
 
 impl Duration {
     pub fn new(string: &str) -> Duration {
+        debug!("Parsing duration: {}", string);
         let mut duration = Duration {
             years: 0,
             months: 0,
@@ -25,7 +27,7 @@ impl Duration {
             minutes: 0,
             seconds: 0,
             permanent: false,
-            string: string.to_string(),
+            string: string.to_string().to_lowercase(),
         };
 
         lazy_static! {
@@ -58,11 +60,10 @@ impl Duration {
             }
         }
 
+        debug!("Parsed duration: {:?}", duration);
         duration
     }
 
-    // TODO: Remove when used
-    #[allow(dead_code)]
     pub fn permanent() -> Duration {
         Duration {
             years: 0,

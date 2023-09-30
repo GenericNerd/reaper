@@ -1,12 +1,16 @@
 use objectid::ObjectId;
 use serenity::{
-    all::{ChannelId, CommandInteraction, CommandOptionType, UserId},
+    all::{ChannelId, CommandInteraction, CommandOptionType, GuildId, UserId},
     builder::{CreateCommand, CreateCommandOption, CreateEmbed, CreateEmbedFooter, CreateMessage},
 };
 use tracing::{debug, error};
 
 use crate::{
-    common::{duration::Duration, options::Options},
+    common::{
+        duration::Duration,
+        logging::{get_log_channel, LogType},
+        options::Options,
+    },
     database::postgres::{
         actions::get_active_strikes,
         guild::{get_moderation_config, get_strike_escalations},
@@ -14,13 +18,12 @@ use crate::{
     models::{
         actions::{Action, ActionType},
         command::{Command, CommandContext, CommandContextReply},
+        config::LoggingConfig,
         handler::Handler,
         permissions::Permission,
         response::{Response, ResponseError, ResponseResult},
     },
 };
-
-pub struct StrikeCommand;
 
 pub struct StrikeAction {
     pub strike: Action,
@@ -44,17 +47,13 @@ impl Handler {
             if duration.permanent {
                 None
             } else {
-                let offset = duration.to_timestamp().unwrap();
-                Some(time::PrimitiveDateTime::new(offset.date(), offset.time()))
+                duration.to_timestamp()
             }
         } else {
             let moderation_config = get_moderation_config(self, guild_id).await;
             let duration = match moderation_config {
                 Some(config) => match config.default_strike_duration {
-                    Some(duration) => {
-                        let offset = Duration::new(&duration).to_timestamp().unwrap();
-                        Some(time::PrimitiveDateTime::new(offset.date(), offset.time()))
-                    }
+                    Some(duration) => Duration::new(&duration).to_timestamp(),
                     None => None,
                 },
                 None => None,
@@ -76,31 +75,6 @@ impl Handler {
             start.elapsed()
         );
 
-        let guild_escalations = get_strike_escalations(self, guild_id).await;
-
-        if guild_escalations.is_empty() {
-            let strike_count = get_active_strikes(self, guild_id, user_id).await.len();
-            if let Some(escalation) = guild_escalations
-                .iter()
-                .find(|escalation| escalation.strike_count == strike_count as i64)
-            {
-                match escalation.action_type {
-                    ActionType::Strike => {
-                        return Err(ResponseError::ExecutionError(
-                            "Strike escalation action type is strike!",
-                            Some("This should not happen, please contact a developer.".to_string()),
-                        ))
-                    }
-                    ActionType::Mute | ActionType::Kick | ActionType::Ban => {}
-                }
-            }
-        }
-
-        debug!(
-            "Checked and completed strike escalation in {:?}",
-            start.elapsed()
-        );
-
         let action = Action {
             id: ObjectId::new().unwrap().to_string(),
             action_type: ActionType::Strike,
@@ -117,6 +91,48 @@ impl Handler {
             escalation: None,
             dm_notified: false,
         };
+
+        let guild_escalations = get_strike_escalations(self, guild_id).await;
+
+        if guild_escalations.is_empty() {
+            let strike_count = get_active_strikes(self, guild_id, user_id).await.len();
+            if let Some(escalation) = guild_escalations
+                .iter()
+                .find(|escalation| escalation.strike_count == strike_count as i64)
+            {
+                match escalation.action_type {
+                    ActionType::Strike => {
+                        return Err(ResponseError::ExecutionError(
+                            "Strike escalation action type is strike!",
+                            Some("This should not happen, please contact a developer.".to_string()),
+                        ))
+                    }
+                    ActionType::Kick => {
+                        if let Ok(escalation) = self
+                            .kick_user(
+                                ctx,
+                                guild_id,
+                                user_id,
+                                format!(
+                                    "Strike escalation (reached {} strikes)",
+                                    escalation.strike_count
+                                ),
+                                None,
+                            )
+                            .await
+                        {
+                            strike_action.escalation = Some(escalation.action);
+                        };
+                    }
+                    ActionType::Mute | ActionType::Ban => {}
+                }
+            }
+        }
+
+        debug!(
+            "Checked and completed strike escalation in {:?}",
+            start.elapsed()
+        );
 
         if let Err(err) = sqlx::query_unchecked!(
             "INSERT INTO actions (id, type, user_id, moderator_id, guild_id, reason, active, expiry) VALUES ($1, 'strike', $2, $3, $4, $5, $6, $7)",
@@ -140,28 +156,72 @@ impl Handler {
             start.elapsed()
         );
 
-        let log = ChannelId::new(823255446847881226).send_message(
-            &ctx.ctx,
-            CreateMessage::new().content("This is a test of logging"),
-        );
+        let fields = vec![
+            ("Moderator", format!("<@{}>", action.moderator_id), true),
+            ("Reason", action.reason, true),
+            (
+                "Expires",
+                format!("<t:{}:F>", action.expiry.unwrap().unix_timestamp()),
+                true,
+            ),
+        ];
+
+        let log_message = match sqlx::query_as!(
+            LoggingConfig,
+            "SELECT log_actions, log_messages, log_voice, log_channel, log_action_channel, log_message_channel, log_voice_channel FROM logging_configuration WHERE guild_id = $1",
+            guild_id
+        )
+        .fetch_one(&self.main_database)
+        .await {
+            Ok(config) => {
+                get_log_channel(&config, &LogType::Action)
+                    .map(|channel| {
+                        ChannelId::new(channel as u64)
+                            .send_message(
+                                &ctx.ctx,
+                                CreateMessage::new()
+                                    .embed(CreateEmbed::new().title("Strike issued").description(format!("<@{}> has been issued a strike", action.user_id)).fields(fields.clone()).footer(CreateEmbedFooter::new(format!("User {} striked | UUID: {}", action.user_id, action.id))).color(0xeb966d))
+                            )
+                    })
+            },
+            Err(_) => None
+        };
+
         let dm_channel = UserId::new(user_id as u64).create_dm_channel(&ctx.ctx.http);
 
-        if let Ok(channel) = tokio::join!(log, dm_channel).1 {
-            if channel
+        if let Ok(channel) = match log_message {
+            Some(log_future) => tokio::join!(log_future, dm_channel).1,
+            None => dm_channel.await,
+        } {
+            strike_action.dm_notified = channel
                 .send_message(
                     &ctx.ctx,
-                    CreateMessage::new().content("You got striked lol"),
+                    CreateMessage::new().embed(
+                        CreateEmbed::new()
+                            .title("Strike received")
+                            .description(match GuildId::new(guild_id as u64).name(&ctx.ctx) {
+                                Some(guild_name) => {
+                                    format!("You've been issued a strike in {guild_name}")
+                                }
+                                None => "A server has issued you a strike".to_string(),
+                            })
+                            .fields(fields)
+                            .footer(CreateEmbedFooter::new(format!(
+                                "If you wish to appeal, please refer to the following action ID: {}",
+                                action.id
+                            )))
+                            .color(0xeb966d),
+                    ),
                 )
                 .await
-                .is_ok()
-            {
-                strike_action.dm_notified = true;
-            }
+                .is_ok();
         };
 
         Ok(strike_action)
     }
 }
+
+pub struct StrikeCommand;
 
 #[async_trait::async_trait]
 impl Command for StrikeCommand {
@@ -206,7 +266,7 @@ impl Command for StrikeCommand {
         if !ctx.user_permissions.contains(&Permission::ModerationStrike) {
             return Err(ResponseError::ExecutionError(
                 "You do not have permission to do this!",
-                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::PermissionsView.to_string())),
+                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationStrike.to_string())),
             ));
         }
 
@@ -236,7 +296,7 @@ impl Command for StrikeCommand {
                 user.id.0.get() as i64,
                 reason.clone(),
                 Some(cmd.user.id.0.get() as i64),
-                duration.clone(),
+                duration,
             )
             .await?;
 
@@ -257,32 +317,18 @@ impl Command for StrikeCommand {
                     .field("Reason", reason, true)
                     .field("Moderator", format!("<@{}>", cmd.user.id.0.get()), true)
                     .field(
-                        "Expires on",
-                        match duration {
-                            Some(duration) => match duration.to_timestamp() {
-                                Some(timestamp) => {
-                                    let now = time::OffsetDateTime::now_utc();
-                                    format!(
-                                        "<t:{}:F>",
-                                        (timestamp.unix_timestamp() + now.unix_timestamp())
-                                            - time::OffsetDateTime::now_utc().unix_timestamp()
-                                    )
-                                }
-                                None => "Never".to_string(),
-                            },
-                            None => "Never".to_string(),
-                        },
+                        "Expires",
+                        format!("<t:{}:F>", action.strike.expiry.unwrap().unix_timestamp()),
                         true,
                     )
                     .footer(CreateEmbedFooter::new(format!(
                         "UUID: {} | Total execution time: {:?}",
                         action.strike.id,
                         start.elapsed()
-                    ))),
+                    )))
+                    .color(0xeb966d),
             ),
         )
-        .await?;
-
-        Ok(())
+        .await
     }
 }
