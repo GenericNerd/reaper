@@ -1,13 +1,17 @@
 use tracing::error;
 
-use crate::models::{actions::Action, handler::Handler};
+use crate::models::{
+    actions::{Action, ActionType},
+    handler::Handler,
+};
 
 pub async fn get_active_strikes(handler: &Handler, guild_id: i64, user_id: i64) -> Vec<Action> {
     match sqlx::query_as_unchecked!(
         Action,
-        "SELECT id, type as action_type, user_id, moderator_id, guild_id, reason, active, expiry FROM actions WHERE guild_id = $1 AND user_id = $2 AND type = 'strike' AND active = true",
+        "SELECT id, type as action_type, user_id, moderator_id, guild_id, reason, active, expiry FROM actions WHERE guild_id = $1 AND user_id = $2 AND type = $3 AND active = true",
         guild_id,
-        user_id
+        user_id,
+        ActionType::Strike
     )
     .fetch_all(&handler.main_database)
     .await {

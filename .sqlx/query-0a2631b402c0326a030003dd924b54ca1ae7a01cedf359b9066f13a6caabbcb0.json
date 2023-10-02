@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, type as action_type, user_id, moderator_id, guild_id, reason, active, expiry FROM actions WHERE guild_id = $1 AND user_id = $2 AND type = 'strike' AND active = true",
+  "query": "SELECT id, type as action_type, user_id, moderator_id, guild_id, reason, active, expiry FROM actions WHERE guild_id = $1 AND user_id = $2 AND type = $3 AND active = true",
   "describe": {
     "columns": [
       {
@@ -59,7 +59,20 @@
     "parameters": {
       "Left": [
         "Int8",
-        "Int8"
+        "Int8",
+        {
+          "Custom": {
+            "name": "action_type",
+            "kind": {
+              "Enum": [
+                "strike",
+                "mute",
+                "kick",
+                "ban"
+              ]
+            }
+          }
+        }
       ]
     },
     "nullable": [
@@ -73,5 +86,5 @@
       true
     ]
   },
-  "hash": "af08e3a998e431811d56bdff9156afb8c7a30952fb2867310ef793a9a4bdf95f"
+  "hash": "0a2631b402c0326a030003dd924b54ca1ae7a01cedf359b9066f13a6caabbcb0"
 }

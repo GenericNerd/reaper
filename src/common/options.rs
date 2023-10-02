@@ -70,4 +70,25 @@ impl Options<'_> {
         }
         Cow::Owned(None)
     }
+
+    pub fn get_boolean(&self, name: &str) -> Option<bool> {
+        for option in &self.options {
+            if option.name == name {
+                match &option.value {
+                    ResolvedValue::SubCommand(cmd) => {
+                        let sub_options = Options {
+                            options: cmd.clone(),
+                        };
+                        let boolean = sub_options.get_boolean(name);
+                        return boolean;
+                    }
+                    ResolvedValue::Boolean(boolean) => {
+                        return Some(boolean.to_owned());
+                    }
+                    _ => continue,
+                }
+            }
+        }
+        None
+    }
 }

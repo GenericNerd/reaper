@@ -108,8 +108,9 @@ impl Handler {
         }
 
         if let Err(err) = sqlx::query_unchecked!(
-            "INSERT INTO actions (id, type, user_id, moderator_id, guild_id, reason, active, expiry) VALUES ($1, 'kick', $2, $3, $4, $5, $6, $7)",
+            "INSERT INTO actions (id, type, user_id, moderator_id, guild_id, reason, active, expiry) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
             action.id,
+            ActionType::Kick,
             action.user_id,
             action.moderator_id,
             action.guild_id,
@@ -147,6 +148,8 @@ impl Handler {
                 }
             }
         }
+
+        debug!("Completed kick action in {:?}", start.elapsed());
 
         Ok(action_insert)
     }

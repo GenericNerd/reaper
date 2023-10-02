@@ -124,7 +124,54 @@ impl Handler {
                             strike_action.escalation = Some(escalation.action);
                         };
                     }
-                    ActionType::Mute | ActionType::Ban => {}
+                    ActionType::Mute => {
+                        let Some(duration) = &escalation.action_duration else {
+                            return Err(ResponseError::ExecutionError(
+                                "Strike escalation mute did not provide a duration",
+                                Some(
+                                    "This should not happen, please contact a developer"
+                                        .to_string(),
+                                ),
+                            ));
+                        };
+                        if let Ok(escalation) = self
+                            .mute_user(
+                                ctx,
+                                guild_id,
+                                user_id,
+                                format!(
+                                    "Strike escalation (reached {} strikes)",
+                                    escalation.strike_count
+                                ),
+                                None,
+                                Duration::new(duration),
+                            )
+                            .await
+                        {
+                            strike_action.escalation = Some(escalation.action);
+                        };
+                    }
+                    ActionType::Ban => {
+                        if let Ok(escalation) = self
+                            .ban_user(
+                                ctx,
+                                guild_id,
+                                user_id,
+                                format!(
+                                    "Strike escalation (reached {} strikes)",
+                                    escalation.strike_count
+                                ),
+                                None,
+                                escalation
+                                    .action_duration
+                                    .as_ref()
+                                    .map(|duration| Duration::new(duration)),
+                            )
+                            .await
+                        {
+                            strike_action.escalation = Some(escalation.action);
+                        };
+                    }
                 }
             }
         }
@@ -135,8 +182,9 @@ impl Handler {
         );
 
         if let Err(err) = sqlx::query_unchecked!(
-            "INSERT INTO actions (id, type, user_id, moderator_id, guild_id, reason, active, expiry) VALUES ($1, 'strike', $2, $3, $4, $5, $6, $7)",
+            "INSERT INTO actions (id, type, user_id, moderator_id, guild_id, reason, active, expiry) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
             action.id,
+            ActionType::Strike,
             action.user_id,
             action.moderator_id,
             action.guild_id,
@@ -216,6 +264,8 @@ impl Handler {
                 .await
                 .is_ok();
         };
+
+        debug!("Completed strike action in {:?}", start.elapsed());
 
         Ok(strike_action)
     }
