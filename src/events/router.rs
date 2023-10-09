@@ -1,5 +1,8 @@
 use serenity::{
-    all::{ActionExecution, Guild, Interaction, InteractionType, UnavailableGuild},
+    all::{
+        ActionExecution, Guild, GuildMemberUpdateEvent, Interaction, InteractionType, Member,
+        UnavailableGuild,
+    },
     model::prelude::Ready,
     prelude::{Context, EventHandler},
 };
@@ -23,6 +26,23 @@ impl EventHandler for Handler {
             return;
         }
         self.on_guild_create(guild).await;
+    }
+
+    async fn guild_member_update(
+        &self,
+        _ctx: Context,
+        _old_if_available: Option<Member>,
+        new: Option<Member>,
+        event: GuildMemberUpdateEvent,
+    ) {
+        let Some(member) = new else {
+            return;
+        };
+        self.on_member_update(member, event).await;
+    }
+
+    async fn guild_member_addition(&self, ctx: Context, member: Member) {
+        self.on_member_join(ctx, member).await;
     }
 
     async fn guild_delete(
