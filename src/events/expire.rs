@@ -71,6 +71,10 @@ pub async fn expire_actions(handler: Handler, ctx: Context) {
                         {
                             error!("Failed to remove mute: {}", err);
                         }
+
+                        if let Err(err) = sqlx::query!("DELETE FROM role_recovery WHERE guild_id = $1 AND user_id = $2 AND role_id = $3", action.guild_id, action.user_id, mute_role).execute(&handler.main_database).await {
+                            error!("Could not delete mute role from role recovery roles. Failed with error: {:?}", err);
+                        }
                     }
                     continue;
                 }

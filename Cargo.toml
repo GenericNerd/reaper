@@ -17,6 +17,6 @@ async-trait = "0.1"
 strum = { version = "0.25", features = ["derive"] }
 regex = "1.9"
 lazy_static = "1.4"
-objectid = "0.2"
+objectid = { version = "0.2", features = ["serde"] }
 time = "0.3"
 inflections = "1.1"
