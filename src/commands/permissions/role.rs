@@ -133,7 +133,7 @@ pub async fn role(
                                     CreateEmbed::new()
                                         .title("You do not have permission to do this!")
                                         .description(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::PermissionsEdit.to_string()))
-                                        .color(0xf00),
+                                        .color(0xff0000),
                                 )
                                 .ephemeral(true),
                         ),

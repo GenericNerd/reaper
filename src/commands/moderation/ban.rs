@@ -1,6 +1,5 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use objectid::ObjectId;
 use serenity::{
     all::{ChannelId, CommandInteraction, CommandOptionType, GuildId, UserId},
     builder::{CreateCommand, CreateCommandOption, CreateEmbed, CreateEmbedFooter, CreateMessage},
@@ -14,7 +13,7 @@ use crate::{
         options::Options,
     },
     models::{
-        actions::{Action, ActionInsert, ActionType},
+        actions::{Action, ActionDatabaseInsert, ActionType},
         command::{Command, CommandContext, CommandContextReply},
         config::LoggingConfig,
         handler::Handler,
@@ -32,14 +31,14 @@ impl Handler {
         reason: String,
         moderator_id: Option<i64>,
         duration: Option<Duration>,
-    ) -> Result<ActionInsert, ResponseError> {
+    ) -> Result<ActionDatabaseInsert, ResponseError> {
         let start = std::time::Instant::now();
 
         let duration = if let Some(duration) = duration {
             if duration.permanent {
                 None
             } else {
-                duration.to_timestamp()
+                Some(duration)
             }
         } else {
             None
@@ -56,18 +55,16 @@ impl Handler {
             start.elapsed()
         );
 
-        let action = Action {
-            id: ObjectId::new().unwrap().to_string(),
-            action_type: ActionType::Ban,
+        let action = Action::new(
+            ActionType::Ban,
             user_id,
             moderator_id,
             guild_id,
             reason,
-            active: true,
-            expiry: duration,
-        };
+            duration,
+        );
 
-        let action_insert = ActionInsert {
+        let action_insert = ActionDatabaseInsert {
             action: action.clone(),
             dm_notified: AtomicBool::new(false),
         };
@@ -131,23 +128,7 @@ impl Handler {
             return Err(ResponseError::SerenityError(err));
         }
 
-        if let Err(err) = sqlx::query_unchecked!(
-            "INSERT INTO actions (id, type, user_id, moderator_id, guild_id, reason, active, expiry) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-            action.id,
-            ActionType::Ban,
-            action.user_id,
-            action.moderator_id,
-            action.guild_id,
-            action.reason,
-            action.active,
-            action.expiry
-        ).execute(&self.main_database).await {
-            error!("Failed to insert ban action into database: {}", err);
-            return Err(ResponseError::ExecutionError(
-                "Failed to insert ban action into database!",
-                Some("Please contact the bot owner for assistance.".to_string()),
-            ));
-        }
+        action.insert(self).await?;
 
         debug!("Inserted ban action into database in {:?}", start.elapsed());
 
@@ -163,7 +144,7 @@ impl Handler {
                     .send_message(
                         &ctx.ctx,
                         CreateMessage::new()
-                            .embed(CreateEmbed::new().title("User banned").description(format!("<@{}> has been banned", action.user_id)).fields(fields).footer(CreateEmbedFooter::new(format!("User {} banned | UUID: {}", action.user_id, action.id))).color(0xf54029))
+                            .embed(CreateEmbed::new().title("User banned").description(format!("<@{}> has been banned", action.user_id)).fields(fields).footer(CreateEmbedFooter::new(format!("User {} banned | UUID: {}", action.user_id, action.get_id()))).color(0xf54029))
                 ).await {
                     error!("Failed to send ban log message: {}", err);
                 }
@@ -273,7 +254,7 @@ impl Command for BanCommand {
                             user.id.0.get()
                         )
                     })
-                    .field("Reason", action.action.reason, true)
+                    .field("Reason", action.action.reason.to_string(), true)
                     .field("Moderator", format!("<@{}>", cmd.user.id.0.get()), true)
                     .field(
                         "Expires",
@@ -285,7 +266,7 @@ impl Command for BanCommand {
                     )
                     .footer(CreateEmbedFooter::new(format!(
                         "UUID: {} | Total execution time: {:?}",
-                        action.action.id,
+                        action.action.get_id(),
                         start.elapsed()
                     )))
                     .color(0xf54029),

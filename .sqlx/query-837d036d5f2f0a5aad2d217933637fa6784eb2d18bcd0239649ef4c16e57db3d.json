@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE actions SET active=false WHERE user_id = $1 AND action_type = 'mute' AND active = true",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "837d036d5f2f0a5aad2d217933637fa6784eb2d18bcd0239649ef4c16e57db3d"
+}

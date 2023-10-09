@@ -1,4 +1,3 @@
-use objectid::ObjectId;
 use serenity::{
     all::{ChannelId, CommandInteraction, CommandOptionType, GuildId, UserId},
     builder::{CreateCommand, CreateCommandOption, CreateEmbed, CreateEmbedFooter, CreateMessage},
@@ -12,7 +11,7 @@ use crate::{
         options::Options,
     },
     models::{
-        actions::{Action, ActionInsert, ActionType},
+        actions::{Action, ActionDatabaseInsert, ActionType},
         command::{Command, CommandContext, CommandContextReply},
         config::LoggingConfig,
         handler::Handler,
@@ -29,7 +28,7 @@ impl Handler {
         user_id: i64,
         reason: String,
         moderator_id: Option<i64>,
-    ) -> Result<ActionInsert, ResponseError> {
+    ) -> Result<ActionDatabaseInsert, ResponseError> {
         let start = std::time::Instant::now();
 
         let moderator_id = if moderator_id.is_none() {
@@ -43,23 +42,21 @@ impl Handler {
             start.elapsed()
         );
 
-        let action = Action {
-            id: ObjectId::new().unwrap().to_string(),
-            action_type: ActionType::Kick,
+        let action = Action::new(
+            ActionType::Kick,
             user_id,
             moderator_id,
             guild_id,
             reason,
-            active: false,
-            expiry: None,
-        };
+            None,
+        );
 
         let fields = vec![
             ("Moderator", format!("<@{}>", action.moderator_id), true),
             ("Reason", action.reason.to_string(), true),
         ];
 
-        let action_insert = ActionInsert {
+        let action_insert = ActionDatabaseInsert {
             action: action.clone(),
             dm_notified: AtomicBool::new(false),
         };
@@ -107,23 +104,7 @@ impl Handler {
             return Err(ResponseError::SerenityError(err));
         }
 
-        if let Err(err) = sqlx::query_unchecked!(
-            "INSERT INTO actions (id, type, user_id, moderator_id, guild_id, reason, active, expiry) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-            action.id,
-            ActionType::Kick,
-            action.user_id,
-            action.moderator_id,
-            action.guild_id,
-            action.reason,
-            action.active,
-            action.expiry
-        ).execute(&self.main_database).await {
-            error!("Failed to insert kick action into database: {}", err);
-            return Err(ResponseError::ExecutionError(
-                "Failed to insert kick action into database!",
-                Some("Please contact the bot owner for assistance.".to_string()),
-            ));
-        }
+        action.insert(self).await?;
 
         debug!(
             "Inserted kick action into database in {:?}",
@@ -142,7 +123,7 @@ impl Handler {
                     .send_message(
                         &ctx.ctx,
                         CreateMessage::new()
-                            .embed(CreateEmbed::new().title("User kicked").description(format!("<@{}> has been kicked", action.user_id)).fields(fields).footer(CreateEmbedFooter::new(format!("User {} kicked | UUID: {}", action.user_id, action.id))).color(0x000080))
+                            .embed(CreateEmbed::new().title("User kicked").description(format!("<@{}> has been kicked", action.user_id)).fields(fields).footer(CreateEmbedFooter::new(format!("User {} kicked | UUID: {}", action.user_id, action.get_id()))).color(0x000080))
                 ).await {
                     error!("Failed to send kick log message: {}", err);
                 }
@@ -234,11 +215,11 @@ impl Command for KickCommand {
                             user.id.0.get()
                         )
                     })
-                    .field("Reason", action.action.reason, true)
+                    .field("Reason", action.action.reason.to_string(), true)
                     .field("Moderator", format!("<@{}>", cmd.user.id.0.get()), true)
                     .footer(CreateEmbedFooter::new(format!(
                         "UUID: {} | Total execution time: {:?}",
-                        action.action.id,
+                        action.action.get_id(),
                         start.elapsed()
                     )))
                     .color(0x000080),

@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE actions SET active=false WHERE user_id = $1 AND action_type = 'ban' AND active = true",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "776ba9e7491df2e4a6e2d6c79428ca0a46a65d99a57f6d9d27ae4637ea84a171"
+}

@@ -6,14 +6,10 @@ use serenity::{
 };
 use tracing::{debug, error};
 
-use crate::models::{actions::ActionType, handler::Handler};
-
-struct ExpiredAction {
-    id: String,
-    action_type: ActionType,
-    user_id: i64,
-    guild_id: i64,
-}
+use crate::models::{
+    actions::{ActionType, DatabaseAction},
+    handler::Handler,
+};
 
 struct MuteRole {
     mute_role: Option<i64>,
@@ -22,9 +18,9 @@ struct MuteRole {
 pub async fn expire_actions(handler: Handler, ctx: Context) {
     loop {
         let start = std::time::Instant::now();
-        let actions = match sqlx::query_as_unchecked!(
-            ExpiredAction,
-            "SELECT id, type as action_type, user_id, guild_id FROM actions WHERE expiry < now() AND active=true"
+        let actions = match sqlx::query_as!(
+            DatabaseAction,
+            "SELECT * FROM actions WHERE expiry < now() AND active=true"
         )
         .fetch_all(&handler.main_database)
         .await
@@ -60,7 +56,7 @@ pub async fn expire_actions(handler: Handler, ctx: Context) {
                 "Expiring action with ID {} from guild {}",
                 action.id, action.guild_id
             );
-            match action.action_type {
+            match ActionType::from(action.action_type) {
                 ActionType::Mute => {
                     if let Some(mute_role) = guild_configurations.get(&action.guild_id) {
                         if let Err(err) = ctx

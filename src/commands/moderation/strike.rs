@@ -1,9 +1,8 @@
-use objectid::ObjectId;
 use serenity::{
     all::{ChannelId, CommandInteraction, CommandOptionType, GuildId, UserId},
     builder::{CreateCommand, CreateCommandOption, CreateEmbed, CreateEmbedFooter, CreateMessage},
 };
-use tracing::{debug, error};
+use tracing::debug;
 
 use crate::{
     common::{
@@ -11,12 +10,9 @@ use crate::{
         logging::{get_log_channel, LogType},
         options::Options,
     },
-    database::postgres::{
-        actions::get_active_strikes,
-        guild::{get_moderation_config, get_strike_escalations},
-    },
+    database::postgres::{actions::get_active_strikes, guild::get_moderation_config},
     models::{
-        actions::{Action, ActionType},
+        actions::{Action, ActionType, DatabaseActionEscalation},
         command::{Command, CommandContext, CommandContextReply},
         config::LoggingConfig,
         handler::Handler,
@@ -47,15 +43,14 @@ impl Handler {
             if duration.permanent {
                 None
             } else {
-                duration.to_timestamp()
+                Some(duration)
             }
         } else {
             let moderation_config = get_moderation_config(self, guild_id).await;
             let duration = match moderation_config {
-                Some(config) => match config.default_strike_duration {
-                    Some(duration) => Duration::new(&duration).to_timestamp(),
-                    None => None,
-                },
+                Some(config) => config
+                    .default_strike_duration
+                    .map(|duration| Duration::new(&duration)),
                 None => None,
             };
             if duration.is_none() {
@@ -75,16 +70,14 @@ impl Handler {
             start.elapsed()
         );
 
-        let action = Action {
-            id: ObjectId::new().unwrap().to_string(),
-            action_type: ActionType::Strike,
+        let action = Action::new(
+            ActionType::Strike,
             user_id,
             moderator_id,
             guild_id,
             reason,
-            active: true,
-            expiry: duration,
-        };
+            duration,
+        );
 
         let mut strike_action = StrikeAction {
             strike: action.clone(),
@@ -92,7 +85,17 @@ impl Handler {
             dm_notified: false,
         };
 
-        let guild_escalations = get_strike_escalations(self, guild_id).await;
+        let guild_escalations = match sqlx::query_as!(
+            DatabaseActionEscalation,
+            "SELECT * FROM strike_escalations WHERE guild_id = $1",
+            guild_id
+        )
+        .fetch_all(&self.main_database)
+        .await
+        {
+            Ok(escalations) => escalations,
+            Err(_) => vec![],
+        };
 
         if guild_escalations.is_empty() {
             let strike_count = get_active_strikes(self, guild_id, user_id).await.len();
@@ -100,7 +103,7 @@ impl Handler {
                 .iter()
                 .find(|escalation| escalation.strike_count == strike_count as i64)
             {
-                match escalation.action_type {
+                match ActionType::from(escalation.action_type.clone()) {
                     ActionType::Strike => {
                         return Err(ResponseError::ExecutionError(
                             "Strike escalation action type is strike!",
@@ -181,23 +184,7 @@ impl Handler {
             start.elapsed()
         );
 
-        if let Err(err) = sqlx::query_unchecked!(
-            "INSERT INTO actions (id, type, user_id, moderator_id, guild_id, reason, active, expiry) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-            action.id,
-            ActionType::Strike,
-            action.user_id,
-            action.moderator_id,
-            action.guild_id,
-            action.reason,
-            action.active,
-            action.expiry
-        ).execute(&self.main_database).await {
-            error!("Failed to insert strike action into database: {}", err);
-            return Err(ResponseError::ExecutionError(
-                "Failed to insert strike action into database!",
-                Some("Please contact the bot owner for assistance.".to_string()),
-            ));
-        }
+        action.insert(self).await?;
 
         debug!(
             "Inserted strike action into database in {:?}",
@@ -206,7 +193,7 @@ impl Handler {
 
         let fields = vec![
             ("Moderator", format!("<@{}>", action.moderator_id), true),
-            ("Reason", action.reason, true),
+            ("Reason", action.reason.to_string(), true),
             (
                 "Expires",
                 format!("<t:{}:F>", action.expiry.unwrap().unix_timestamp()),
@@ -228,7 +215,7 @@ impl Handler {
                             .send_message(
                                 &ctx.ctx,
                                 CreateMessage::new()
-                                    .embed(CreateEmbed::new().title("Strike issued").description(format!("<@{}> has been issued a strike", action.user_id)).fields(fields.clone()).footer(CreateEmbedFooter::new(format!("User {} striked | UUID: {}", action.user_id, action.id))).color(0xeb966d))
+                                    .embed(CreateEmbed::new().title("Strike issued").description(format!("<@{}> has been issued a strike", action.user_id)).fields(fields.clone()).footer(CreateEmbedFooter::new(format!("User {} striked | UUID: {}", action.user_id, action.get_id()))).color(0xeb966d))
                             )
                     })
             },
@@ -256,7 +243,7 @@ impl Handler {
                             .fields(fields)
                             .footer(CreateEmbedFooter::new(format!(
                                 "If you wish to appeal, please refer to the following action ID: {}",
-                                action.id
+                                action.get_id()
                             )))
                             .color(0xeb966d),
                     ),
@@ -373,7 +360,7 @@ impl Command for StrikeCommand {
                     )
                     .footer(CreateEmbedFooter::new(format!(
                         "UUID: {} | Total execution time: {:?}",
-                        action.strike.id,
+                        action.strike.get_id(),
                         start.elapsed()
                     )))
                     .color(0xeb966d),

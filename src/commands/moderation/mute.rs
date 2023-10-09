@@ -1,11 +1,10 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use objectid::ObjectId;
 use serenity::{
     all::{ChannelId, CommandInteraction, CommandOptionType, GuildId, RoleId, UserId},
     builder::{CreateCommand, CreateCommandOption, CreateEmbed, CreateEmbedFooter, CreateMessage},
 };
-use tracing::{debug, error};
+use tracing::debug;
 
 use crate::{
     common::{
@@ -15,7 +14,7 @@ use crate::{
     },
     database::postgres::guild::get_moderation_config,
     models::{
-        actions::{Action, ActionInsert, ActionType},
+        actions::{Action, ActionDatabaseInsert, ActionType},
         command::{Command, CommandContext, CommandContextReply},
         config::LoggingConfig,
         handler::Handler,
@@ -33,7 +32,7 @@ impl Handler {
         reason: String,
         moderator_id: Option<i64>,
         duration: Duration,
-    ) -> Result<ActionInsert, ResponseError> {
+    ) -> Result<ActionDatabaseInsert, ResponseError> {
         let start = std::time::Instant::now();
 
         let mute_role = match get_moderation_config(self, guild_id).await {
@@ -71,34 +70,16 @@ impl Handler {
             start.elapsed()
         );
 
-        let action = Action {
-            id: ObjectId::new().unwrap().to_string(),
-            action_type: ActionType::Mute,
+        let action = Action::new(
+            ActionType::Mute,
             user_id,
             moderator_id,
             guild_id,
             reason,
-            active: true,
-            expiry: duration.to_timestamp(),
-        };
+            Some(duration),
+        );
 
-        if let Err(err) = sqlx::query_unchecked!(
-            "INSERT INTO actions (id, type, user_id, moderator_id, guild_id, reason, active, expiry) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-            action.id,
-            ActionType::Mute,
-            action.user_id,
-            action.moderator_id,
-            action.guild_id,
-            action.reason,
-            action.active,
-            action.expiry
-        ).execute(&self.main_database).await {
-            error!("Failed to insert mute action into database: {}", err);
-            return Err(ResponseError::ExecutionError(
-                "Failed to insert mute action into database!",
-                Some("Please contact the bot owner for assistance.".to_string()),
-            ));
-        }
+        action.insert(self).await?;
 
         let fields = vec![
             ("Moderator", format!("<@{}>", action.moderator_id), true),
@@ -110,7 +91,7 @@ impl Handler {
             ),
         ];
 
-        let action_insert = ActionInsert {
+        let action_insert = ActionDatabaseInsert {
             action: action.clone(),
             dm_notified: AtomicBool::new(false),
         };
@@ -129,7 +110,7 @@ impl Handler {
                             .send_message(
                                 &ctx.ctx,
                                 CreateMessage::new()
-                                    .embed(CreateEmbed::new().title("Mute issued").description(format!("<@{}> has been muted", action.user_id)).fields(fields.clone()).footer(CreateEmbedFooter::new(format!("User {} muted | UUID: {}", action.user_id, action.id))).color(0x2e4045))
+                                    .embed(CreateEmbed::new().title("Mute issued").description(format!("<@{}> has been muted", action.user_id)).fields(fields.clone()).footer(CreateEmbedFooter::new(format!("User {} muted | UUID: {}", action.user_id, action.get_id()))).color(0x2e4045))
                             )
                     })
             },
@@ -164,7 +145,7 @@ impl Handler {
                             .fields(fields)
                             .footer(CreateEmbedFooter::new(format!(
                                 "If you wish to appeal, please refer to the following action ID: {}",
-                                action.id
+                                action.get_id()
                             )))
                             .color(0x2e4045),
                     ),
@@ -283,7 +264,7 @@ impl Command for MuteCommand {
                             user.id.0.get()
                         )
                     })
-                    .field("Reason", action.action.reason, true)
+                    .field("Reason", action.action.reason.to_string(), true)
                     .field("Moderator", format!("<@{}>", cmd.user.id.0.get()), true)
                     .field(
                         "Expires",
@@ -295,7 +276,7 @@ impl Command for MuteCommand {
                     )
                     .footer(CreateEmbedFooter::new(format!(
                         "UUID: {} | Total execution time: {:?}",
-                        action.action.id,
+                        action.action.get_id(),
                         start.elapsed()
                     )))
                     .color(0x2e4045),

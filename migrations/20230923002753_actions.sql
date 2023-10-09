@@ -1,11 +1,4 @@
 -- Add migration script here
-DROP TYPE IF EXISTS action_type CASCADE;
-CREATE TYPE action_type as ENUM (
-    'strike',
-    'mute',
-    'kick',
-    'ban'
-);
 DROP TABLE IF EXISTS moderation_configuration;
 CREATE TABLE moderation_configuration (
     guild_id BIGINT NOT NULL,
@@ -16,7 +9,7 @@ CREATE TABLE moderation_configuration (
 DROP TABLE IF EXISTS actions;
 CREATE TABLE actions (
     id VARCHAR(24) NOT NULL,
-    type action_type NOT NULL,
+    action_type VARCHAR(6) NOT NULL,
     user_id BIGINT NOT NULL,
     moderator_id BIGINT NOT NULL,
     guild_id BIGINT NOT NULL,
@@ -30,6 +23,6 @@ DROP TABLE IF EXISTS strike_escalations;
 CREATE TABLE strike_escalations (
     guild_id BIGINT NOT NULL,
     strike_count INT NOT NULL,
-    action_type action_type NOT NULL,
+    action_type VARCHAR(6) NOT NULL,
     action_duration VARCHAR(8) NULL
 );

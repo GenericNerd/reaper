@@ -1,5 +1,5 @@
 use serenity::{
-    all::{Guild, Interaction, InteractionType, UnavailableGuild},
+    all::{ActionExecution, Guild, Interaction, InteractionType, UnavailableGuild},
     model::prelude::Ready,
     prelude::{Context, EventHandler},
 };
@@ -35,5 +35,9 @@ impl EventHandler for Handler {
             return;
         }
         self.on_guild_leave(guild).await;
+    }
+
+    async fn auto_moderation_action_execution(&self, ctx: Context, execution: ActionExecution) {
+        self.on_automod_trigger(ctx, execution).await;
     }
 }
