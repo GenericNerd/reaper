@@ -183,6 +183,12 @@ impl Command for KickCommand {
         let Some(user) = options.get_user("user").into_owned() else {
             return Err(ResponseError::ExecutionError("No member found!", Some("The user option either was not provided, or this command was not ran in a guild. Both of these should not occur, if they do, please contact a developer.".to_string())));
         };
+        if user == cmd.user {
+            return Err(ResponseError::ExecutionError(
+                "You cannot kick yourself!",
+                Some("You cannot kick yourself, that would be silly.".to_string()),
+            ));
+        }
         let Some(reason) = options.get_string("reason").into_owned() else {
             return Err(ResponseError::ExecutionError(
                 "No reason provided!",
