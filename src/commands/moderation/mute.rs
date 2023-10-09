@@ -59,10 +59,9 @@ impl Handler {
             }
         };
 
-        let moderator_id = if moderator_id.is_none() {
-            ctx.ctx.cache.current_user().id.0.get() as i64
-        } else {
-            moderator_id.unwrap()
+        let moderator_id = match moderator_id {
+            Some(mod_id) => mod_id,
+            None => ctx.ctx.cache.current_user().id.0.get() as i64,
         };
 
         debug!(
