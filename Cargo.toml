@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres"] }
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "time"] }
 serenity = { git = "https://github.com/serenity-rs/serenity", branch = "next", features = ["collector"] }
 tokio = { version = "1.32", features = ["full"] }
 tracing = "0.1"
@@ -15,3 +15,8 @@ serde = "1.0"
 serde_derive = "1.0"
 async-trait = "0.1"
 strum = { version = "0.25", features = ["derive"] }
+regex = "1.9"
+lazy_static = "1.4"
+objectid = "0.2"
+time = "0.3"
+inflections = "1.1"

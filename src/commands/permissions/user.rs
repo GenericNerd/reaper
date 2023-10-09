@@ -8,6 +8,7 @@ use serenity::{
         CreateSelectMenuOption,
     },
     futures::StreamExt,
+    model::Permissions,
 };
 use strum::IntoEnumIterator;
 use tracing::error;
@@ -63,7 +64,19 @@ pub async fn user(
         return Err(ResponseError::ExecutionError("No member found!", Some("The user option either was not provided, or this command was not ran in a guild. Both of these should not occur, if they do, please contact a developer.".to_string())));
     };
 
-    let existing_permissions = if user.id == ctx.guild.owner_id {
+    let has_admin = if let Ok(permissions) = ctx
+        .guild
+        .member(&ctx.ctx, user.id)
+        .await
+        .unwrap()
+        .permissions(&ctx.ctx)
+    {
+        permissions.contains(Permissions::ADMINISTRATOR)
+    } else {
+        false
+    };
+
+    let existing_permissions = if user.id == ctx.guild.owner_id || has_admin {
         Permission::iter().collect::<Vec<_>>()
     } else {
         get_user(
@@ -76,6 +89,7 @@ pub async fn user(
 
     let components = if !ctx.user_permissions.contains(&Permission::PermissionsEdit)
         || user.id == ctx.guild.owner_id
+        || has_admin
     {
         vec![]
     } else {
@@ -108,7 +122,9 @@ pub async fn user(
         Err(err) => return Err(err),
     };
 
-    if !ctx.user_permissions.contains(&Permission::PermissionsEdit) || user.id == ctx.guild.owner_id
+    if !ctx.user_permissions.contains(&Permission::PermissionsEdit)
+        || user.id == ctx.guild.owner_id
+        || has_admin
     {
         return Ok(());
     }
@@ -140,7 +156,7 @@ pub async fn user(
                                     CreateEmbed::new()
                                         .title("You do not have permission to do this!")
                                         .description(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::PermissionsEdit.to_string()))
-                                        .color(0xf00),
+                                        .color(0xff0000),
                                 )
                                 .ephemeral(true),
                         ),
