@@ -1,13 +1,13 @@
 use serenity::{
     all::{CommandInteraction, CommandOptionType},
-    builder::{CreateCommand, CreateCommandOption, CreateEmbed},
+    builder::{CreateCommand, CreateCommandOption},
 };
 
 use crate::models::{
-    command::{Command, CommandContext, CommandContextReply},
+    command::{Command, CommandContext},
     handler::Handler,
     permissions::Permission,
-    response::{Response, ResponseError, ResponseResult},
+    response::{ResponseError, ResponseResult},
 };
 
 pub mod role;
@@ -78,16 +78,9 @@ impl Command for PermissionsCommand {
             }
         }
 
-        return ctx
-            .reply(
-                cmd,
-                Response::new().embed(
-                    CreateEmbed::new()
-                        .title("Invalid command!")
-                        .description("You must specify a subcommand to use this command!")
-                        .color(0xf00),
-                ),
-            )
-            .await;
+        Err(ResponseError::ExecutionError(
+            "Invalid command",
+            Some("You must specify a subcommand to use this command!".to_string()),
+        ))
     }
 }

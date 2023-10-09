@@ -109,3 +109,27 @@ pub async fn expire_actions(handler: Handler, ctx: Context) {
         tokio::time::sleep(Duration::from_secs(45)).await;
     }
 }
+
+pub async fn expire_giveaways(handler: Handler, ctx: Context) {
+    loop {
+        let start = std::time::Instant::now();
+
+        // TODO: Change to query_as!
+        // let giveaways = match sqlx::query!("SELECT id, winners FROM giveaways")
+        //     .fetch_all(&handler.main_database)
+        //     .await
+        // {
+        //     Ok(giveaways) => giveaways,
+        //     Err(e) => {
+        //         error!("Failed to fetch giveaways: {}", e);
+        //         continue;
+        //     }
+        // };
+
+        debug!(
+            "Finished expiring giveaways in {}ms",
+            start.elapsed().as_millis()
+        );
+        tokio::time::sleep(Duration::from_secs(45)).await;
+    }
+}
