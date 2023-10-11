@@ -84,7 +84,7 @@ pub async fn end_giveaway(
         return Err(ResponseError::SerenityError(err));
     }
 
-    if winners.is_empty() {
+    if !winners.is_empty() {
         if let Err(err) = message
             .reply(
                 &ctx.ctx.http,
