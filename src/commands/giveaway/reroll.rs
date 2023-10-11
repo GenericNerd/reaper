@@ -56,7 +56,8 @@ pub async fn reroll(
             return Err(ResponseError::ExecutionError(
                 "The giveaway has not finished",
                 Some(
-                    "Please end the giveaway or wait for it to finish before rerolling".to_string(),
+                    "Please end the giveaway or wait for it to finish before rerolling."
+                        .to_string(),
                 ),
             ));
         }
