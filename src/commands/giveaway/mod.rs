@@ -82,7 +82,7 @@ impl Command for GiveawayCommand {
                 )
                 .add_sub_option(
                     CreateCommandOption::new(
-                        CommandOptionType::String,
+                        CommandOptionType::Integer,
                         "id",
                         "The message ID of the giveaway to reroll",
                     )
@@ -101,7 +101,7 @@ impl Command for GiveawayCommand {
                 CreateCommandOption::new(CommandOptionType::SubCommand, "end", "End a giveaway")
                     .add_sub_option(
                         CreateCommandOption::new(
-                            CommandOptionType::String,
+                            CommandOptionType::Integer,
                             "id",
                             "The message ID of the giveaway to delete",
                         )
@@ -116,7 +116,7 @@ impl Command for GiveawayCommand {
                 )
                 .add_sub_option(
                     CreateCommandOption::new(
-                        CommandOptionType::String,
+                        CommandOptionType::Integer,
                         "id",
                         "The message ID of the giveaway to delete",
                     )
