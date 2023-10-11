@@ -194,7 +194,7 @@ impl InteractionContextReply for InteractionContext {
                 .create_response(&self.ctx.http, CreateInteractionResponse::Message(reply))
                 .await
             {
-                Ok(_) => {
+                Ok(()) => {
                     self.has_responsed.store(true, Ordering::Relaxed);
                 }
                 Err(err) => {

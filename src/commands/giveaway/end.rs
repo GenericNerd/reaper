@@ -44,9 +44,12 @@ pub async fn end_giveaway(
         }
     };
 
-    let winners = if entries.len() > giveaway.winners as usize {
+    let winners = if entries.len() > usize::try_from(giveaway.winners).unwrap() {
         entries
-            .choose_multiple(&mut rand::thread_rng(), giveaway.winners as usize)
+            .choose_multiple(
+                &mut rand::thread_rng(),
+                usize::try_from(giveaway.winners).unwrap(),
+            )
             .map(|entry| format!("<@{entry}>"))
             .collect::<Vec<String>>()
     } else {
@@ -64,12 +67,9 @@ pub async fn end_giveaway(
                     CreateEmbed::new()
                         .title(format!("{} giveaway", giveaway.prize))
                         .description(if winners.is_empty() {
-                            format!(
-                                "Congratulations to {} for winning the giveaway!",
-                                winners.join(", ")
-                            )
-                        } else {
                             "No one won the giveaway.".to_string()
+                        } else {
+                            "The giveaway is now over, congratulations to the winners!".to_string()
                         })
                         .color(0x4752c4),
                 )
@@ -163,7 +163,7 @@ pub async fn end(
     };
 
     match end_giveaway(handler, ctx, &giveaway, &mut message).await {
-        Ok(_) => {
+        Ok(()) => {
             ctx.reply(
                 cmd,
                 Response::new()
