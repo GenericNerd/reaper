@@ -52,10 +52,12 @@ pub async fn reroll(
         .fetch_optional(&handler.main_database)
         .await
     {
-        if row.is_none() {
+        if row.is_some() {
             return Err(ResponseError::ExecutionError(
-                "This giveaway could not be found",
-                Some("Please use the message ID for the giveaway ID".to_string()),
+                "The giveaway has not finished",
+                Some(
+                    "Please end the giveaway or wait for it to finish before rerolling".to_string(),
+                ),
             ));
         }
     }
