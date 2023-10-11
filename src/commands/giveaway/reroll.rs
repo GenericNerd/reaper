@@ -85,7 +85,7 @@ pub async fn reroll(
     let winners = if entries.len() > usize::try_from(winners).unwrap() {
         entries
             .choose_multiple(&mut rand::thread_rng(), usize::try_from(winners).unwrap())
-            .map(|entry| entry.to_string())
+            .map(std::string::ToString::to_string)
             .collect::<Vec<String>>()
     } else {
         entries
