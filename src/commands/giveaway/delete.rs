@@ -1,4 +1,7 @@
-use serenity::all::{ChannelId, CommandInteraction, MessageId};
+use serenity::{
+    all::{ChannelId, CommandInteraction, MessageId},
+    builder::CreateInteractionResponse,
+};
 use tracing::error;
 
 use crate::{
@@ -94,6 +97,16 @@ pub async fn delete(
             Some("Please notify the developer of this issue".to_string()),
         ));
     }
+
+    if let Err(err) = cmd
+        .create_response(&ctx.ctx.http, CreateInteractionResponse::Acknowledge)
+        .await
+    {
+        error!(
+            "Could not acknowledge command interaction. Failed with error: {:?}",
+            err
+        );
+    };
 
     Ok(())
 }
