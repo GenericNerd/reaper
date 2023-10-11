@@ -59,6 +59,14 @@ impl Command for GiveawayCommand {
                 )
                 .add_sub_option(
                     CreateCommandOption::new(
+                        CommandOptionType::Role,
+                        "role",
+                        "The role to require to enter the giveaway",
+                    )
+                    .required(false),
+                )
+                .add_sub_option(
+                    CreateCommandOption::new(
                         CommandOptionType::String,
                         "description",
                         "The description for the giveaway",
@@ -115,6 +123,7 @@ impl Command for GiveawayCommand {
                     .required(true),
                 ),
             )
+            .dm_permission(false)
     }
 
     async fn router(

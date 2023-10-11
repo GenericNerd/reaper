@@ -1,4 +1,4 @@
-use std::sync::atomic::AtomicBool;
+use std::sync::{atomic::AtomicBool, Arc};
 use strum::IntoEnumIterator;
 
 use serenity::{
@@ -98,7 +98,7 @@ impl Handler {
 
         let command_context = CommandContext {
             ctx,
-            has_responsed: AtomicBool::new(false),
+            has_responsed: Arc::new(AtomicBool::new(false)),
             user_permissions,
             guild,
         };

@@ -110,21 +110,16 @@ pub async fn expire_actions(handler: Handler, ctx: Context) {
     }
 }
 
-pub async fn expire_giveaways(handler: Handler, ctx: Context) {
+pub async fn expire_giveaways(handler: Handler) {
     loop {
         let start = std::time::Instant::now();
 
-        // TODO: Change to query_as!
-        // let giveaways = match sqlx::query!("SELECT id, winners FROM giveaways")
-        //     .fetch_all(&handler.main_database)
-        //     .await
-        // {
-        //     Ok(giveaways) => giveaways,
-        //     Err(e) => {
-        //         error!("Failed to fetch giveaways: {}", e);
-        //         continue;
-        //     }
-        // };
+        if let Err(err) = sqlx::query!("DELETE FROM giveaways WHERE duration < NOW()")
+            .execute(&handler.main_database)
+            .await
+        {
+            error!("Failed to delete expired giveaways: {}", err);
+        }
 
         debug!(
             "Finished expiring giveaways in {}ms",

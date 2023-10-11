@@ -20,3 +20,4 @@ lazy_static = "1.4"
 objectid = { version = "0.2", features = ["serde"] }
 time = "0.3"
 inflections = "1.1"
+rand = "0.8"

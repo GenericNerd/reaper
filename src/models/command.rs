@@ -1,8 +1,8 @@
-use std::sync::atomic::AtomicBool;
+use std::sync::{atomic::AtomicBool, Arc};
 
 use serenity::{
-    all::{CommandInteraction, Message, PartialGuild},
-    builder::CreateCommand,
+    all::{CommandInteraction, ComponentInteraction, Message, PartialGuild},
+    builder::{CreateCommand, CreateEmbed},
     prelude::Context as IncomingContext,
 };
 
@@ -22,11 +22,52 @@ pub trait CommandContextReply {
     ) -> Result<Message, ResponseError>;
 }
 
+#[async_trait::async_trait]
+pub trait InteractionContextReply {
+    async fn reply(&self, response: Response) -> ResponseResult;
+}
+
+#[derive(Clone)]
 pub struct CommandContext {
     pub ctx: IncomingContext,
-    pub has_responsed: AtomicBool,
+    pub has_responsed: Arc<AtomicBool>,
     pub user_permissions: Vec<Permission>,
     pub guild: PartialGuild,
+}
+
+pub struct InteractionContext {
+    pub ctx: IncomingContext,
+    pub interaction: ComponentInteraction,
+    pub has_responsed: Arc<AtomicBool>,
+    pub user_permissions: Vec<Permission>,
+}
+
+impl InteractionContext {
+    pub fn new(ctx: IncomingContext, interaction: &ComponentInteraction) -> Self {
+        Self {
+            ctx,
+            interaction: interaction.clone(),
+            has_responsed: Arc::new(AtomicBool::new(false)),
+            // TODO: Add permissions
+            user_permissions: vec![],
+        }
+    }
+
+    pub async fn error_message(&self, error: ResponseError) -> ResponseResult {
+        let embed = match error {
+            ResponseError::ExecutionError(title, description) => CreateEmbed::new()
+                .title(title)
+                .description(description.unwrap_or(String::new()))
+                .color(0xff0000),
+            ResponseError::SerenityError(err) => CreateEmbed::new()
+                .title("A Discord error occured while executing the command")
+                .description(format!("```{err:?}```"))
+                .color(0xff0000),
+        };
+
+        self.reply(Response::new().embed(embed).ephemeral(true))
+            .await
+    }
 }
 
 pub struct FailedCommandContext {

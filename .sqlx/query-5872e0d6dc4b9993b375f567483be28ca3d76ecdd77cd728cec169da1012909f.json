@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM giveaways WHERE duration < NOW()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "5872e0d6dc4b9993b375f567483be28ca3d76ecdd77cd728cec169da1012909f"
+}

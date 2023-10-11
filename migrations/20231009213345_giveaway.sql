@@ -2,8 +2,12 @@
 DROP TABLE IF EXISTS giveaways;
 CREATE TABLE giveaways (
     id BIGINT NOT NULL,
-    winners INT(4) NOT NULL DEFAULT 1,
+    channel_id BIGINT NOT NULL,
+    prize VARCHAR(255) NOT NULL,
+    description VARCHAR(255) NULL,
+    winners INT NOT NULL DEFAULT 1,
     duration TIMESTAMP NOT NULL,
+    role_restriction BIGINT NULL,
     PRIMARY KEY (id)
 );
 DROP TABLE IF EXISTS giveaway_entry;
