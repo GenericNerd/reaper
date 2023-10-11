@@ -20,7 +20,14 @@ pub async fn reroll(
         options: cmd.data.options(),
     };
 
-    let Some(id) = options.get_integer("id") else {
+    let Some(id_string) = options.get_string("id").into_owned() else {
+        return Err(ResponseError::ExecutionError(
+            "Could not get giveaway ID",
+            Some("Please notify the developer of this issue".to_string()),
+        ));
+    };
+
+    let Ok(id) = id_string.parse::<i64>() else {
         return Err(ResponseError::ExecutionError(
             "Could not get giveaway ID",
             Some("Please notify the developer of this issue".to_string()),
@@ -72,6 +79,17 @@ pub async fn reroll(
             .map(|entry| format!("<@{entry}>"))
             .collect::<Vec<String>>()
     };
+
+    if winners.is_empty() {
+        return ctx
+            .reply(
+                cmd,
+                Response::new()
+                    .content("No one won the giveaway.".to_string())
+                    .ephemeral(true),
+            )
+            .await;
+    }
 
     ctx.reply(
         cmd,
