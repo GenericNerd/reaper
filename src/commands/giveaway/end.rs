@@ -103,6 +103,20 @@ pub async fn end_giveaway(
         }
     }
 
+    if let Err(err) = sqlx::query!("DELETE FROM giveaways WHERE id = $1", giveaway.id)
+        .execute(&handler.main_database)
+        .await
+    {
+        error!(
+            "Could not delete giveaway {} from database. Failed with error: {:?}",
+            giveaway.id, err
+        );
+        return Err(ResponseError::ExecutionError(
+            "Could not delete giveaway from database",
+            Some("Please notify the developer of this issue".to_string()),
+        ));
+    }
+
     Ok(())
 }
 
