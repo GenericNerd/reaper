@@ -13,7 +13,7 @@ impl From<DatabaseGiveaway> for Giveaway {
     fn from(value: DatabaseGiveaway) -> Self {
         Giveaway {
             id: value.id,
-            channel_id: value.id,
+            channel_id: value.channel_id,
             prize: value.prize,
             description: value.description,
             winners: value.winners,
