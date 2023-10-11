@@ -110,8 +110,11 @@ pub async fn new(
     };
 
     if let Err(err) = sqlx::query!(
-        "INSERT INTO giveaways (id, winners, duration, role_restriction) VALUES ($1, $2, $3, $4)",
+        "INSERT INTO giveaways (id, channel_id, prize, description, winners, duration, role_restriction) VALUES ($1, $2, $3, $4, $5, $6, $7)",
         giveaway.id,
+        giveaway.channel_id,
+        giveaway.prize,
+        giveaway.description,
         giveaway.winners,
         primative_duration,
         giveaway.role_restriction
