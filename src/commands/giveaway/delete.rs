@@ -1,16 +1,16 @@
 use serenity::{
     all::{ChannelId, CommandInteraction, MessageId},
-    builder::CreateInteractionResponse,
+    builder::CreateEmbed,
 };
 use tracing::error;
 
 use crate::{
     common::options::Options,
     models::{
-        command::CommandContext,
+        command::{CommandContext, CommandContextReply},
         giveaway::{DatabaseGiveaway, Giveaway},
         handler::Handler,
-        response::{ResponseError, ResponseResult},
+        response::{Response, ResponseError, ResponseResult},
     },
 };
 
@@ -98,15 +98,11 @@ pub async fn delete(
         ));
     }
 
-    if let Err(err) = cmd
-        .create_response(&ctx.ctx.http, CreateInteractionResponse::Acknowledge)
-        .await
-    {
-        error!(
-            "Could not acknowledge command interaction. Failed with error: {:?}",
-            err
-        );
-    };
-
-    Ok(())
+    ctx.reply(
+        cmd,
+        Response::new()
+            .embed(CreateEmbed::new().title("Giveaway deleted"))
+            .ephemeral(true),
+    )
+    .await
 }
