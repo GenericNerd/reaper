@@ -77,6 +77,15 @@ pub async fn new_giveaway_entry_handler(handler: Handler, ctx: CommandContext, g
             }
         }
 
+        if let Ok(giveaway) = sqlx::query!("SELECT id FROM giveaways WHERE id = $1", giveaway.id)
+            .fetch_optional(&handler.main_database)
+            .await
+        {
+            if giveaway.is_none() {
+                return;
+            }
+        }
+
         match sqlx::query!(
             "SELECT id FROM giveaway_entry WHERE id = $1 AND user_id = $2",
             giveaway.id,
