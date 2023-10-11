@@ -4,8 +4,7 @@ use serenity::{
     all::{ButtonStyle, CommandInteraction, ComponentInteractionDataKind},
     builder::{
         CreateActionRow, CreateButton, CreateEmbed, CreateEmbedFooter, CreateInteractionResponse,
-        CreateInteractionResponseMessage, CreateSelectMenu, CreateSelectMenuKind,
-        CreateSelectMenuOption,
+        CreateSelectMenu, CreateSelectMenuKind, CreateSelectMenuOption,
     },
     futures::StreamExt,
     model::Permissions,
@@ -19,7 +18,7 @@ use crate::{
         add_permission_to_user, get_user, remove_permission_from_user,
     },
     models::{
-        command::{CommandContext, CommandContextReply},
+        command::{CommandContext, CommandContextReply, InteractionContext},
         handler::Handler,
         permissions::Permission,
         response::{Response, ResponseError, ResponseResult},
@@ -135,45 +134,35 @@ pub async fn user(
         .stream();
     let mut temp_permissions = existing_permissions.clone();
     while let Some(interaction) = interaction_stream.next().await {
+        let interaction_context =
+            InteractionContext::new(handler, ctx.ctx.clone(), &interaction).await;
         start = std::time::Instant::now();
 
-        if interaction.user.id != cmd.user.id
-            && !get_user(
-                handler,
-                ctx.guild.id.0.get() as i64,
-                interaction.user.id.0.get() as i64,
-            )
-            .await
-            .contains(&Permission::PermissionsEdit)
+        if interaction_context.interaction.user.id != cmd.user.id
+            && !interaction_context
+                .user_permissions
+                .contains(&Permission::PermissionsEdit)
         {
             // TODO: Investigate method to condense this
-            if let Err(err) = interaction
-                    .create_response(
-                        &ctx.ctx.http,
-                        CreateInteractionResponse::Message(
-                            CreateInteractionResponseMessage::new()
-                                .embed(
-                                    CreateEmbed::new()
-                                        .title("You do not have permission to do this!")
-                                        .description(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::PermissionsEdit.to_string()))
-                                        .color(0xff0000),
-                                )
-                                .ephemeral(true),
-                        ),
+            if let Err(err) = interaction_context.error_message(
+                ResponseError::ExecutionError(
+                    "You do not have permission to do this",
+                    Some(format!(
+                        "You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.",
+                        Permission::PermissionsEdit.to_string())
                     )
-                    .await
-                {
-                    error!(
-                        "Failed to reply to command interaction with error: {:?}",
-                        err
-                    );
-                }
+                )).await {
+                error!(
+                    "Failed to reply to command interaction with error: {:?}",
+                    err
+                );
+            }
             continue;
         }
 
-        let permission_to_change = match &interaction.data.kind {
+        let permission_to_change = match &interaction_context.interaction.data.kind {
             ComponentInteractionDataKind::Button => {
-                if interaction.data.custom_id == "done" {
+                if interaction_context.interaction.data.custom_id == "done" {
                     for permission in &existing_permissions {
                         if !temp_permissions.contains(permission) {
                             remove_permission_from_user(
@@ -204,7 +193,8 @@ pub async fn user(
                         );
                     }
 
-                    if let Err(err) = interaction
+                    if let Err(err) = interaction_context
+                        .interaction
                         .create_response(&ctx.ctx, CreateInteractionResponse::Acknowledge)
                         .await
                     {
@@ -263,7 +253,8 @@ pub async fn user(
             );
         }
 
-        if let Err(err) = interaction
+        if let Err(err) = interaction_context
+            .interaction
             .create_response(&ctx.ctx, CreateInteractionResponse::Acknowledge)
             .await
         {

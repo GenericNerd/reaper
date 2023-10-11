@@ -8,7 +8,7 @@ use serenity::{
     },
     builder::{
         CreateActionRow, CreateButton, CreateCommand, CreateCommandOption, CreateEmbed,
-        CreateEmbedFooter, CreateInteractionResponse, CreateInteractionResponseMessage,
+        CreateEmbedFooter, CreateInteractionResponse,
     },
     futures::StreamExt,
 };
@@ -16,11 +16,13 @@ use tracing::error;
 
 use crate::{
     common::options::Options,
-    database::postgres::permissions::get_user,
     models::{
         actions::Action,
         actions::{ActionType, DatabaseAction},
-        command::{Command, CommandContext, CommandContextReply},
+        command::{
+            Command, CommandContext, CommandContextReply, InteractionContext,
+            InteractionContextReply,
+        },
         handler::Handler,
         permissions::Permission,
         response::{Response, ResponseError, ResponseResult},
@@ -227,13 +229,16 @@ impl Command for SearchCommand {
             .timeout(Duration::new(60 * 60 * 24, 0))
             .stream();
         while let Some(interaction) = interaction_stream.next().await {
+            let interaction_context =
+                InteractionContext::new(handler, ctx.ctx.clone(), &interaction).await;
+
             start = std::time::Instant::now();
-            match interaction.data.kind {
+            match interaction_context.interaction.data.kind {
                 ComponentInteractionDataKind::Button => {}
                 _ => continue,
             }
-            if interaction.user.id != cmd.user.id {
-                let permission_required = if user == interaction.user {
+            if interaction_context.interaction.user.id != cmd.user.id {
+                let permission_required = if user == interaction_context.interaction.user {
                     if expired {
                         Permission::ModerationSearchSelfExpired
                     } else {
@@ -244,40 +249,26 @@ impl Command for SearchCommand {
                 } else {
                     Permission::ModerationSearchOthers
                 };
-                if !get_user(
-                    handler,
-                    ctx.guild.id.0.get() as i64,
-                    interaction.user.id.0.get() as i64,
-                )
-                .await
-                .contains(&permission_required)
+
+                if !interaction_context
+                    .user_permissions
+                    .contains(&permission_required)
                 {
-                    if let Err(err) = interaction
-                    .create_response(
-                        &ctx.ctx.http,
-                        CreateInteractionResponse::Message(
-                            CreateInteractionResponseMessage::new()
-                                .embed(
-                                    CreateEmbed::new()
-                                        .title("You do not have permission to do this!")
-                                        .description(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", permission_required.to_string()))
-                                        .color(0xff0000),
-                                )
-                                .ephemeral(true),
-                        ),
-                    )
-                    .await
-                {
-                    error!(
-                        "Failed to reply to command interaction with error: {:?}",
-                        err
-                    );
-                }
+                    if let Err(err) = interaction_context.error_message(
+                        ResponseError::ExecutionError(
+                            "You do not have permission to do this!",
+                            Some(format!(
+                                "You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.",
+                                permission_required.to_string()
+                            ))
+                        )).await {
+                        error!("Failed to reply to command interaction with error: {:?}", err);
+                    }
                     continue;
                 }
             }
             let mut update_required = false;
-            match interaction.data.custom_id.as_str() {
+            match interaction_context.interaction.data.custom_id.as_str() {
                 "previous" => {
                     if page > 1 {
                         page -= 1;
@@ -292,15 +283,8 @@ impl Command for SearchCommand {
                 }
                 "uuid" => {
                     let action = actions.get(&(page - 1)).unwrap();
-                    if let Err(err) = interaction
-                        .create_response(
-                            &ctx.ctx.http,
-                            CreateInteractionResponse::Message(
-                                CreateInteractionResponseMessage::new()
-                                    .content(action.get_id())
-                                    .ephemeral(true),
-                            ),
-                        )
+                    if let Err(err) = interaction_context
+                        .reply(Response::new().content(action.get_id()).ephemeral(true))
                         .await
                     {
                         error!("Failed to send action UUID with error: {:?}", err);
@@ -322,7 +306,8 @@ impl Command for SearchCommand {
                     generate_search_response(&user, &actions, page, expired, &start),
                 )
                 .await?;
-                if let Err(err) = interaction
+                if let Err(err) = interaction_context
+                    .interaction
                     .create_response(&ctx.ctx.http, CreateInteractionResponse::Acknowledge)
                     .await
                 {
