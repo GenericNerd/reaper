@@ -71,13 +71,10 @@ pub async fn reroll(
     let winners = if entries.len() > usize::try_from(winners).unwrap() {
         entries
             .choose_multiple(&mut rand::thread_rng(), usize::try_from(winners).unwrap())
-            .map(|entry| format!("<@{entry}>"))
+            .map(|entry| entry.to_string())
             .collect::<Vec<String>>()
     } else {
         entries
-            .iter()
-            .map(|entry| format!("<@{entry}>"))
-            .collect::<Vec<String>>()
     };
 
     if winners.is_empty() {
@@ -95,7 +92,7 @@ pub async fn reroll(
         cmd,
         Response::new().content(format!(
             "Congratulations to {} for winning the giveaway!",
-            winners.join(",")
+            winners.join(", ")
         )),
     )
     .await
