@@ -20,6 +20,10 @@ pub enum Permission {
     ModerationRemove,
     ModerationDuration,
     ModerationReason,
+    GiveawayCreate,
+    GiveawayEnd,
+    GiveawayReroll,
+    GiveawayDelete,
 }
 
 impl ToString for Permission {
@@ -47,6 +51,10 @@ impl ToString for Permission {
             Permission::ModerationRemove => "moderation.remove".to_string(),
             Permission::ModerationDuration => "moderation.duration".to_string(),
             Permission::ModerationReason => "moderation.reason".to_string(),
+            Permission::GiveawayCreate => "giveaway.create".to_string(),
+            Permission::GiveawayEnd => "giveaway.end".to_string(),
+            Permission::GiveawayReroll => "giveaway.reroll".to_string(),
+            Permission::GiveawayDelete => "giveaway.delete".to_string(),
         }
     }
 }
@@ -74,6 +82,10 @@ impl From<String> for Permission {
             "moderation.remove" => Permission::ModerationRemove,
             "moderation.duration" => Permission::ModerationDuration,
             "moderation.reason" => Permission::ModerationReason,
+            "giveaway.create" => Permission::GiveawayCreate,
+            "giveaway.end" => Permission::GiveawayEnd,
+            "giveaway.reroll" => Permission::GiveawayReroll,
+            "giveaway.delete" => Permission::GiveawayDelete,
             _ => panic!("Invalid permission"),
         }
     }

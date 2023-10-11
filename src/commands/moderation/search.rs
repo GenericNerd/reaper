@@ -209,7 +209,7 @@ impl Command for SearchCommand {
             Err(_) => {
                 return Err(ResponseError::ExecutionError(
                     "Failed to fetch actions",
-                    Some("Please contact the bot developer for assistance".to_string()),
+                    Some("Please contact the developer for assistance".to_string()),
                 ))
             }
         };

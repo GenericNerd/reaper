@@ -9,7 +9,10 @@ use serenity::{
 use tracing::{debug, error};
 
 use crate::models::{
-    command::{CommandContext, CommandContextReply, FailedCommandContext},
+    command::{
+        CommandContext, CommandContextReply, FailedCommandContext, InteractionContext,
+        InteractionContextReply,
+    },
     response::{Response, ResponseError, ResponseResult},
 };
 
@@ -141,6 +144,67 @@ impl CommandContextReply for FailedCommandContext {
 
     async fn reply(&self, cmd: &CommandInteraction, response: Response) -> ResponseResult {
         self.reply_get_message(cmd, response).await?;
+        Ok(())
+    }
+}
+
+#[async_trait::async_trait]
+impl InteractionContextReply for InteractionContext {
+    async fn reply(&self, response: Response) -> ResponseResult {
+        let start = std::time::Instant::now();
+        if self.has_responsed.load(Ordering::Relaxed) {
+            let mut edit = EditInteractionResponse::new();
+            if let Some(content) = response.content {
+                edit = edit.content(content);
+            }
+            if let Some(embeds) = response.embeds {
+                edit = edit.embeds(embeds);
+            }
+            if let Some(allowed_mentions) = response.allowed_mentions {
+                edit = edit.allowed_mentions(allowed_mentions);
+            }
+            if let Some(components) = response.components {
+                edit = edit.components(components);
+            }
+
+            if let Err(err) = self.interaction.edit_response(&self.ctx.http, edit).await {
+                error!("Attempted to edit a interaction response, failed with error: {err}");
+                return Err(ResponseError::SerenityError(err));
+            }
+        } else {
+            let mut reply = CreateInteractionResponseMessage::new();
+            if let Some(content) = response.content {
+                reply = reply.content(content);
+            }
+            if let Some(embeds) = response.embeds {
+                reply = reply.embeds(embeds);
+            }
+            if let Some(allowed_mentions) = response.allowed_mentions {
+                reply = reply.allowed_mentions(allowed_mentions);
+            }
+            if let Some(components) = response.components {
+                reply = reply.components(components);
+            }
+            if response.ephemeral {
+                reply = reply.ephemeral(true);
+            }
+
+            match self
+                .interaction
+                .create_response(&self.ctx.http, CreateInteractionResponse::Message(reply))
+                .await
+            {
+                Ok(()) => {
+                    self.has_responsed.store(true, Ordering::Relaxed);
+                }
+                Err(err) => {
+                    error!("Attempted to create a response to a command, failed with error: {err}");
+                    return Err(ResponseError::SerenityError(err));
+                }
+            }
+        }
+
+        debug!("Took {:?} to reply to a command", start.elapsed());
         Ok(())
     }
 }

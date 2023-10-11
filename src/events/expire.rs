@@ -109,3 +109,22 @@ pub async fn expire_actions(handler: Handler, ctx: Context) {
         tokio::time::sleep(Duration::from_secs(45)).await;
     }
 }
+
+pub async fn expire_giveaways(handler: Handler) {
+    loop {
+        let start = std::time::Instant::now();
+
+        if let Err(err) = sqlx::query!("DELETE FROM giveaways WHERE duration < NOW()")
+            .execute(&handler.main_database)
+            .await
+        {
+            error!("Failed to delete expired giveaways: {}", err);
+        }
+
+        debug!(
+            "Finished expiring giveaways in {}ms",
+            start.elapsed().as_millis()
+        );
+        tokio::time::sleep(Duration::from_secs(45)).await;
+    }
+}

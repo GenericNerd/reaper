@@ -1,4 +1,4 @@
-use std::sync::atomic::AtomicBool;
+use std::sync::{atomic::AtomicBool, Arc};
 
 use serenity::{all::ActionExecution, prelude::Context};
 use tracing::error;
@@ -26,7 +26,7 @@ impl Handler {
 
         let context = CommandContext {
             ctx,
-            has_responsed: AtomicBool::new(false),
+            has_responsed: Arc::new(AtomicBool::new(false)),
             user_permissions: vec![],
             guild,
         };
