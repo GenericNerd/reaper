@@ -56,7 +56,8 @@ pub async fn new_giveaway_entry_handler(handler: Handler, ctx: CommandContext, g
 
     // This will run while the giveaway is still active
     while let Some(interaction) = interaction_stream.next().await {
-        let interaction_context = InteractionContext::new(ctx.ctx.clone(), &interaction);
+        let interaction_context =
+            InteractionContext::new(&handler, ctx.ctx.clone(), &interaction).await;
 
         if let Some(restriction) = giveaway.role_restriction {
             let role = RoleId::new(restriction as u64);

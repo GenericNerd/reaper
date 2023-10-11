@@ -1,10 +1,12 @@
-use std::sync::{atomic::AtomicBool, Arc};
-
 use serenity::{
     all::{CommandInteraction, ComponentInteraction, Message, PartialGuild},
     builder::{CreateCommand, CreateEmbed},
     prelude::Context as IncomingContext,
 };
+use std::sync::{atomic::AtomicBool, Arc};
+use strum::IntoEnumIterator;
+
+use crate::database::postgres::permissions::get_user;
 
 use super::{
     handler::Handler,
@@ -43,13 +45,52 @@ pub struct InteractionContext {
 }
 
 impl InteractionContext {
-    pub fn new(ctx: IncomingContext, interaction: &ComponentInteraction) -> Self {
+    pub async fn new(
+        handler: &Handler,
+        ctx: IncomingContext,
+        interaction: &ComponentInteraction,
+    ) -> Self {
+        let Some(guild_id) = interaction.guild_id else {
+            return Self {
+                ctx,
+                interaction: interaction.clone(),
+                has_responsed: Arc::new(AtomicBool::new(false)),
+                user_permissions: vec![],
+            };
+        };
+
+        let mut temp_guild = guild_id
+            .to_guild_cached(&ctx.cache)
+            .map(|guild| PartialGuild::from(guild.clone()));
+        if temp_guild.is_none() {
+            temp_guild = if let Ok(guild) = guild_id.to_partial_guild(&ctx.http).await {
+                Some(guild)
+            } else {
+                None
+            }
+        }
+
+        let guild = temp_guild.unwrap();
+
+        if guild.owner_id == interaction.user.id {
+            return Self {
+                ctx,
+                interaction: interaction.clone(),
+                has_responsed: Arc::new(AtomicBool::new(false)),
+                user_permissions: Permission::iter().collect::<Vec<_>>(),
+            };
+        }
+
         Self {
             ctx,
             interaction: interaction.clone(),
             has_responsed: Arc::new(AtomicBool::new(false)),
-            // TODO: Add permissions
-            user_permissions: vec![],
+            user_permissions: get_user(
+                handler,
+                guild_id.0.get() as i64,
+                interaction.user.id.0.get() as i64,
+            )
+            .await,
         }
     }
 
