@@ -48,6 +48,18 @@ pub async fn reroll(
         ));
     }
 
+    if let Ok(row) = sqlx::query!("SELECT id FROM giveaways WHERE id = $1", id)
+        .fetch_optional(&handler.main_database)
+        .await
+    {
+        if row.is_none() {
+            return Err(ResponseError::ExecutionError(
+                "This giveaway could not be found",
+                Some("Please use the message ID for the giveaway ID".to_string()),
+            ));
+        }
+    }
+
     let entries = match sqlx::query!("SELECT user_id FROM giveaway_entry WHERE id = $1", id)
         .fetch_all(&handler.main_database)
         .await
