@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO board_entries (channel_id, guild_id, message_id) VALUES ($1, $2, $3)",
+  "query": "INSERT INTO board_entries (guild_id, channel_id, message_id) VALUES ($1, $2, $3)",
   "describe": {
     "columns": [],
     "parameters": {
@@ -12,5 +12,5 @@
     },
     "nullable": []
   },
-  "hash": "675c230dbea115fe139b1eac148b60f063160507c754004cfbd5a2381a021561"
+  "hash": "21ad0d05ae2ff69207576f1bab87627cf96c177801cac2874526221707956173"
 }

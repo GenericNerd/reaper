@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT * FROM boards WHERE guild_id = $1 AND channel_id = $2",
+  "query": "SELECT * FROM boards WHERE guild_id = $1",
   "describe": {
     "columns": [
       {
@@ -26,7 +26,6 @@
     ],
     "parameters": {
       "Left": [
-        "Int8",
         "Int8"
       ]
     },
@@ -37,5 +36,5 @@
       false
     ]
   },
-  "hash": "aa4c418011eb0199f66af5f8100a37ef7c9ea5fe50b2eb5200b64adb1daf5d59"
+  "hash": "a58b66aed2813d29d260ad0db273f7489737e5a210a9184c6cca1c4c2c2c54f8"
 }
