@@ -1,7 +1,7 @@
 use serenity::{
     all::{
         ActionExecution, Guild, GuildMemberUpdateEvent, Interaction, InteractionType, Member,
-        UnavailableGuild,
+        Reaction, UnavailableGuild,
     },
     model::prelude::Ready,
     prelude::{Context, EventHandler},
@@ -55,6 +55,10 @@ impl EventHandler for Handler {
             return;
         }
         self.on_guild_leave(guild).await;
+    }
+
+    async fn reaction_add(&self, ctx: Context, reaction: Reaction) {
+        self.on_reaction_add(ctx, reaction).await;
     }
 
     async fn auto_moderation_action_execution(&self, ctx: Context, execution: ActionExecution) {

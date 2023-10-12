@@ -131,7 +131,7 @@ impl Handler {
                             return Err(ResponseError::ExecutionError(
                                 "Strike escalation mute did not provide a duration",
                                 Some(
-                                    "This should not happen, please contact a developer"
+                                    "This should not happen, please contact a developer."
                                         .to_string(),
                                 ),
                             ));
