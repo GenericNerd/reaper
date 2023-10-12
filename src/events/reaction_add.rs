@@ -87,7 +87,7 @@ impl Handler {
             {
                 Ok(entry) => {
                     if entry.is_some() {
-                        return;    
+                        return;
                     }
                 },
                 Err(err) => {
