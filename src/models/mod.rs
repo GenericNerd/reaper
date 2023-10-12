@@ -1,4 +1,5 @@
 pub mod actions;
+pub mod boards;
 pub mod command;
 pub mod config;
 pub mod giveaway;
