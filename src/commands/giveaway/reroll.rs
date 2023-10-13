@@ -21,14 +21,14 @@ pub async fn reroll(
     };
 
     let Some(id_string) = options.get_string("id").into_owned() else {
-        return Err(ResponseError::ExecutionError(
+        return Err(ResponseError::Execution(
             "Could not get giveaway ID",
             Some("Please notify the developer of this issue".to_string()),
         ));
     };
 
     let Ok(id) = id_string.parse::<i64>() else {
-        return Err(ResponseError::ExecutionError(
+        return Err(ResponseError::Execution(
             "Could not get giveaway ID",
             Some("Please notify the developer of this issue".to_string()),
         ));
@@ -37,12 +37,12 @@ pub async fn reroll(
     let winners = options.get_integer("winners").unwrap_or(1);
 
     if winners < 1 {
-        return Err(ResponseError::ExecutionError(
+        return Err(ResponseError::Execution(
             "Not enough winners",
             Some("You must have at least one winner".to_string()),
         ));
     } else if winners > 50 {
-        return Err(ResponseError::ExecutionError(
+        return Err(ResponseError::Execution(
             "Too many winners",
             Some("You can only have a maximum of 50 winners".to_string()),
         ));
@@ -53,7 +53,7 @@ pub async fn reroll(
         .await
     {
         if row.is_some() {
-            return Err(ResponseError::ExecutionError(
+            return Err(ResponseError::Execution(
                 "The giveaway has not finished",
                 Some(
                     "Please end the giveaway or wait for it to finish before rerolling."
@@ -76,7 +76,7 @@ pub async fn reroll(
                 "Could not get giveaway entries for giveaway {} from database. Failed with error: {:?}",
                 id, err
             );
-            return Err(ResponseError::ExecutionError(
+            return Err(ResponseError::Execution(
                 "Could not get giveaway entries",
                 Some("Please notify the developer of this issue".to_string()),
             ));

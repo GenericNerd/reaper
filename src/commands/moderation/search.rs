@@ -187,7 +187,7 @@ impl Command for SearchCommand {
         };
 
         if !ctx.user_permissions.contains(&permission_required) {
-            return Err(ResponseError::ExecutionError(
+            return Err(ResponseError::Execution(
                 "You do not have permission to do this!",
                 Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", permission_required.to_string())),
             ));
@@ -209,7 +209,7 @@ impl Command for SearchCommand {
                 actions
             }
             Err(_) => {
-                return Err(ResponseError::ExecutionError(
+                return Err(ResponseError::Execution(
                     "Failed to fetch actions",
                     Some("Please contact the developer for assistance".to_string()),
                 ))
@@ -255,7 +255,7 @@ impl Command for SearchCommand {
                     .contains(&permission_required)
                 {
                     if let Err(err) = interaction_context.error_message(
-                        ResponseError::ExecutionError(
+                        ResponseError::Execution(
                             "You do not have permission to do this!",
                             Some(format!(
                                 "You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.",

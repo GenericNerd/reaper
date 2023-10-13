@@ -61,7 +61,7 @@ impl Command for DurationCommand {
             .user_permissions
             .contains(&Permission::ModerationDuration)
         {
-            return Err(ResponseError::ExecutionError(
+            return Err(ResponseError::Execution(
                 "You do not have permission to do this!",
                 Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationDuration.to_string())),
             ));
@@ -72,7 +72,7 @@ impl Command for DurationCommand {
         };
 
         let Some(duration) = options.get_string("duration").into_owned() else {
-            return Err(ResponseError::ExecutionError(
+            return Err(ResponseError::Execution(
                 "Duration not provided!",
                 Some("A duration must be provided before continuing!".to_string()),
             ));
@@ -93,7 +93,7 @@ impl Command for DurationCommand {
                         "Could not find most recent moderator action, failed with error: {:?}",
                         err
                     );
-                    return Err(ResponseError::ExecutionError("Could not find most recent action", Some("Your most recent action could not be found. This could be because you've yet to issue someone with an action. Please provide a UUID with your next command".to_string())));
+                    return Err(ResponseError::Execution("Could not find most recent action", Some("Your most recent action could not be found. This could be because you've yet to issue someone with an action. Please provide a UUID with your next command".to_string())));
                 }
             },
         };
@@ -112,7 +112,7 @@ impl Command for DurationCommand {
                 "Could not update action duration, failed with error: {:?}",
                 err
             );
-            return Err(ResponseError::ExecutionError(
+            return Err(ResponseError::Execution(
                 "Could not update action duration",
                 Some(
                     "The action duration could not be updated. Please try again later.".to_string(),

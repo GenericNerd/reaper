@@ -39,7 +39,7 @@ impl Handler {
             Some(config) => match config.mute_role {
                 Some(id) => RoleId::new(id as u64),
                 None => {
-                    return Err(ResponseError::ExecutionError(
+                    return Err(ResponseError::Execution(
                         "Could not find mute role!",
                         Some(
                             "Please contact your server administrator to configure a mute role"
@@ -49,7 +49,7 @@ impl Handler {
                 }
             },
             None => {
-                return Err(ResponseError::ExecutionError(
+                return Err(ResponseError::Execution(
                     "Could not find a moderation configuration!",
                     Some(
                         "Please contact your server administrator to configure the server moderation"
@@ -204,7 +204,7 @@ impl Command for MuteCommand {
         let start = std::time::Instant::now();
 
         if !ctx.user_permissions.contains(&Permission::ModerationMute) {
-            return Err(ResponseError::ExecutionError(
+            return Err(ResponseError::Execution(
                 "You do not have permission to do this!",
                 Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationMute.to_string())),
             ));
@@ -215,16 +215,16 @@ impl Command for MuteCommand {
         };
 
         let Some(user) = options.get_user("user").into_owned() else {
-            return Err(ResponseError::ExecutionError("No member found!", Some("The user option either was not provided, or this command was not ran in a guild. Both of these should not occur, if they do, please contact a developer.".to_string())));
+            return Err(ResponseError::Execution("No member found!", Some("The user option either was not provided, or this command was not ran in a guild. Both of these should not occur, if they do, please contact a developer.".to_string())));
         };
         if user == cmd.user {
-            return Err(ResponseError::ExecutionError(
+            return Err(ResponseError::Execution(
                 "You cannot mute yourself!",
                 Some("You cannot mute yourself, that would be silly.".to_string()),
             ));
         }
         let Some(reason) = options.get_string("reason").into_owned() else {
-            return Err(ResponseError::ExecutionError(
+            return Err(ResponseError::Execution(
                 "No reason provided!",
                 Some("Please provide a reason for the mute.".to_string()),
             ));
@@ -235,7 +235,7 @@ impl Command for MuteCommand {
             .as_deref()
             .map(Duration::new)
         else {
-            return Err(ResponseError::ExecutionError(
+            return Err(ResponseError::Execution(
                 "Invalid or no duration provided",
                 Some(
                     "The duration value was either not provided, or was not a valid duration."

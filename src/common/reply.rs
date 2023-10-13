@@ -43,7 +43,7 @@ impl CommandContextReply for CommandContext {
                 Ok(message) => message,
                 Err(err) => {
                     error!("Attempted to edit a response to a command, failed with error: {err}");
-                    return Err(ResponseError::SerenityError(err));
+                    return Err(ResponseError::Serenity(err));
                 }
             }
         } else {
@@ -76,13 +76,13 @@ impl CommandContextReply for CommandContext {
                             error!(
                                 "A message was sent, but failed to fetch, failed with error: {err}"
                             );
-                            return Err(ResponseError::SerenityError(err));
+                            return Err(ResponseError::Serenity(err));
                         }
                     }
                 }
                 Err(err) => {
                     error!("Attempted to create a response to a command, failed with error: {err}");
-                    return Err(ResponseError::SerenityError(err));
+                    return Err(ResponseError::Serenity(err));
                 }
             }
         };
@@ -129,12 +129,12 @@ impl CommandContextReply for FailedCommandContext {
                 Ok(message) => message,
                 Err(err) => {
                     error!("A message was sent, but failed to fetch, failed with error: {err}");
-                    return Err(ResponseError::SerenityError(err));
+                    return Err(ResponseError::Serenity(err));
                 }
             },
             Err(err) => {
                 error!("Attempted to create a response to a command, failed with error: {err}");
-                return Err(ResponseError::SerenityError(err));
+                return Err(ResponseError::Serenity(err));
             }
         };
 
@@ -169,7 +169,7 @@ impl InteractionContextReply for InteractionContext {
 
             if let Err(err) = self.interaction.edit_response(&self.ctx.http, edit).await {
                 error!("Attempted to edit a interaction response, failed with error: {err}");
-                return Err(ResponseError::SerenityError(err));
+                return Err(ResponseError::Serenity(err));
             }
         } else {
             let mut reply = CreateInteractionResponseMessage::new();
@@ -199,7 +199,7 @@ impl InteractionContextReply for InteractionContext {
                 }
                 Err(err) => {
                     error!("Attempted to create a response to a command, failed with error: {err}");
-                    return Err(ResponseError::SerenityError(err));
+                    return Err(ResponseError::Serenity(err));
                 }
             }
         }

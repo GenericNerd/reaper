@@ -59,7 +59,7 @@ pub async fn role(
         options: cmd.data.options(),
     };
     let Some(role) = options.get_role("role").into_owned() else {
-        return Err(ResponseError::ExecutionError("No member found!", Some("The role option either was not provided, or this command was not ran in a guild. Both of these should not occur, if they do, please contact a developer.".to_string())));
+        return Err(ResponseError::Execution("No member found!", Some("The role option either was not provided, or this command was not ran in a guild. Both of these should not occur, if they do, please contact a developer.".to_string())));
     };
 
     let existing_permissions = get_role(
@@ -121,7 +121,7 @@ pub async fn role(
                 .contains(&Permission::PermissionsEdit)
         {
             if let Err(err) = interaction_context.error_message(
-                ResponseError::ExecutionError(
+                ResponseError::Execution(
                     "You do not have permission to do this",
                     Some(format!(
                         "You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.",

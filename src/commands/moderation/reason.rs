@@ -57,7 +57,7 @@ impl Command for ReasonCommand {
         let start = std::time::Instant::now();
 
         if !ctx.user_permissions.contains(&Permission::ModerationReason) {
-            return Err(ResponseError::ExecutionError(
+            return Err(ResponseError::Execution(
                 "You do not have permission to do this!",
                 Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationReason.to_string())),
             ));
@@ -68,7 +68,7 @@ impl Command for ReasonCommand {
         };
 
         let Some(reason) = options.get_string("reason").into_owned() else {
-            return Err(ResponseError::ExecutionError(
+            return Err(ResponseError::Execution(
                 "Reason not provided!",
                 Some("A reason must be provided before continuing!".to_string()),
             ));
@@ -89,7 +89,7 @@ impl Command for ReasonCommand {
                         "Could not find most recent moderator action, failed with error: {:?}",
                         err
                     );
-                    return Err(ResponseError::ExecutionError("Could not find most recent action", Some("Your most recent action could not be found. This could be because you've yet to issue someone with an action. Please provide a UUID with your next command".to_string())));
+                    return Err(ResponseError::Execution("Could not find most recent action", Some("Your most recent action could not be found. This could be because you've yet to issue someone with an action. Please provide a UUID with your next command".to_string())));
                 }
             },
         };
@@ -102,7 +102,7 @@ impl Command for ReasonCommand {
                 "Could not update action reason, failed with error: {:?}",
                 err
             );
-            return Err(ResponseError::ExecutionError(
+            return Err(ResponseError::Execution(
                 "Could not update action reason",
                 Some("The action reason could not be updated. Please try again later.".to_string()),
             ));

@@ -155,7 +155,7 @@ impl DatabaseAction {
             Ok(_) => Ok(()),
             Err(err) => {
                 error!("Failed to insert action into database: {}", err);
-                Err(ResponseError::ExecutionError(
+                Err(ResponseError::Execution(
                     "Failed to insert action into database!",
                     Some("Please contac tthe bot owner for assistance".to_string())
                 ))

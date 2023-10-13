@@ -40,6 +40,10 @@ impl Handler {
 
         debug!("Board configurations fetched in {:?}", start.elapsed());
 
+        let Ok(message) = &reaction.message(&ctx.http).await else {
+            return;
+        };
+
         for board_configuration in board_configurations {
             let ignored_channels = match sqlx::query_as!(
                 BoardIgnoredChannel,
@@ -130,10 +134,6 @@ impl Handler {
             }
 
             debug!("Checked emoji validity in {:?}", start.elapsed());
-
-            let Ok(message) = message_reaction.message(&ctx.http).await else {
-                return;
-            };
 
             match message
                 .reaction_users(&ctx.http, message_reaction.emoji.clone(), None, None)

@@ -29,19 +29,19 @@ pub async fn new(
     let winners = options.get_integer("winners").unwrap_or(1);
 
     if winners < 1 {
-        return Err(ResponseError::ExecutionError(
+        return Err(ResponseError::Execution(
             "Not enough winners",
             Some("You must have at least one winner".to_string()),
         ));
     } else if winners > 50 {
-        return Err(ResponseError::ExecutionError(
+        return Err(ResponseError::Execution(
             "Too many winners",
             Some("You can only have a maximum of 50 winners".to_string()),
         ));
     }
 
     let Some(prize) = options.get_string("prize").into_owned() else {
-        return Err(ResponseError::ExecutionError(
+        return Err(ResponseError::Execution(
             "No prize provided",
             Some("Please provide a prize to giveaway".to_string()),
         ));
@@ -54,7 +54,7 @@ pub async fn new(
         .into_owned()
         .map(|duration| Duration::new(duration.as_str()))
     else {
-        return Err(ResponseError::ExecutionError(
+        return Err(ResponseError::Execution(
             "No duration provided",
             Some("Please provide a duration for the giveaway".to_string()),
         ));

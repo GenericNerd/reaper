@@ -3,3 +3,4 @@
 - Kick Members
 - Ban Members
 - Manage Roles
+- View Audit Logs

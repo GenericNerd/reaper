@@ -96,14 +96,15 @@ impl InteractionContext {
 
     pub async fn error_message(&self, error: ResponseError) -> ResponseResult {
         let embed = match error {
-            ResponseError::ExecutionError(title, description) => CreateEmbed::new()
+            ResponseError::Execution(title, description) => CreateEmbed::new()
                 .title(title)
                 .description(description.unwrap_or(String::new()))
                 .color(0xff0000),
-            ResponseError::SerenityError(err) => CreateEmbed::new()
+            ResponseError::Serenity(err) => CreateEmbed::new()
                 .title("A Discord error occured while executing the command")
                 .description(format!("```{err:?}```"))
                 .color(0xff0000),
+            ResponseError::Redis(_) => return Ok(()),
         };
 
         self.reply(Response::new().embed(embed).ephemeral(true))

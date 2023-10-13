@@ -60,7 +60,7 @@ pub async fn user(
         options: cmd.data.options(),
     };
     let Some(user) = options.get_user("user").into_owned() else {
-        return Err(ResponseError::ExecutionError("No member found!", Some("The user option either was not provided, or this command was not ran in a guild. Both of these should not occur, if they do, please contact a developer.".to_string())));
+        return Err(ResponseError::Execution("No member found!", Some("The user option either was not provided, or this command was not ran in a guild. Both of these should not occur, if they do, please contact a developer.".to_string())));
     };
 
     let has_admin = if let Ok(permissions) = ctx
@@ -145,7 +145,7 @@ pub async fn user(
         {
             // TODO: Investigate method to condense this
             if let Err(err) = interaction_context.error_message(
-                ResponseError::ExecutionError(
+                ResponseError::Execution(
                     "You do not have permission to do this",
                     Some(format!(
                         "You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.",
