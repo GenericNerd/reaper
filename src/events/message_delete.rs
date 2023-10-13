@@ -75,14 +75,14 @@ impl Handler {
                 "Message by {} deleted from {}",
                 author.id.get(),
                 message.channel_id
-            )))
+            )));
         } else {
             embed = embed.footer(CreateEmbedFooter::new(format!(
                 "Message by {} deleted by {} from {}",
                 author.id.get(),
                 deleted_by,
                 message.channel_id
-            )))
+            )));
         }
         if let Some(attachment) = message.attachment {
             embed = embed.image(attachment);
