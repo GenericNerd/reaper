@@ -6,8 +6,8 @@ use crate::models::{handler::Handler, message::Message};
 impl Handler {
     pub async fn on_message(&self, message: DiscordMessage) {
         let attachment = message.attachments.get(0);
-        let attachment_url = if attachment.is_some() {
-            Some(attachment.unwrap().url.to_string())
+        let attachment_url = if let Some(attachment) = attachment {
+            Some(attachment.url.to_string())
         } else {
             None
         };
