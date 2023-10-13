@@ -37,7 +37,7 @@ pub async fn end_giveaway(
                 "Could not get entries for giveaway {}. Failed with error: {:?}",
                 giveaway.id, err
             );
-            return Err(ResponseError::ExecutionError(
+            return Err(ResponseError::Execution(
                 "Could not get giveaway entries",
                 Some("Please notify the developer of this issue".to_string()),
             ));
@@ -81,7 +81,7 @@ pub async fn end_giveaway(
             "Could not update giveaway message to end giveaway {}. Failed with error: {:?}",
             giveaway.id, err
         );
-        return Err(ResponseError::SerenityError(err));
+        return Err(ResponseError::Serenity(err));
     }
 
     if !winners.is_empty() {
@@ -99,7 +99,7 @@ pub async fn end_giveaway(
                 "Could not send giveaway winner message for giveaway {}. Failed with error: {:?}",
                 giveaway.id, err
             );
-            return Err(ResponseError::SerenityError(err));
+            return Err(ResponseError::Serenity(err));
         }
     }
 
@@ -111,7 +111,7 @@ pub async fn end_giveaway(
             "Could not delete giveaway {} from database. Failed with error: {:?}",
             giveaway.id, err
         );
-        return Err(ResponseError::ExecutionError(
+        return Err(ResponseError::Execution(
             "Could not delete giveaway from database",
             Some("Please notify the developer of this issue".to_string()),
         ));
@@ -130,14 +130,14 @@ pub async fn end(
     };
 
     let Some(id_string) = options.get_string("id").into_owned() else {
-        return Err(ResponseError::ExecutionError(
+        return Err(ResponseError::Execution(
             "Could not get giveaway ID",
             Some("Please notify the developer of this issue".to_string()),
         ));
     };
 
     let Ok(id) = id_string.parse::<i64>() else {
-        return Err(ResponseError::ExecutionError(
+        return Err(ResponseError::Execution(
             "Could not get giveaway ID",
             Some("Please notify the developer of this issue".to_string()),
         ));
@@ -157,7 +157,7 @@ pub async fn end(
                 "Could not get giveaway {} from database. Failed with error: {:?}",
                 id, err
             );
-            return Err(ResponseError::ExecutionError(
+            return Err(ResponseError::Execution(
                 "This giveaway could not be found",
                 Some("Please use the message ID for the giveaway ID".to_string()),
             ));
@@ -177,7 +177,7 @@ pub async fn end(
             "Could not get giveaway message for giveaway {}",
             giveaway.id
         );
-        return Err(ResponseError::ExecutionError(
+        return Err(ResponseError::Execution(
             "Could not get giveaway message",
             Some("Please notify the developer of this issue".to_string()),
         ));

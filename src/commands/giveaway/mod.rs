@@ -142,7 +142,7 @@ impl Command for GiveawayCommand {
             };
 
             if !ctx.user_permissions.contains(&permission) {
-                return Err(ResponseError::ExecutionError(
+                return Err(ResponseError::Execution(
                     "You do not have permission to do this!",
                     Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", permission.to_string())),
                 ));
@@ -157,7 +157,7 @@ impl Command for GiveawayCommand {
             }
         }
 
-        Err(ResponseError::ExecutionError(
+        Err(ResponseError::Execution(
             "Invalid command",
             Some("You must specify a subcommand to use this command!".to_string()),
         ))

@@ -46,7 +46,7 @@ impl Command for UnmuteCommand {
         let start = std::time::Instant::now();
 
         if !ctx.user_permissions.contains(&Permission::ModerationUnmute) {
-            return Err(ResponseError::ExecutionError(
+            return Err(ResponseError::Execution(
                 "You do not have permission to do this!",
                 Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationUnmute.to_string())),
             ));
@@ -57,7 +57,7 @@ impl Command for UnmuteCommand {
         };
 
         let Some(user) = options.get_user("user").into_owned() else {
-            return Err(ResponseError::ExecutionError(
+            return Err(ResponseError::Execution(
                 "User not provided!",
                 Some("A user must be provided before continuing!".to_string()),
             ));
@@ -69,7 +69,7 @@ impl Command for UnmuteCommand {
             Some(config) => match config.mute_role {
                 Some(id) => RoleId::new(id as u64),
                 None => {
-                    return Err(ResponseError::ExecutionError(
+                    return Err(ResponseError::Execution(
                         "Could not find mute role!",
                         Some(
                             "Please contact your server administrator to configure a mute role"
@@ -79,7 +79,7 @@ impl Command for UnmuteCommand {
                 }
             },
             None => {
-                return Err(ResponseError::ExecutionError(
+                return Err(ResponseError::Execution(
                     "Could not find a moderation configuration!",
                     Some(
                         "Please contact your server administrator to configure the server moderation"
@@ -110,7 +110,7 @@ impl Command for UnmuteCommand {
                 cmd.guild_id.unwrap().get(),
                 err
             );
-            return Err(ResponseError::ExecutionError(
+            return Err(ResponseError::Execution(
                 "Could not unmute user",
                 Some("The user could not be unmuted. This could be because they currently do not have the mute role. Please double check before trying again".to_string()),
             ));
@@ -146,7 +146,7 @@ impl Command for UnmuteCommand {
                     .send_message(
                         &ctx.ctx,
                         CreateMessage::new()
-                            .embed(CreateEmbed::new().title("User unmuted").description(format!("<@{}> has been unmuted", user.id.get())).footer(CreateEmbedFooter::new(format!("User {} unbanned", user.id.get()))).color(0xd1bfba))
+                            .embed(CreateEmbed::new().title("User unmuted").description(format!("<@{}> has been unmuted", user.id.get())).footer(CreateEmbedFooter::new(format!("User {} unmuted", user.id.get()))).color(0xd1bfba))
                 ))
             } else {
                 None

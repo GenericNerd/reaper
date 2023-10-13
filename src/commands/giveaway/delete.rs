@@ -24,14 +24,14 @@ pub async fn delete(
     };
 
     let Some(id_string) = options.get_string("id").into_owned() else {
-        return Err(ResponseError::ExecutionError(
+        return Err(ResponseError::Execution(
             "Could not get giveaway ID",
             Some("Please notify the developer of this issue".to_string()),
         ));
     };
 
     let Ok(id) = id_string.parse::<i64>() else {
-        return Err(ResponseError::ExecutionError(
+        return Err(ResponseError::Execution(
             "Could not get giveaway ID",
             Some("Please notify the developer of this issue".to_string()),
         ));
@@ -51,7 +51,7 @@ pub async fn delete(
                 "Could not get giveaway {} from database. Failed with error: {:?}",
                 id, err
             );
-            return Err(ResponseError::ExecutionError(
+            return Err(ResponseError::Execution(
                 "This giveaway could not be found",
                 Some("Please use the message ID for the giveaway ID".to_string()),
             ));
@@ -67,7 +67,7 @@ pub async fn delete(
         )
         .await
     else {
-        return Err(ResponseError::ExecutionError(
+        return Err(ResponseError::Execution(
             "Could not get giveaway message",
             Some("Please notify the developer of this issue".to_string()),
         ));
@@ -78,7 +78,7 @@ pub async fn delete(
             "Could not delete giveaway message for giveaway {}. Failed with error: {:?}",
             giveaway.id, err
         );
-        return Err(ResponseError::ExecutionError(
+        return Err(ResponseError::Execution(
             "Could not delete giveaway message",
             Some("Please notify the developer of this issue".to_string()),
         ));
@@ -92,7 +92,7 @@ pub async fn delete(
             "Could not delete giveaway {} from database. Failed with error: {:?}",
             giveaway.id, err
         );
-        return Err(ResponseError::ExecutionError(
+        return Err(ResponseError::Execution(
             "Could not delete giveaway from database",
             Some("Please notify the developer of this issue".to_string()),
         ));

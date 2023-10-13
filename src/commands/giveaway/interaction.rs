@@ -63,7 +63,7 @@ pub async fn new_giveaway_entry_handler(handler: Handler, ctx: CommandContext, g
             let role = RoleId::new(restriction as u64);
             if !interaction.member.unwrap().roles.contains(&role) {
                 if let Err(err) = interaction_context
-                    .error_message(ResponseError::ExecutionError(
+                    .error_message(ResponseError::Execution(
                         "You do not have permission to enter this giveaway",
                         None,
                     ))
@@ -88,7 +88,7 @@ pub async fn new_giveaway_entry_handler(handler: Handler, ctx: CommandContext, g
         {
             Ok(_) => {
                 if let Err(err) = interaction_context
-                    .error_message(ResponseError::ExecutionError(
+                    .error_message(ResponseError::Execution(
                         "You've already entered this giveaway",
                         None,
                     ))
@@ -120,7 +120,7 @@ pub async fn new_giveaway_entry_handler(handler: Handler, ctx: CommandContext, g
                     giveaway.id, err
                 );
                 if let Err(err) = interaction_context
-                    .error_message(ResponseError::ExecutionError(
+                    .error_message(ResponseError::Execution(
                         "Entry count could not be obtained",
                         Some("Please contact the developer for assistance.".to_string()),
                     ))
@@ -170,7 +170,7 @@ pub async fn new_giveaway_entry_handler(handler: Handler, ctx: CommandContext, g
                 );
 
                 if let Err(err) = interaction_context
-                    .error_message(ResponseError::ExecutionError(
+                    .error_message(ResponseError::Execution(
                         "Failed to enter giveaway",
                         Some(
                             "We failed to enter you into the giveaway, please try again later."

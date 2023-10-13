@@ -45,7 +45,7 @@ impl Command for UnbanCommand {
         let start = std::time::Instant::now();
 
         if !ctx.user_permissions.contains(&Permission::ModerationUnban) {
-            return Err(ResponseError::ExecutionError(
+            return Err(ResponseError::Execution(
                 "You do not have permission to do this!",
                 Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationUnban.to_string())),
             ));
@@ -56,7 +56,7 @@ impl Command for UnbanCommand {
         };
 
         let Some(user) = options.get_user("user").into_owned() else {
-            return Err(ResponseError::ExecutionError(
+            return Err(ResponseError::Execution(
                 "User not provided!",
                 Some("A user must be provided before continuing!".to_string()),
             ));
@@ -82,7 +82,7 @@ impl Command for UnbanCommand {
                 cmd.guild_id.unwrap().get(),
                 err
             );
-            return Err(ResponseError::ExecutionError(
+            return Err(ResponseError::Execution(
                 "Could not unban user",
                 Some("The user could not be unbanned. This could be because no ban exists. Please double check before trying again".to_string()),
             ));

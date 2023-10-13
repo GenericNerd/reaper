@@ -100,7 +100,7 @@ impl Handler {
             .await
         {
             error!("Failed to kick user: {}", err);
-            return Err(ResponseError::SerenityError(err));
+            return Err(ResponseError::Serenity(err));
         }
 
         action.insert(self).await?;
@@ -170,7 +170,7 @@ impl Command for KickCommand {
         let start = std::time::Instant::now();
 
         if !ctx.user_permissions.contains(&Permission::ModerationKick) {
-            return Err(ResponseError::ExecutionError(
+            return Err(ResponseError::Execution(
                 "You do not have permission to do this!",
                 Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationKick.to_string())),
             ));
@@ -181,16 +181,16 @@ impl Command for KickCommand {
         };
 
         let Some(user) = options.get_user("user").into_owned() else {
-            return Err(ResponseError::ExecutionError("No member found!", Some("The user option either was not provided, or this command was not ran in a guild. Both of these should not occur, if they do, please contact a developer.".to_string())));
+            return Err(ResponseError::Execution("No member found!", Some("The user option either was not provided, or this command was not ran in a guild. Both of these should not occur, if they do, please contact a developer.".to_string())));
         };
         if user == cmd.user {
-            return Err(ResponseError::ExecutionError(
+            return Err(ResponseError::Execution(
                 "You cannot kick yourself!",
                 Some("You cannot kick yourself, that would be silly.".to_string()),
             ));
         }
         let Some(reason) = options.get_string("reason").into_owned() else {
-            return Err(ResponseError::ExecutionError(
+            return Err(ResponseError::Execution(
                 "No reason provided!",
                 Some("Please provide a reason for the kick.".to_string()),
             ));

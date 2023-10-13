@@ -49,7 +49,7 @@ impl Command for RemoveCommand {
         let start = std::time::Instant::now();
 
         if !ctx.user_permissions.contains(&Permission::ModerationReason) {
-            return Err(ResponseError::ExecutionError(
+            return Err(ResponseError::Execution(
                 "You do not have permission to do this!",
                 Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationReason.to_string())),
             ));
@@ -60,7 +60,7 @@ impl Command for RemoveCommand {
         };
 
         let Some(id) = options.get_string("uuid").into_owned() else {
-            return Err(ResponseError::ExecutionError(
+            return Err(ResponseError::Execution(
                 "UUID not provided!",
                 Some("A UUID must be provided before continuing!".to_string()),
             ));
@@ -71,7 +71,7 @@ impl Command for RemoveCommand {
             .await
         {
             error!("Could not remove action, failed with error: {:?}", err);
-            return Err(ResponseError::ExecutionError(
+            return Err(ResponseError::Execution(
                 "Could not remove action",
                 Some("The action could not be removed. Please try again later.".to_string()),
             ));

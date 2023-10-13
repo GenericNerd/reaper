@@ -1,7 +1,8 @@
 use serenity::{
     all::{
-        ActionExecution, Guild, GuildMemberUpdateEvent, Interaction, InteractionType, Member,
-        Reaction, UnavailableGuild,
+        ActionExecution, ChannelId, Guild, GuildId, GuildMemberUpdateEvent, Interaction,
+        InteractionType, Member, Message, MessageId, MessageUpdateEvent, Reaction,
+        UnavailableGuild,
     },
     model::prelude::Ready,
     prelude::{Context, EventHandler},
@@ -63,5 +64,57 @@ impl EventHandler for Handler {
 
     async fn auto_moderation_action_execution(&self, ctx: Context, execution: ActionExecution) {
         self.on_automod_trigger(ctx, execution).await;
+    }
+
+    async fn message(&self, _ctx: Context, new_message: Message) {
+        if new_message.author.bot {
+            return;
+        }
+
+        if new_message.guild_id.is_none() {
+            return;
+        }
+
+        self.on_message(new_message).await;
+    }
+
+    async fn message_update(
+        &self,
+        ctx: Context,
+        _old_if_available: Option<Message>,
+        _new: Option<Message>,
+        event: MessageUpdateEvent,
+    ) {
+        if event.content.is_none() {
+            return;
+        }
+        if event.attachments.is_none() {
+            return;
+        }
+        if event.guild_id.is_none() {
+            return;
+        }
+
+        self.on_message_edit(ctx, event).await;
+    }
+
+    async fn message_delete(
+        &self,
+        ctx: Context,
+        channel_id: ChannelId,
+        deleted_message_id: MessageId,
+        guild_id: Option<GuildId>,
+    ) {
+        if guild_id.is_none() {
+            return;
+        }
+
+        self.on_message_delete(
+            ctx,
+            guild_id.unwrap().get() as i64,
+            channel_id.get() as i64,
+            deleted_message_id.get() as i64,
+        )
+        .await;
     }
 }

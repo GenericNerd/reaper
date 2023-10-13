@@ -113,7 +113,7 @@ impl Handler {
                 {
                     error!("Failed to handle command: {:?}. Sending error message", err);
                     match err {
-                        ResponseError::ExecutionError(title, description) => {
+                        ResponseError::Execution(title, description) => {
                             if let Err(err) = command_context
                                 .reply(
                                     &command,
@@ -131,7 +131,7 @@ impl Handler {
                                 error!("Failed to send error message: {:?}", err);
                             }
                         }
-                        ResponseError::SerenityError(err) => {
+                        ResponseError::Serenity(err) => {
                             if let Err(err) = command_context
                                 .reply(
                                     &command,
@@ -148,6 +148,7 @@ impl Handler {
                                 error!("Failed to send error message: {err:?}");
                             }
                         }
+                        ResponseError::Redis(_) => {}
                     }
                 }
             }

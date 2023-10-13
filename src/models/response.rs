@@ -10,8 +10,9 @@ pub struct Response {
 
 #[derive(Debug)]
 pub enum ResponseError {
-    SerenityError(serenity::Error),
-    ExecutionError(&'static str, Option<String>),
+    Serenity(serenity::Error),
+    Execution(&'static str, Option<String>),
+    Redis(redis::RedisError),
 }
 
 pub type ResponseResult = Result<(), ResponseError>;
