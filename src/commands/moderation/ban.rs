@@ -46,7 +46,7 @@ impl Handler {
 
         let moderator_id = match moderator_id {
             Some(mod_id) => mod_id,
-            None => ctx.ctx.cache.current_user().id.0.get() as i64,
+            None => ctx.ctx.cache.current_user().id.get() as i64,
         };
 
         debug!(
@@ -237,10 +237,10 @@ impl Command for BanCommand {
         let action = handler
             .ban_user(
                 ctx,
-                ctx.guild.id.0.get() as i64,
-                user.id.0.get() as i64,
+                ctx.guild.id.get() as i64,
+                user.id.get() as i64,
                 reason,
-                Some(cmd.user.id.0.get() as i64),
+                Some(cmd.user.id.get() as i64),
                 Some(duration),
             )
             .await?;
@@ -251,16 +251,16 @@ impl Command for BanCommand {
                 CreateEmbed::new()
                     .title("User banned")
                     .description(if action.dm_notified.load(Ordering::Relaxed) {
-                        format!("<@{}> was banned", user.id.0.get())
+                        format!("<@{}> was banned", user.id.get())
                     } else {
                         format!(
                             "<@{}> was banned\n*<@{}> could not be notified*",
-                            user.id.0.get(),
-                            user.id.0.get()
+                            user.id.get(),
+                            user.id.get()
                         )
                     })
                     .field("Reason", action.action.reason.to_string(), true)
-                    .field("Moderator", format!("<@{}>", cmd.user.id.0.get()), true)
+                    .field("Moderator", format!("<@{}>", cmd.user.id.get()), true)
                     .field(
                         "Expires",
                         match action.action.expiry {

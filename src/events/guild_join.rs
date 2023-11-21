@@ -6,7 +6,7 @@ impl Handler {
     pub async fn on_guild_create(&self, guild: Guild) {
         sqlx::query!(
             "INSERT INTO moderation_configuration (guild_id) VALUES ($1)",
-            guild.id.0.get() as i64
+            guild.id.get() as i64
         )
         .execute(&self.main_database)
         .await
@@ -14,7 +14,7 @@ impl Handler {
 
         sqlx::query!(
             "INSERT INTO logging_configuration (guild_id) VALUES ($1)",
-            guild.id.0.get() as i64
+            guild.id.get() as i64
         )
         .execute(&self.main_database)
         .await

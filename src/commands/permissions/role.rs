@@ -143,8 +143,8 @@ pub async fn role(
                         if !temp_permissions.contains(permission) {
                             remove_permission_from_role(
                                 handler,
-                                ctx.guild.id.0.get() as i64,
-                                role.id.0.get() as i64,
+                                ctx.guild.id.get() as i64,
+                                role.id.get() as i64,
                                 permission,
                             )
                             .await;
@@ -154,8 +154,8 @@ pub async fn role(
                         if !existing_permissions.contains(permission) {
                             add_permission_to_role(
                                 handler,
-                                ctx.guild.id.0.get() as i64,
-                                role.id.0.get() as i64,
+                                ctx.guild.id.get() as i64,
+                                role.id.get() as i64,
                                 permission,
                             )
                             .await;

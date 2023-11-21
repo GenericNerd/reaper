@@ -167,8 +167,8 @@ pub async fn user(
                         if !temp_permissions.contains(permission) {
                             remove_permission_from_user(
                                 handler,
-                                ctx.guild.id.0.get() as i64,
-                                user.id.0.get() as i64,
+                                ctx.guild.id.get() as i64,
+                                user.id.get() as i64,
                                 permission,
                             )
                             .await;
@@ -178,8 +178,8 @@ pub async fn user(
                         if !existing_permissions.contains(permission) {
                             add_permission_to_user(
                                 handler,
-                                ctx.guild.id.0.get() as i64,
-                                user.id.0.get() as i64,
+                                ctx.guild.id.get() as i64,
+                                user.id.get() as i64,
                                 permission,
                             )
                             .await;

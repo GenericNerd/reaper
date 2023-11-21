@@ -87,8 +87,8 @@ impl InteractionContext {
             has_responsed: Arc::new(AtomicBool::new(false)),
             user_permissions: get_user(
                 handler,
-                guild_id.0.get() as i64,
-                interaction.user.id.0.get() as i64,
+                guild_id.get() as i64,
+                interaction.user.id.get() as i64,
             )
             .await,
         }

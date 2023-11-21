@@ -6,7 +6,7 @@ impl Handler {
     pub async fn on_guild_leave(&self, guild: UnavailableGuild) {
         sqlx::query!(
             "DELETE FROM moderation_configuration WHERE guild_id = $1",
-            guild.id.0.get() as i64
+            guild.id.get() as i64
         )
         .execute(&self.main_database)
         .await
@@ -14,7 +14,7 @@ impl Handler {
 
         sqlx::query!(
             "DELETE FROM logging_configuration WHERE guild_id = $1",
-            guild.id.0.get() as i64
+            guild.id.get() as i64
         )
         .execute(&self.main_database)
         .await
