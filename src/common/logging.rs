@@ -1,10 +1,8 @@
 use crate::models::config::LoggingConfig;
 
-// TODO: Remove when used
 pub enum LogType {
     Action,
     Message,
-    #[allow(dead_code)]
     Voice,
 }
 
