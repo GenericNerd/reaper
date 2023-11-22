@@ -82,12 +82,13 @@ pub async fn role(
                 .embed(
                     CreateEmbed::new()
                         .title(format!("{}'s permissions", role.name))
-                        .description(
-                            existing_permissions
-                                .iter()
-                                .map(|permission| format!("`{}`\n", permission.to_string()))
-                                .collect::<String>(),
-                        )
+                        .description(existing_permissions.iter().fold(
+                            String::new(),
+                            |mut acc, f| {
+                                acc.push_str(&format!("`{}`\n", f.to_string()));
+                                acc
+                            },
+                        ))
                         .footer(CreateEmbedFooter::new(format!(
                             "Total execution time: {:?}",
                             start.elapsed()
@@ -208,12 +209,13 @@ pub async fn role(
                     .embed(
                         CreateEmbed::new()
                             .title(format!("{}'s permissions", role.name))
-                            .description(
-                                temp_permissions
-                                    .iter()
-                                    .map(|permission| format!("`{}`\n", permission.to_string()))
-                                    .collect::<String>(),
-                            )
+                            .description(temp_permissions.iter().fold(
+                                String::new(),
+                                |mut acc, f| {
+                                    acc.push_str(&format!("`{}`\n", f.to_string()));
+                                    acc
+                                },
+                            ))
                             .footer(CreateEmbedFooter::new(format!(
                                 "Total execution time: {:?}",
                                 start.elapsed()
