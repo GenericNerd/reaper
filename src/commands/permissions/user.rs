@@ -102,12 +102,13 @@ pub async fn user(
                 .embed(
                     CreateEmbed::new()
                         .title(format!("{}'s permissions", user.name))
-                        .description(
-                            existing_permissions
-                                .iter()
-                                .map(|permission| format!("`{}`\n", permission.to_string()))
-                                .collect::<String>(),
-                        )
+                        .description(existing_permissions.iter().fold(
+                            String::new(),
+                            |mut acc, permission| {
+                                acc.push_str(&format!("`{}`\n", permission.to_string()));
+                                acc
+                            },
+                        ))
                         .footer(CreateEmbedFooter::new(format!(
                             "Total execution time: {:?}",
                             start.elapsed()
@@ -232,12 +233,13 @@ pub async fn user(
                     .embed(
                         CreateEmbed::new()
                             .title(format!("{}'s permissions", user.name))
-                            .description(
-                                temp_permissions
-                                    .iter()
-                                    .map(|permission| format!("`{}`\n", permission.to_string()))
-                                    .collect::<String>(),
-                            )
+                            .description(temp_permissions.iter().fold(
+                                String::new(),
+                                |mut acc, permission| {
+                                    acc.push_str(&format!("`{}`\n", permission.to_string()));
+                                    acc
+                                },
+                            ))
                             .footer(CreateEmbedFooter::new(format!(
                                 "Total execution time: {:?}",
                                 start.elapsed()
