@@ -61,7 +61,7 @@ impl Handler {
 
         let moderator_id = match moderator_id {
             Some(mod_id) => mod_id,
-            None => ctx.ctx.cache.current_user().id.0.get() as i64,
+            None => ctx.ctx.cache.current_user().id.get() as i64,
         };
 
         debug!(
@@ -334,10 +334,10 @@ impl Command for StrikeCommand {
         let action = handler
             .strike_user(
                 ctx,
-                ctx.guild.id.0.get() as i64,
-                user.id.0.get() as i64,
+                ctx.guild.id.get() as i64,
+                user.id.get() as i64,
                 reason.clone(),
-                Some(cmd.user.id.0.get() as i64),
+                Some(cmd.user.id.get() as i64),
                 duration,
             )
             .await?;
@@ -348,16 +348,16 @@ impl Command for StrikeCommand {
                 CreateEmbed::new()
                     .title("Strike issued")
                     .description(if action.dm_notified {
-                        format!("<@{}> was issued a strike", user.id.0.get())
+                        format!("<@{}> was issued a strike", user.id.get())
                     } else {
                         format!(
                             "<@{}> was issued a strike\n*<@{}> could not be notified*",
-                            user.id.0.get(),
-                            user.id.0.get()
+                            user.id.get(),
+                            user.id.get()
                         )
                     })
                     .field("Reason", reason, true)
-                    .field("Moderator", format!("<@{}>", cmd.user.id.0.get()), true)
+                    .field("Moderator", format!("<@{}>", cmd.user.id.get()), true)
                     .field(
                         "Expires",
                         format!("<t:{}:F>", action.strike.expiry.unwrap().unix_timestamp()),

@@ -66,12 +66,8 @@ impl Handler {
             Permission::iter().collect::<Vec<_>>()
         } else {
             let mut user_permissions: Vec<Permission> = vec![];
-            for user_permission in get_user(
-                self,
-                guild_id.0.get() as i64,
-                command.user.id.0.get() as i64,
-            )
-            .await
+            for user_permission in
+                get_user(self, guild_id.get() as i64, command.user.id.get() as i64).await
             {
                 if !user_permissions.contains(&user_permission) {
                     user_permissions.push(user_permission);
@@ -86,7 +82,7 @@ impl Handler {
                 }
 
                 for role_permission in
-                    get_role(self, guild_id.0.get() as i64, role.0.get() as i64).await
+                    get_role(self, guild_id.get() as i64, role.get() as i64).await
                 {
                     if !user_permissions.contains(&role_permission) {
                         user_permissions.push(role_permission);

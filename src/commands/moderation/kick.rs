@@ -33,7 +33,7 @@ impl Handler {
 
         let moderator_id = match moderator_id {
             Some(mod_id) => mod_id,
-            None => ctx.ctx.cache.current_user().id.0.get() as i64,
+            None => ctx.ctx.cache.current_user().id.get() as i64,
         };
 
         debug!(
@@ -199,10 +199,10 @@ impl Command for KickCommand {
         let action = handler
             .kick_user(
                 ctx,
-                ctx.guild.id.0.get() as i64,
-                user.id.0.get() as i64,
+                ctx.guild.id.get() as i64,
+                user.id.get() as i64,
                 reason,
-                Some(cmd.user.id.0.get() as i64),
+                Some(cmd.user.id.get() as i64),
             )
             .await?;
 
@@ -212,16 +212,16 @@ impl Command for KickCommand {
                 CreateEmbed::new()
                     .title("Kick issued")
                     .description(if action.dm_notified.load(Ordering::Relaxed) {
-                        format!("<@{}> was kicked", user.id.0.get())
+                        format!("<@{}> was kicked", user.id.get())
                     } else {
                         format!(
                             "<@{}> was kicked\n*<@{}> could not be notified*",
-                            user.id.0.get(),
-                            user.id.0.get()
+                            user.id.get(),
+                            user.id.get()
                         )
                     })
                     .field("Reason", action.action.reason.to_string(), true)
-                    .field("Moderator", format!("<@{}>", cmd.user.id.0.get()), true)
+                    .field("Moderator", format!("<@{}>", cmd.user.id.get()), true)
                     .footer(CreateEmbedFooter::new(format!(
                         "UUID: {} | Total execution time: {:?}",
                         action.action.get_id(),

@@ -2,7 +2,7 @@ use serenity::{
     all::{
         ActionExecution, ChannelId, Guild, GuildId, GuildMemberUpdateEvent, Interaction,
         InteractionType, Member, Message, MessageId, MessageUpdateEvent, Reaction,
-        UnavailableGuild,
+        UnavailableGuild, VoiceState,
     },
     model::prelude::Ready,
     prelude::{Context, EventHandler},
@@ -116,5 +116,43 @@ impl EventHandler for Handler {
             deleted_message_id.get() as i64,
         )
         .await;
+    }
+
+    async fn voice_state_update(&self, ctx: Context, old: Option<VoiceState>, new: VoiceState) {
+        if new.guild_id.is_none() {
+            return;
+        }
+
+        match old {
+            Some(old) => {
+                if old.channel_id == new.channel_id {
+                    return;
+                }
+
+                match old.channel_id {
+                    Some(_) => {
+                        if new.channel_id.is_some() {
+                            // Moved
+                            self.voice_move(ctx, old, new).await;
+                        } else {
+                            // Left
+                            self.voice_leave(ctx, old).await;
+                        }
+                    }
+                    None => {
+                        if new.channel_id.is_some() {
+                            // Joined
+                            self.voice_join(ctx, new).await;
+                        }
+                    }
+                }
+            }
+            None => {
+                // Joined
+                if new.channel_id.is_some() {
+                    self.voice_join(ctx, new).await;
+                }
+            }
+        }
     }
 }

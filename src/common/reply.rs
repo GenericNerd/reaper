@@ -68,7 +68,7 @@ impl CommandContextReply for CommandContext {
                 .create_response(&self.ctx.http, CreateInteractionResponse::Message(reply))
                 .await
             {
-                Ok(_) => {
+                Ok(()) => {
                     self.has_responsed.store(true, Ordering::Relaxed);
                     match cmd.get_response(&self.ctx.http).await {
                         Ok(message) => message,
@@ -125,7 +125,7 @@ impl CommandContextReply for FailedCommandContext {
             .create_response(&self.ctx.http, CreateInteractionResponse::Message(reply))
             .await
         {
-            Ok(_) => match cmd.get_response(&self.ctx.http).await {
+            Ok(()) => match cmd.get_response(&self.ctx.http).await {
                 Ok(message) => message,
                 Err(err) => {
                     error!("A message was sent, but failed to fetch, failed with error: {err}");

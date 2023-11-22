@@ -11,3 +11,6 @@ pub mod message_edit;
 pub mod reaction_add;
 pub mod ready;
 pub mod router;
+pub mod voice_join;
+pub mod voice_leave;
+pub mod voice_move;
