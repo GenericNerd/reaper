@@ -115,7 +115,7 @@ fn generate_search_response(
                 .emoji(ReactionType::Unicode("▶".to_string()))
                 .disabled(page - 1 == u8::try_from(actions.len()).unwrap() - 1),
             CreateButton::new("close")
-                .emoji(ReactionType::Unicode("✅".to_string()))
+                .emoji('✅')
                 .style(ButtonStyle::Success),
             CreateButton::new("uuid")
                 .label("Get UUID")
