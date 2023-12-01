@@ -22,3 +22,4 @@ time = "0.3"
 inflections = "1.1"
 rand = "0.8"
 redis = { version = "0.23", features = ["tokio-comp"] }
+ordinal = "0.3"

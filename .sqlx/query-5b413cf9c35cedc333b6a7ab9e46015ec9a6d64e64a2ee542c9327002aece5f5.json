@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE moderation_configuration SET default_strike_duration = $1 WHERE guild_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5b413cf9c35cedc333b6a7ab9e46015ec9a6d64e64a2ee542c9327002aece5f5"
+}
