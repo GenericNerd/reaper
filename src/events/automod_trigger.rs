@@ -19,6 +19,10 @@ impl Handler {
             return;
         };
 
+        if !rule.name.to_ascii_lowercase().contains("strike") {
+            return;
+        }
+
         let Ok(guild) = execution.guild_id.to_partial_guild(&ctx.http).await else {
             error!("Could not get guild {} from cache", execution.guild_id);
             return;
@@ -36,7 +40,7 @@ impl Handler {
                 &context,
                 context.guild.id.get() as i64,
                 execution.user_id.get() as i64,
-                format!("Violated {} automod rule", rule.name),
+                format!("Violated \"{}\" automod rule", rule.name),
                 None,
                 None,
             )

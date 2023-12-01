@@ -53,6 +53,7 @@ async fn main() {
     let handler = models::handler::Handler {
         main_database,
         redis_database,
+        start_time: std::time::Instant::now(),
     };
     let intents = GatewayIntents::non_privileged()
         | GatewayIntents::GUILD_MEMBERS
