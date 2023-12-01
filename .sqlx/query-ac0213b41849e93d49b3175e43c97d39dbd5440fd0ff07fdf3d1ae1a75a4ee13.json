@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE logging_configuration SET log_voice = false WHERE guild_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ac0213b41849e93d49b3175e43c97d39dbd5440fd0ff07fdf3d1ae1a75a4ee13"
+}

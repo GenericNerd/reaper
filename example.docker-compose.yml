@@ -7,6 +7,7 @@ services:
     networks:
       - database
     environment:
+      - DISCORD_TOKEN=[TOKEN]
       - DB_USER=[USERNAME]
       - DB_PASSWORD=[PASSWORD]
       - DB_HOST=database
@@ -14,8 +15,6 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=[PASSWORD]
-    ports:
-      - 5000:5000
     depends_on:
       - database
   database:

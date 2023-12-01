@@ -120,6 +120,7 @@ impl Handler {
                                                 .description(description.unwrap_or(String::new()))
                                                 .color(0xff0000),
                                         )
+                                        .components(vec![])
                                         .ephemeral(true),
                                 )
                                 .await
@@ -137,6 +138,7 @@ impl Handler {
                                             .description(format!("```{err:?}```"))
                                             .color(0xff0000),
                                     )
+                                    .components(vec![])
                                     .ephemeral(true),
                                 )
                                 .await

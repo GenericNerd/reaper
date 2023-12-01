@@ -2,9 +2,7 @@
 pub enum Permission {
     PermissionsView,
     PermissionsEdit,
-    LoggingEdit,
-    ModerationEdit,
-    BoardsEdit,
+    ConfigEdit,
     ModerationStrike,
     ModerationSearchSelf,
     ModerationSearchSelfExpired,
@@ -31,9 +29,7 @@ impl ToString for Permission {
         match self {
             Permission::PermissionsView => "permissions.view".to_string(),
             Permission::PermissionsEdit => "permissions.edit".to_string(),
-            Permission::LoggingEdit => "logging.edit".to_string(),
-            Permission::ModerationEdit => "moderation.edit".to_string(),
-            Permission::BoardsEdit => "boards.edit".to_string(),
+            Permission::ConfigEdit => "config.edit".to_string(),
             Permission::ModerationStrike => "moderation.strike".to_string(),
             Permission::ModerationSearchSelf => "moderation.search.self".to_string(),
             Permission::ModerationSearchSelfExpired => "moderation.search.self.expired".to_string(),
@@ -64,9 +60,7 @@ impl From<String> for Permission {
         match value.as_str() {
             "permissions.view" => Permission::PermissionsView,
             "permissions.edit" => Permission::PermissionsEdit,
-            "logging.edit" => Permission::LoggingEdit,
-            "moderation.edit" => Permission::ModerationEdit,
-            "boards.edit" => Permission::BoardsEdit,
+            "config.edit" => Permission::ConfigEdit,
             "moderation.strike" => Permission::ModerationStrike,
             "moderation.search.self" => Permission::ModerationSearchSelf,
             "moderation.search.self.expired" => Permission::ModerationSearchSelfExpired,

@@ -169,6 +169,7 @@ pub struct ActionDatabaseInsert {
     pub dm_notified: AtomicBool,
 }
 
+#[derive(Clone)]
 pub struct ActionEscalation {
     pub guild_id: i64,
     pub strike_count: i64,

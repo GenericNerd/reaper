@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT log_actions, log_messages, log_voice FROM logging_configuration WHERE guild_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "log_actions",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 1,
+        "name": "log_messages",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 2,
+        "name": "log_voice",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "06ef7ffc24223afb91a213b81cd9b19cc28ae798eabfe2223d49dc2a33acc811"
+}
