@@ -90,15 +90,14 @@ impl ConfigStage for LoggingChannelMultipleVoice {
                         .execute(&handler.main_database)
                         .await?;
                         return Ok(None);
-                    } else {
-                        return Err(ConfigError {
-                            error: ResponseError::Execution(
-                                "Invalid option",
-                                Some("Please select a valid option.".to_string()),
-                            ),
-                            stages_to_skip: None,
-                        });
                     }
+                    return Err(ConfigError {
+                        error: ResponseError::Execution(
+                            "Invalid option",
+                            Some("Please select a valid option.".to_string()),
+                        ),
+                        stages_to_skip: None,
+                    });
                 }
                 "cancel" => {
                     return Ok(None);
@@ -201,15 +200,14 @@ impl ConfigStage for LoggingChannelMultipleMessages {
                         .execute(&handler.main_database)
                         .await?;
                         return Ok(None);
-                    } else {
-                        return Err(ConfigError {
-                            error: ResponseError::Execution(
-                                "Invalid option",
-                                Some("Please select a valid option.".to_string()),
-                            ),
-                            stages_to_skip: None,
-                        });
                     }
+                    return Err(ConfigError {
+                        error: ResponseError::Execution(
+                            "Invalid option",
+                            Some("Please select a valid option.".to_string()),
+                        ),
+                        stages_to_skip: None,
+                    });
                 }
                 "cancel" => {
                     return Ok(None);
@@ -319,15 +317,14 @@ impl ConfigStage for LoggingChannelMultipleActions {
                         .execute(&handler.main_database)
                         .await?;
                         return Ok(None);
-                    } else {
-                        return Err(ConfigError {
-                            error: ResponseError::Execution(
-                                "Invalid option",
-                                Some("Please select a valid option.".to_string()),
-                            ),
-                            stages_to_skip: None,
-                        });
                     }
+                    return Err(ConfigError {
+                        error: ResponseError::Execution(
+                            "Invalid option",
+                            Some("Please select a valid option.".to_string()),
+                        ),
+                        stages_to_skip: None,
+                    });
                 }
                 "cancel" => {
                     return Ok(None);
@@ -417,15 +414,14 @@ impl ConfigStage for LoggingChannelSingle {
                         .execute(&handler.main_database)
                         .await?;
                         return Ok(Some(3));
-                    } else {
-                        return Err(ConfigError {
-                            error: ResponseError::Execution(
-                                "Invalid option",
-                                Some("Please select a valid option.".to_string()),
-                            ),
-                            stages_to_skip: None,
-                        });
                     }
+                    return Err(ConfigError {
+                        error: ResponseError::Execution(
+                            "Invalid option",
+                            Some("Please select a valid option.".to_string()),
+                        ),
+                        stages_to_skip: None,
+                    });
                 }
                 "cancel" => {
                     return Ok(None);

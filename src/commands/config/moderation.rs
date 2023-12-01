@@ -211,21 +211,15 @@ impl ConfigStage for ModerationEscalations {
                         let strike_count = if let ActionRowComponent::InputText(text) =
                             &interaction.data.components[0].components[0]
                         {
-                            let strike_count = match text.value.as_ref().unwrap().parse::<i64>() {
-                                Ok(strike_count) => strike_count,
-                                Err(_) => {
-                                    ModerationEscalations::save_escalations(
-                                        &escalations,
-                                        handler,
-                                        ctx,
-                                    )
+                            let Ok(strike_count) = text.value.as_ref().unwrap().parse::<i64>()
+                            else {
+                                ModerationEscalations::save_escalations(&escalations, handler, ctx)
                                     .await?;
-                                    return Err(ResponseError::Execution(
-                                        "Invalid strike count",
-                                        Some("Please enter a valid strike count.".to_string()),
-                                    )
-                                    .into());
-                                }
+                                return Err(ResponseError::Execution(
+                                    "Invalid strike count",
+                                    Some("Please enter a valid strike count.".to_string()),
+                                )
+                                .into());
                             };
                             if strike_count > 0 {
                                 if escalations
@@ -339,17 +333,14 @@ impl ConfigStage for ModerationEscalations {
                     if let ComponentInteractionDataKind::StringSelect { values } =
                         &interaction.data.kind
                     {
-                        let index = match values.first().unwrap().parse::<usize>() {
-                            Ok(index) => index,
-                            Err(_) => {
-                                ModerationEscalations::save_escalations(&escalations, handler, ctx)
-                                    .await?;
-                                return Err(ResponseError::Execution(
-                                    "Invalid escalation",
-                                    Some("Please select a valid escalation.".to_string()),
-                                )
-                                .into());
-                            }
+                        let Ok(index) = values.first().unwrap().parse::<usize>() else {
+                            ModerationEscalations::save_escalations(&escalations, handler, ctx)
+                                .await?;
+                            return Err(ResponseError::Execution(
+                                "Invalid escalation",
+                                Some("Please select a valid escalation.".to_string()),
+                            )
+                            .into());
                         };
 
                         escalations.remove(index);
@@ -498,46 +489,39 @@ impl ConfigStage for ModerationDefaultStrikeDuration {
                                     ),
                                     stages_to_skip: None,
                                 });
-                            } else {
-                                let duration =
-                                    Duration::new(value.as_str()).to_timestamp().unwrap();
-                                if duration < time::OffsetDateTime::now_utc() {
-                                    return Err(ConfigError {
-                                        error: ResponseError::Execution(
-                                            "Invalid duration",
-                                            Some("Please enter a valid duration.".to_string()),
-                                        ),
-                                        stages_to_skip: None,
-                                    });
-                                }
-                                sqlx::query!(
-                                    "UPDATE moderation_configuration SET default_strike_duration = $1 WHERE guild_id = $2",
-                                    value,
-                                    ctx.guild.id.get() as i64
-                                ).execute(&handler.main_database).await?;
-                                return Ok(None);
                             }
-                        } else {
-                            return Err(ConfigError {
-                                error: ResponseError::Execution(
-                                    "Invalid option",
-                                    Some("Please select a valid option.".to_string()),
-                                ),
-                                stages_to_skip: None,
-                            });
+                            let duration = Duration::new(value.as_str()).to_timestamp().unwrap();
+                            if duration < time::OffsetDateTime::now_utc() {
+                                return Err(ConfigError {
+                                    error: ResponseError::Execution(
+                                        "Invalid duration",
+                                        Some("Please enter a valid duration.".to_string()),
+                                    ),
+                                    stages_to_skip: None,
+                                });
+                            }
+                            sqlx::query!(
+                                "UPDATE moderation_configuration SET default_strike_duration = $1 WHERE guild_id = $2",
+                                value,
+                                ctx.guild.id.get() as i64
+                            ).execute(&handler.main_database).await?;
+                            return Ok(None);
                         }
-                    } else {
                         return Err(ConfigError {
                             error: ResponseError::Execution(
-                                "Time out",
-                                Some(
-                                    "We didn't get a response in time. Please try again."
-                                        .to_string(),
-                                ),
+                                "Invalid option",
+                                Some("Please select a valid option.".to_string()),
                             ),
-                            stages_to_skip: Some(100),
+                            stages_to_skip: None,
                         });
                     }
+                    return Err(ConfigError {
+                        error: ResponseError::Execution(
+                            "Time out",
+                            Some("We didn't get a response in time. Please try again.".to_string()),
+                        ),
+                        stages_to_skip: Some(100),
+                    });
                 }
                 _ => {
                     return Err(ConfigError {
