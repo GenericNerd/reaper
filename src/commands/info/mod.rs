@@ -50,7 +50,7 @@ impl Command for InfoCommand {
         {
             return Err(ResponseError::Serenity(err));
         }
-        let latency = std::time::Instant::now() - start;
+        let latency = start.elapsed();
 
         let guild_count = match sqlx::query!("SELECT COUNT(guild_id) FROM moderation_configuration")
             .fetch_one(&handler.main_database)
@@ -110,8 +110,7 @@ impl Command for InfoCommand {
                             (
                                 "Information",
                                 format!(
-                                    "Serving {} guilds\nHandled {} actions\nRunning {} giveaways",
-                                    guild_count, action_count, giveaway_count
+                                    "Serving {guild_count} guilds\nHandled {action_count} actions\nRunning {giveaway_count} giveaways"
                                 ),
                                 true,
                             ),
@@ -121,7 +120,7 @@ impl Command for InfoCommand {
                                     "Version: {}\nUptime: {}",
                                     env!("CARGO_PKG_VERSION"),
                                     pretty_duration::pretty_duration(
-                                        &handler.start_time.elapsed(),
+                                        &start.elapsed(),
                                         None
                                     )
                                 ),
