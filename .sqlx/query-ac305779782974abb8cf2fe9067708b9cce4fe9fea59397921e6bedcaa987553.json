@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE guild_role_recovery_config SET enabled = true WHERE guild_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ac305779782974abb8cf2fe9067708b9cce4fe9fea59397921e6bedcaa987553"
+}
