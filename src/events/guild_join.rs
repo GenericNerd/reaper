@@ -19,5 +19,13 @@ impl Handler {
         .execute(&self.main_database)
         .await
         .expect("Failed to insert logging configuration for guild");
+
+        sqlx::query!(
+            "INSERT INTO guild_role_recovery_config (guild_id) VALUES ($1)",
+            guild.id.get() as i64
+        )
+        .execute(&self.main_database)
+        .await
+        .expect("Failed to insert guild role recovery config for guild");
     }
 }

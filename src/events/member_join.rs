@@ -8,6 +8,18 @@ use crate::models::handler::Handler;
 
 impl Handler {
     pub async fn on_member_join(&self, ctx: Context, member: Member) {
+        if !sqlx::query!(
+            "SELECT enabled FROM guild_role_recovery_config WHERE guild_id = $1",
+            member.guild_id.get() as i64
+        )
+        .fetch_one(&self.main_database)
+        .await
+        .unwrap()
+        .enabled
+        {
+            return;
+        }
+
         let roles = match sqlx::query!(
             "SELECT role_id FROM role_recovery WHERE guild_id = $1 AND user_id = $2",
             member.guild_id.get() as i64,

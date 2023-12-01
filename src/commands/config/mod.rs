@@ -14,6 +14,7 @@ const EMBED_COLOR: i32 = 0x5539cc;
 
 mod logging;
 mod moderation;
+mod role_recovery;
 
 pub struct ConfigError {
     pub error: ResponseError,
@@ -98,6 +99,7 @@ impl Command for ConfigCommand {
             Box::new(logging::LoggingChannelMultipleActions),
             Box::new(logging::LoggingChannelMultipleMessages),
             Box::new(logging::LoggingChannelMultipleVoice),
+            Box::new(role_recovery::RoleRecovery),
         ];
 
         let mut current_stage = 0;
