@@ -96,7 +96,7 @@ impl Handler {
             Err(_) => vec![],
         };
 
-        if guild_escalations.is_empty() {
+        if !guild_escalations.is_empty() {
             let strike_count = get_active_strikes(self, guild_id, user_id).await.len();
             if let Some(escalation) = guild_escalations
                 .iter()
