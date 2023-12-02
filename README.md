@@ -20,6 +20,8 @@ Reaper is a Discord bot that allows you to automate and make tasks easier that w
 ### Minimum permissions
 When adding Reaper to your server, you will need to give it the following permissions:
 - Send Messages
+- Embed Links
+- Attach Files
 - Kick Members
 - Ban Members
 - Manage Roles
