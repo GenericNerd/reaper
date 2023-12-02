@@ -18,7 +18,7 @@ mod models;
 async fn main() {
     println!("cargo:rerun-if-changed=migrations");
     tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::DEBUG)
+        .with_max_level(tracing::Level::INFO)
         .init();
 
     info!("Getting environment variables");
