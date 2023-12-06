@@ -5,8 +5,9 @@ use serenity::{
 };
 use std::sync::{atomic::AtomicBool, Arc};
 use strum::IntoEnumIterator;
+use tracing::error;
 
-use crate::database::postgres::permissions::get_user;
+use crate::database::postgres::permissions::{get_role, get_user};
 
 use super::{
     handler::Handler,
@@ -77,7 +78,29 @@ impl InteractionContext {
                 ctx,
                 interaction: interaction.clone(),
                 has_responsed: Arc::new(AtomicBool::new(false)),
-                user_permissions: Permission::iter().collect::<Vec<_>>(),
+                user_permissions: Permission::iter().collect::<Vec<Permission>>(),
+            };
+        }
+
+        let mut permissions = get_user(
+            handler,
+            guild_id.get() as i64,
+            interaction.user.id.get() as i64,
+        )
+        .await;
+
+        if let Ok(member) = guild.member(&ctx.http, interaction.user.id).await {
+            for role in member.roles {
+                permissions
+                    .append(&mut get_role(handler, guild_id.get() as i64, role.get() as i64).await);
+            }
+        } else {
+            error!("Failed to get member from guild {}", guild_id.get());
+            return Self {
+                ctx,
+                interaction: interaction.clone(),
+                has_responsed: Arc::new(AtomicBool::new(false)),
+                user_permissions: permissions,
             };
         }
 
@@ -85,12 +108,7 @@ impl InteractionContext {
             ctx,
             interaction: interaction.clone(),
             has_responsed: Arc::new(AtomicBool::new(false)),
-            user_permissions: get_user(
-                handler,
-                guild_id.get() as i64,
-                interaction.user.id.get() as i64,
-            )
-            .await,
+            user_permissions: permissions,
         }
     }
 
