@@ -135,7 +135,7 @@ impl Handler {
                 ReactionType::Unicode(ref emoji) => {
                     let chars = emoji.chars().collect::<Vec<char>>();
                     let mut found = false;
-                    for emote in emotes.iter() {
+                    for emote in &emotes {
                         let emote_chars = emote.chars().collect::<Vec<char>>();
                         if !is_emoji(emote_chars[0]) {
                             continue;
