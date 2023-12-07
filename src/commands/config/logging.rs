@@ -817,7 +817,7 @@ impl ConfigStage for LoggingEnter {
                     return Ok(None);
                 }
                 "no" => {
-                    return Ok(Some(4));
+                    return Ok(Some(9));
                 }
                 _ => {
                     return Err(ConfigError {
