@@ -24,3 +24,4 @@ rand = "0.8"
 redis = { version = "0.24", features = ["tokio-comp"] }
 ordinal = "0.3"
 pretty-duration = "0.1"
+unic = "0.9.0"

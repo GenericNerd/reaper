@@ -1,9 +1,10 @@
 use serenity::{
-    all::{ChannelId, Reaction},
+    all::{ChannelId, Reaction, ReactionType},
     builder::{CreateEmbed, CreateEmbedAuthor, CreateEmbedFooter, CreateMessage},
     prelude::Context,
 };
 use tracing::{debug, error};
+use unic::emoji::char::is_emoji;
 
 use crate::models::{
     boards::{BoardConfiguration, BoardEmote, BoardEntry, BoardIgnoredChannel},
@@ -66,12 +67,12 @@ impl Handler {
                         "Could not fetch board ignored channels. Failed with error: {:?}",
                         err
                     );
-                    return;
+                    continue;
                 }
             };
 
             if ignored_channels.contains(&channel_int) {
-                return;
+                continue;
             }
 
             debug!(
@@ -91,7 +92,7 @@ impl Handler {
             {
                 Ok(entry) => {
                     if entry.is_some() {
-                        return;
+                        continue;
                     }
                 },
                 Err(err) => {
@@ -99,7 +100,7 @@ impl Handler {
                         "Could not check whether the message was already in this board. Failed with error: {:?}",
                         err
                     );
-                    return;
+                    continue;
                 }
             };
 
@@ -123,14 +124,41 @@ impl Handler {
                     .collect::<Vec<String>>(),
                 Err(err) => {
                     error!("Could not fetch board emotes. Failed with error: {:?}", err);
-                    return;
+                    continue;
                 }
             };
 
             let message_reaction = &reaction.clone();
 
-            if !emotes.contains(&message_reaction.emoji.to_string()) {
-                return;
+            let is_valid = match message_reaction.emoji {
+                // TODO: This is awful, rewrite this to make it better
+                ReactionType::Unicode(ref emoji) => {
+                    let chars = emoji.chars().collect::<Vec<char>>();
+                    let mut found = false;
+                    for emote in emotes.iter() {
+                        let emote_chars = emote.chars().collect::<Vec<char>>();
+                        if !is_emoji(emote_chars[0]) {
+                            continue;
+                        }
+
+                        if chars[0] == emote_chars[0] {
+                            found = true;
+                            break;
+                        }
+                    }
+                    found
+                }
+                ReactionType::Custom { ref id, .. } => emotes.contains(&id.to_string()),
+                _ => false,
+            };
+
+            if !is_valid {
+                debug!(
+                    "Message reaction was not a board emote, emoji was {} but emotes were {:?}",
+                    message_reaction.emoji.to_string(),
+                    emotes
+                );
+                continue;
             }
 
             debug!("Checked emoji validity in {:?}", start.elapsed());
@@ -149,7 +177,7 @@ impl Handler {
                     };
 
                     if board_configuration.emote_quota > i32::try_from(reaction_count).unwrap() {
-                        return;
+                        continue;
                     }
                 }
                 Err(err) => {
@@ -157,7 +185,7 @@ impl Handler {
                         "Could not fetch reaction users. Failed with error: {:?}",
                         err
                     );
-                    return;
+                    continue;
                 }
             };
 
@@ -193,7 +221,7 @@ impl Handler {
                     "Could not send message to board channel. Failed with error: {:?}",
                     err
                 );
-                return;
+                continue;
             }
 
             debug!("Posted message on board in {:?}", start.elapsed());
@@ -209,6 +237,9 @@ impl Handler {
             {
                 error!("Could not insert board entry. Failed with error: {:?}", err);
             }
+
+            debug!("Finished board placements in {:?}", start.elapsed());
+            return;
         }
         debug!("Finished board placements in {:?}", start.elapsed());
     }
