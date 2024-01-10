@@ -3,7 +3,7 @@ use strum::IntoEnumIterator;
 
 use serenity::{
     all::{CommandInteraction, PartialGuild},
-    builder::CreateEmbed,
+    builder::{CreateEmbed, CreateInteractionResponse, CreateInteractionResponseMessage},
     model::Permissions,
     prelude::Context as IncomingContext,
 };
@@ -94,7 +94,7 @@ impl Handler {
 
         let command_context = CommandContext {
             ctx,
-            has_responsed: Arc::new(AtomicBool::new(false)),
+            has_responsed: Arc::new(AtomicBool::new(true)),
             user_permissions,
             guild,
         };
@@ -103,6 +103,22 @@ impl Handler {
 
         for existing_command in get_command_list() {
             if existing_command.name() == command.data.name {
+                if let Err(err) = command
+                    .create_response(
+                        &command_context.ctx,
+                        CreateInteractionResponse::Defer(
+                            CreateInteractionResponseMessage::default(),
+                        ),
+                    )
+                    .await
+                {
+                    error!(
+                        "Failed to acknowledge command, took {:?}: {err:?}",
+                        start.elapsed(),
+                    );
+                    return;
+                };
+
                 if let Err(err) = existing_command
                     .router(self, &command_context, &command)
                     .await
