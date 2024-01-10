@@ -2,10 +2,7 @@ use std::sync::Arc;
 
 use serenity::{
     all::CommandInteraction,
-    builder::{
-        CreateCommand, CreateEmbed, CreateInteractionResponse, CreateInteractionResponseMessage,
-        EditInteractionResponse,
-    },
+    builder::{CreateCommand, CreateEmbed, CreateMessage, EditInteractionResponse},
     gateway::ShardManager,
     prelude::TypeMapKey,
 };
@@ -41,16 +38,20 @@ impl Command for InfoCommand {
         cmd: &CommandInteraction,
     ) -> ResponseResult {
         let start = std::time::Instant::now();
-        if let Err(err) = cmd
-            .create_response(
-                &ctx.ctx.http,
-                CreateInteractionResponse::Defer(CreateInteractionResponseMessage::default()),
-            )
+        let message = match cmd
+            .channel_id
+            .send_message(&ctx.ctx, CreateMessage::new().content("..."))
             .await
         {
+            Ok(message) => message,
+            Err(err) => {
+                return Err(ResponseError::Serenity(err));
+            }
+        };
+        let end = std::time::Instant::now();
+        if let Err(err) = message.delete(&ctx.ctx).await {
             return Err(ResponseError::Serenity(err));
         }
-        let latency = start.elapsed();
 
         let guild_count = match sqlx::query!("SELECT COUNT(guild_id) FROM moderation_configuration")
             .fetch_one(&handler.main_database)
@@ -101,9 +102,9 @@ impl Command for InfoCommand {
                             (
                                 "Network",
                                 format!(
-                                    "Shard ID {}\nLatency: {}ms",
+                                    "Shard ID {}\nLatency: {}",
                                     ctx.ctx.shard_id,
-                                    latency.as_millis()
+                                    pretty_duration::pretty_duration(&(end - start), None)
                                 ),
                                 true,
                             ),
@@ -120,7 +121,7 @@ impl Command for InfoCommand {
                                     "Version: {}\nUptime: {}",
                                     env!("CARGO_PKG_VERSION"),
                                     pretty_duration::pretty_duration(
-                                        &start.elapsed(),
+                                        &handler.start_time.elapsed(),
                                         None
                                     )
                                 ),
