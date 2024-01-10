@@ -17,9 +17,12 @@ mod models;
 #[tokio::main]
 async fn main() {
     println!("cargo:rerun-if-changed=migrations");
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
-        .init();
+
+    let log_level = match std::env::var("DEBUG").unwrap_or(false.to_string()).as_str() {
+        "true" => tracing::Level::DEBUG,
+        _ => tracing::Level::INFO,
+    };
+    tracing_subscriber::fmt().with_max_level(log_level).init();
 
     info!("Getting environment variables");
     let discord_token = std::env::var("DISCORD_TOKEN").unwrap();
@@ -63,7 +66,8 @@ async fn main() {
         .framework(StandardFramework::new())
         .await
         .unwrap();
-    if let Err(err) = client.start().await {
+
+    if let Err(err) = client.start_autosharded().await {
         error!(
             "Attempted to start Reaper Discord client, but failed with error: {}",
             err
