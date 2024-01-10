@@ -4,7 +4,7 @@ A Discord bot designed to make your users reap what they sow.
 </div>
 <div align="center">
 
-[![Version](https://img.shields.io/badge/version-1.0.0--rc-purple)](https://img.shields.io/badge/version-1.0.0--rc-purple)
+[![Version](https://img.shields.io/badge/version-1.0.2--rc-purple)](https://img.shields.io/badge/version-1.0.2--rc-purple)
 </div>
 
 ## What is Reaper?
