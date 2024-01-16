@@ -76,7 +76,6 @@ pub async fn expire_actions(handler: Handler, ctx: Context) {
                             error!("Could not delete mute role from role recovery roles. Failed with error: {:?}", err);
                         }
                     }
-                    continue;
                 }
                 ActionType::Ban => {
                     if let Err(err) = ctx
