@@ -100,7 +100,7 @@ impl Handler {
             let strike_count = get_active_strikes(self, guild_id, user_id).await.len();
             if let Some(escalation) = guild_escalations
                 .iter()
-                .find(|escalation| escalation.strike_count == strike_count as i64)
+                .find(|escalation| escalation.strike_count == (strike_count + 1) as i64)
             {
                 match ActionType::from(escalation.action_type.clone()) {
                     ActionType::Strike => {
