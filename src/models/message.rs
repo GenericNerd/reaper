@@ -24,7 +24,7 @@ impl Message {
     ) -> Result<Self, ResponseError> {
         let start = std::time::Instant::now();
 
-        let mut connection = match redis.get_async_connection().await {
+        let mut connection = match redis.get_multiplexed_async_connection().await {
             Ok(connection) => connection,
             Err(err) => {
                 error!("Failed to get Redis connection: {:?}", err);
@@ -128,7 +128,7 @@ impl MessageQuery {
     pub async fn get_message(&self, redis: &redis::Client) -> Result<Message, ResponseError> {
         let start = std::time::Instant::now();
 
-        let mut connection = match redis.get_async_connection().await {
+        let mut connection = match redis.get_multiplexed_async_connection().await {
             Ok(connection) => connection,
             Err(err) => {
                 error!("Failed to get Redis connection: {:?}", err);

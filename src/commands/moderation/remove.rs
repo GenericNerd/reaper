@@ -48,7 +48,7 @@ impl Command for RemoveCommand {
     ) -> ResponseResult {
         let start = std::time::Instant::now();
 
-        if !ctx.user_permissions.contains(&Permission::ModerationReason) {
+        if !ctx.user_permissions.contains(&Permission::ModerationRemove) {
             return Err(ResponseError::Execution(
                 "You do not have permission to do this!",
                 Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationReason.to_string())),
