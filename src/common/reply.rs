@@ -1,4 +1,4 @@
-use std::sync::atomic::Ordering;
+use std::{sync::atomic::Ordering, time::Instant};
 
 use serenity::{
     all::{CommandInteraction, Message},
@@ -23,7 +23,7 @@ impl CommandContextReply for CommandContext {
         cmd: &CommandInteraction,
         response: Response,
     ) -> Result<Message, ResponseError> {
-        let start = std::time::Instant::now();
+        let start = Instant::now();
         let message = if self.has_responsed.load(Ordering::Relaxed) {
             let mut edit = EditInteractionResponse::new();
             if let Some(content) = response.content {
@@ -103,7 +103,7 @@ impl CommandContextReply for FailedCommandContext {
         cmd: &CommandInteraction,
         response: Response,
     ) -> Result<Message, ResponseError> {
-        let start = std::time::Instant::now();
+        let start = Instant::now();
         let mut reply = CreateInteractionResponseMessage::new();
         if let Some(content) = response.content {
             reply = reply.content(content);
@@ -151,7 +151,7 @@ impl CommandContextReply for FailedCommandContext {
 #[async_trait::async_trait]
 impl InteractionContextReply for InteractionContext {
     async fn reply(&self, response: Response) -> ResponseResult {
-        let start = std::time::Instant::now();
+        let start = Instant::now();
         if self.has_responsed.load(Ordering::Relaxed) {
             let mut edit = EditInteractionResponse::new();
             if let Some(content) = response.content {

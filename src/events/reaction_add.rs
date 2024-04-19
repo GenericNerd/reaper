@@ -3,6 +3,7 @@ use serenity::{
     builder::{CreateEmbed, CreateEmbedAuthor, CreateEmbedFooter, CreateMessage},
     prelude::Context,
 };
+use std::time::Instant;
 use tracing::{debug, error};
 use unic::emoji::char::is_emoji;
 
@@ -13,7 +14,7 @@ use crate::models::{
 
 impl Handler {
     pub async fn on_reaction_add(&self, ctx: Context, reaction: Reaction) {
-        let start = std::time::Instant::now();
+        let start = Instant::now();
 
         let Some(guild_id) = reaction.guild_id else {
             return;

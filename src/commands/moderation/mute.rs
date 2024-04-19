@@ -1,4 +1,7 @@
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::{
+    sync::atomic::{AtomicBool, Ordering},
+    time::Instant,
+};
 
 use serenity::{
     all::{ChannelId, CommandInteraction, CommandOptionType, GuildId, RoleId, UserId},
@@ -33,7 +36,7 @@ impl Handler {
         moderator_id: Option<i64>,
         duration: Duration,
     ) -> Result<ActionDatabaseInsert, ResponseError> {
-        let start = std::time::Instant::now();
+        let start = Instant::now();
 
         let mute_role = match get_moderation_config(self, guild_id).await {
             Some(config) => match config.mute_role {
@@ -201,7 +204,7 @@ impl Command for MuteCommand {
         ctx: &CommandContext,
         cmd: &CommandInteraction,
     ) -> ResponseResult {
-        let start = std::time::Instant::now();
+        let start = Instant::now();
 
         if !ctx.user_permissions.contains(&Permission::ModerationMute) {
             return Err(ResponseError::Execution(

@@ -1,4 +1,7 @@
-use std::{fmt::Write, time::Duration};
+use std::{
+    fmt::Write,
+    time::{Duration, Instant},
+};
 
 use serenity::{
     all::{ButtonStyle, CommandInteraction, ComponentInteractionDataKind},
@@ -53,7 +56,7 @@ pub async fn role(
     ctx: &CommandContext,
     cmd: &CommandInteraction,
 ) -> ResponseResult {
-    let mut start = std::time::Instant::now();
+    let mut start = Instant::now();
 
     let options = Options {
         options: cmd.data.options(),
@@ -114,7 +117,7 @@ pub async fn role(
     while let Some(interaction) = interaction_stream.next().await {
         let interaction_context =
             InteractionContext::new(handler, ctx.ctx.clone(), &interaction).await;
-        start = std::time::Instant::now();
+        start = Instant::now();
 
         if interaction_context.interaction.user.id != cmd.user.id
             && !interaction_context

@@ -1,4 +1,7 @@
-use std::sync::{atomic::AtomicBool, Arc};
+use std::{
+    sync::{atomic::AtomicBool, Arc},
+    time::Instant,
+};
 use strum::IntoEnumIterator;
 
 use serenity::{
@@ -22,7 +25,7 @@ use crate::{
 
 impl Handler {
     pub async fn on_command(&self, ctx: IncomingContext, command: CommandInteraction) {
-        let start = std::time::Instant::now();
+        let start = Instant::now();
 
         let Some(guild_id) = command.guild_id else {
             let fail_context = FailedCommandContext { ctx };

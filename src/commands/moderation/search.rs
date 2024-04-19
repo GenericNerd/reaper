@@ -1,4 +1,7 @@
-use std::{collections::HashMap, time::Duration};
+use std::{
+    collections::HashMap,
+    time::{Duration, Instant},
+};
 
 use inflections::Inflect;
 use serenity::{
@@ -34,7 +37,7 @@ fn generate_search_response(
     actions: &HashMap<u8, Action>,
     page: u8,
     expired: bool,
-    time: &std::time::Instant,
+    time: &Instant,
 ) -> Response {
     if actions.is_empty() {
         return Response::new().embed(
@@ -155,7 +158,7 @@ impl Command for SearchCommand {
         ctx: &CommandContext,
         cmd: &CommandInteraction,
     ) -> ResponseResult {
-        let mut start = std::time::Instant::now();
+        let mut start = Instant::now();
 
         let options = Options {
             options: cmd.data.options(),
@@ -232,7 +235,7 @@ impl Command for SearchCommand {
             let interaction_context =
                 InteractionContext::new(handler, ctx.ctx.clone(), &interaction).await;
 
-            start = std::time::Instant::now();
+            start = Instant::now();
             match interaction_context.interaction.data.kind {
                 ComponentInteractionDataKind::Button => {}
                 _ => continue,

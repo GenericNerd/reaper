@@ -2,7 +2,10 @@ use serenity::{
     all::{ChannelId, CommandInteraction, CommandOptionType, GuildId, UserId},
     builder::{CreateCommand, CreateCommandOption, CreateEmbed, CreateEmbedFooter, CreateMessage},
 };
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::{
+    sync::atomic::{AtomicBool, Ordering},
+    time::Instant,
+};
 use tracing::{debug, error};
 
 use crate::{
@@ -29,7 +32,7 @@ impl Handler {
         reason: String,
         moderator_id: Option<i64>,
     ) -> Result<ActionDatabaseInsert, ResponseError> {
-        let start = std::time::Instant::now();
+        let start = Instant::now();
 
         let moderator_id = match moderator_id {
             Some(mod_id) => mod_id,
@@ -167,7 +170,7 @@ impl Command for KickCommand {
         ctx: &CommandContext,
         cmd: &CommandInteraction,
     ) -> ResponseResult {
-        let start = std::time::Instant::now();
+        let start = Instant::now();
 
         if !ctx.user_permissions.contains(&Permission::ModerationKick) {
             return Err(ResponseError::Execution(

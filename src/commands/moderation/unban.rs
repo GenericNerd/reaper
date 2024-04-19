@@ -2,6 +2,7 @@ use serenity::{
     all::{ChannelId, CommandInteraction, CommandOptionType},
     builder::{CreateCommand, CreateCommandOption, CreateEmbed, CreateEmbedFooter, CreateMessage},
 };
+use std::time::Instant;
 use tracing::error;
 
 use crate::{
@@ -42,7 +43,7 @@ impl Command for UnbanCommand {
         ctx: &CommandContext,
         cmd: &CommandInteraction,
     ) -> ResponseResult {
-        let start = std::time::Instant::now();
+        let start = Instant::now();
 
         if !ctx.user_permissions.contains(&Permission::ModerationUnban) {
             return Err(ResponseError::Execution(

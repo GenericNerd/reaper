@@ -2,6 +2,7 @@ use serenity::{
     all::{ChannelId, CommandInteraction, CommandOptionType, RoleId},
     builder::{CreateCommand, CreateCommandOption, CreateEmbed, CreateEmbedFooter, CreateMessage},
 };
+use std::time::Instant;
 use tracing::error;
 
 use crate::{
@@ -43,7 +44,7 @@ impl Command for UnmuteCommand {
         ctx: &CommandContext,
         cmd: &CommandInteraction,
     ) -> ResponseResult {
-        let start = std::time::Instant::now();
+        let start = Instant::now();
 
         if !ctx.user_permissions.contains(&Permission::ModerationUnmute) {
             return Err(ResponseError::Execution(

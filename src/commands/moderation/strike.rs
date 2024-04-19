@@ -2,6 +2,7 @@ use serenity::{
     all::{ChannelId, CommandInteraction, CommandOptionType, GuildId, UserId},
     builder::{CreateCommand, CreateCommandOption, CreateEmbed, CreateEmbedFooter, CreateMessage},
 };
+use std::time::Instant;
 use tracing::debug;
 
 use crate::{
@@ -37,7 +38,7 @@ impl Handler {
         moderator_id: Option<i64>,
         duration: Option<Duration>,
     ) -> Result<StrikeAction, ResponseError> {
-        let start = std::time::Instant::now();
+        let start = Instant::now();
 
         let duration = if let Some(duration) = duration {
             if duration.permanent {
@@ -297,7 +298,7 @@ impl Command for StrikeCommand {
         ctx: &CommandContext,
         cmd: &CommandInteraction,
     ) -> ResponseResult {
-        let start = std::time::Instant::now();
+        let start = Instant::now();
 
         if !ctx.user_permissions.contains(&Permission::ModerationStrike) {
             return Err(ResponseError::Execution(
