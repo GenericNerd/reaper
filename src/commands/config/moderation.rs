@@ -404,7 +404,7 @@ impl ConfigStage for ModerationDefaultStrikeDuration {
                             .title(MODERATION_TITLE)
                             .description(format!(
                                 "You can configure the default strike duration, it is currently set to **{}**",
-                                default_strike_duration.unwrap_or("30d".to_string())
+                                default_strike_duration.as_deref().unwrap_or("30d")
                             ))
                             .color(EMBED_COLOR),
                     )

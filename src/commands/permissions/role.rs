@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{fmt::Write, time::Duration};
 
 use serenity::{
     all::{ButtonStyle, CommandInteraction, ComponentInteractionDataKind},
@@ -85,7 +85,7 @@ pub async fn role(
                         .description(existing_permissions.iter().fold(
                             String::new(),
                             |mut acc, f| {
-                                acc.push_str(&format!("`{}`\n", f.to_string()));
+                                write!(&mut acc, "`{f}`\n").unwrap();
                                 acc
                             },
                         ))
