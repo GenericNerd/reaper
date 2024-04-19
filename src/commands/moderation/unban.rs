@@ -47,7 +47,7 @@ impl Command for UnbanCommand {
         if !ctx.user_permissions.contains(&Permission::ModerationUnban) {
             return Err(ResponseError::Execution(
                 "You do not have permission to do this!",
-                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationUnban.to_string())),
+                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationUnban)),
             ));
         }
 

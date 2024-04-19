@@ -51,7 +51,7 @@ impl Command for ExpireCommand {
         if !ctx.user_permissions.contains(&Permission::ModerationExpire) {
             return Err(ResponseError::Execution(
                 "You do not have permission to do this!",
-                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationExpire.to_string())),
+                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationExpire)),
             ));
         }
 

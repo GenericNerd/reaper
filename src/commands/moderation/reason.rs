@@ -59,7 +59,7 @@ impl Command for ReasonCommand {
         if !ctx.user_permissions.contains(&Permission::ModerationReason) {
             return Err(ResponseError::Execution(
                 "You do not have permission to do this!",
-                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationReason.to_string())),
+                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationReason)),
             ));
         }
 

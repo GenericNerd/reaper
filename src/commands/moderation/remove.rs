@@ -51,7 +51,7 @@ impl Command for RemoveCommand {
         if !ctx.user_permissions.contains(&Permission::ModerationRemove) {
             return Err(ResponseError::Execution(
                 "You do not have permission to do this!",
-                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationRemove.to_string())),
+                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationRemove)),
             ));
         }
 

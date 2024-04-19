@@ -63,7 +63,7 @@ impl Command for DurationCommand {
         {
             return Err(ResponseError::Execution(
                 "You do not have permission to do this!",
-                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationDuration.to_string())),
+                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationDuration)),
             ));
         }
 
