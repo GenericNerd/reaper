@@ -31,7 +31,7 @@ pub async fn end_giveaway(
         Ok(entries) => entries
             .iter()
             .map(|entry| entry.user_id)
-            .collect::<Vec<i64>>(),
+            .collect::<Vec<_>>(),
         Err(err) => {
             error!(
                 "Could not get entries for giveaway {}. Failed with error: {:?}",
@@ -51,12 +51,12 @@ pub async fn end_giveaway(
                 usize::try_from(giveaway.winners).unwrap(),
             )
             .map(|entry| format!("<@{entry}>"))
-            .collect::<Vec<String>>()
+            .collect::<Vec<_>>()
     } else {
         entries
             .iter()
             .map(|entry| format!("<@{entry}>"))
-            .collect::<Vec<String>>()
+            .collect::<Vec<_>>()
     };
 
     if let Err(err) = message

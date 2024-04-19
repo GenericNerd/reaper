@@ -122,7 +122,7 @@ impl Handler {
                 Ok(emotes) => emotes
                     .iter()
                     .map(|emote| emote.emote.to_string())
-                    .collect::<Vec<String>>(),
+                    .collect::<Vec<_>>(),
                 Err(err) => {
                     error!("Could not fetch board emotes. Failed with error: {:?}", err);
                     continue;
@@ -134,15 +134,15 @@ impl Handler {
             let is_valid = match message_reaction.emoji {
                 // TODO: This is awful, rewrite this to make it better
                 ReactionType::Unicode(ref emoji) => {
-                    let chars = emoji.chars().collect::<Vec<char>>();
-                    let mut found = false;
+                    let first_char = emoji.chars().first().unwrap();
+                    let mut found = false; 
                     for emote in &emotes {
-                        let emote_chars = emote.chars().collect::<Vec<char>>();
-                        if !is_emoji(emote_chars[0]) {
+                        let first_emote_char = emote.chars().first().unwrap();
+                        if !is_emoji(first_emote_char) {
                             continue;
                         }
 
-                        if chars[0] == emote_chars[0] {
+                        if first_char == first_emote_char {
                             found = true;
                             break;
                         }
