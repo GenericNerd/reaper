@@ -32,7 +32,7 @@ impl Handler {
             if let Err(err) = fail_context
                 .reply(
                     &command,
-                    Response::new().content("Reaper cannot be used outside of guilds".to_string()),
+                    Response::new().content("Reaper cannot be used outside of guilds"),
                 )
                 .await
             {
@@ -52,7 +52,7 @@ impl Handler {
                 if let Err(err) = fail_context
                     .reply(
                         &command,
-                        Response::new().content("Reaper could not obtain the guild".to_string()),
+                        Response::new().content("Reaper could not obtain the guild"),
                     )
                     .await
                 {

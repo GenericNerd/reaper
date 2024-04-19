@@ -201,16 +201,16 @@ impl Command for SearchCommand {
         } else {
             sqlx::query_as!(DatabaseAction, "SELECT * FROM actions WHERE user_id = $1 AND guild_id = $2 AND active=true ORDER BY created_at DESC", user.id.get() as i64, cmd.guild_id.unwrap().get() as i64).fetch_all(&handler.main_database).await
         } {
-            Ok(db_actions) => {
-                let mut actions = HashMap::new();
-                for (index, db_action) in db_actions.iter().enumerate() {
-                    actions.insert(
+            Ok(db_actions) => db_actions
+                .iter()
+                .enumerate()
+                .map(|(index, db_action)| {
+                    (
                         u8::try_from(index).unwrap(),
                         Action::from(db_action.clone()),
-                    );
-                }
-                actions
-            }
+                    )
+                })
+                .collect::<HashMap<_, _>>(),
             Err(_) => {
                 return Err(ResponseError::Execution(
                     "Failed to fetch actions",

@@ -97,7 +97,7 @@ pub async fn reroll(
             .reply(
                 cmd,
                 Response::new()
-                    .content("No one won the giveaway.".to_string())
+                    .content("No one won the giveaway.")
                     .ephemeral(true),
             )
             .await;
