@@ -1,4 +1,6 @@
-#[derive(strum::EnumIter, Clone)]
+use std::fmt::{self, Write, Display, Formatter};
+
+#[derive(strum::EnumIter, Copy, Clone, PartialEq)]
 pub enum Permission {
     PermissionsView,
     PermissionsEdit,
@@ -24,33 +26,31 @@ pub enum Permission {
     GiveawayDelete,
 }
 
-impl ToString for Permission {
-    fn to_string(&self) -> String {
+impl Display for Permission {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            Permission::PermissionsView => "permissions.view".to_string(),
-            Permission::PermissionsEdit => "permissions.edit".to_string(),
-            Permission::ConfigEdit => "config.edit".to_string(),
-            Permission::ModerationStrike => "moderation.strike".to_string(),
-            Permission::ModerationSearchSelf => "moderation.search.self".to_string(),
-            Permission::ModerationSearchSelfExpired => "moderation.search.self.expired".to_string(),
-            Permission::ModerationSearchOthers => "moderation.search.others".to_string(),
-            Permission::ModerationSearchOthersExpired => {
-                "moderation.search.others.expired".to_string()
-            }
-            Permission::ModerationSearchUuid => "moderation.search.uuid".to_string(),
-            Permission::ModerationMute => "moderation.mute".to_string(),
-            Permission::ModerationUnmute => "moderation.unmute".to_string(),
-            Permission::ModerationKick => "moderation.kick".to_string(),
-            Permission::ModerationBan => "moderation.ban".to_string(),
-            Permission::ModerationUnban => "moderation.unban".to_string(),
-            Permission::ModerationExpire => "moderation.expire".to_string(),
-            Permission::ModerationRemove => "moderation.remove".to_string(),
-            Permission::ModerationDuration => "moderation.duration".to_string(),
-            Permission::ModerationReason => "moderation.reason".to_string(),
-            Permission::GiveawayCreate => "giveaway.create".to_string(),
-            Permission::GiveawayEnd => "giveaway.end".to_string(),
-            Permission::GiveawayReroll => "giveaway.reroll".to_string(),
-            Permission::GiveawayDelete => "giveaway.delete".to_string(),
+            Permission::PermissionsView => write!(f, "permissions.view"),
+            Permission::PermissionsEdit => write!(f, "permissions.edit"),
+            Permission::ConfigEdit => write!(f, "config.edit"),
+            Permission::ModerationStrike => write!(f, "moderation.strike"),
+            Permission::ModerationSearchSelf => write!(f, "moderation.search.self"),
+            Permission::ModerationSearchSelfExpired => write!(f, "moderation.search.self.expired"),
+            Permission::ModerationSearchOthers => write!(f, "moderation.search.others"),
+            Permission::ModerationSearchOthersExpired => write!(f, "moderation.search.others.expired"),
+            Permission::ModerationSearchUuid => write!(f, "moderation.search.uuid"),
+            Permission::ModerationMute => write!(f, "moderation.mute"),
+            Permission::ModerationUnmute => write!(f, "moderation.unmute"),
+            Permission::ModerationKick => write!(f, "moderation.kick"),
+            Permission::ModerationBan => write!(f, "moderation.ban"),
+            Permission::ModerationUnban => write!(f, "moderation.unban"),
+            Permission::ModerationExpire => write!(f, "moderation.expire"),
+            Permission::ModerationRemove => write!(f, "moderation.remove"),
+            Permission::ModerationDuration => write!(f, "moderation.duration"),
+            Permission::ModerationReason => write!(f, "moderation.reason"),
+            Permission::GiveawayCreate => write!(f, "giveaway.create"),
+            Permission::GiveawayEnd => write!(f, "giveaway.end"),
+            Permission::GiveawayReroll => write!(f, "giveaway.reroll"),
+            Permission::GiveawayDelete => write!(f, "giveaway.delete"),
         }
     }
 }
@@ -82,11 +82,5 @@ impl From<String> for Permission {
             "giveaway.delete" => Permission::GiveawayDelete,
             _ => panic!("Invalid permission"),
         }
-    }
-}
-
-impl PartialEq for Permission {
-    fn eq(&self, other: &Self) -> bool {
-        self.to_string() == other.to_string()
     }
 }

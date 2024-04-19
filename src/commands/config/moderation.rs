@@ -28,7 +28,7 @@ pub struct ModerationEscalations;
 
 impl ModerationEscalations {
     fn generate_message(escalations: &Vec<ActionEscalation>) -> Response {
-        let mut components = vec![];
+        let mut components = Vec::with_capacity(1);
         if escalations.len() < 15 {
             components.push(CreateActionRow::SelectMenu(CreateSelectMenu::new(
                 "add_escalation",
@@ -45,10 +45,7 @@ impl ModerationEscalations {
             components.push(CreateActionRow::SelectMenu(CreateSelectMenu::new(
                 "remove_escalation",
                 CreateSelectMenuKind::String {
-                    options: escalations
-                        .iter()
-                        .enumerate()
-                        .map(|(index, _)| {
+                    options: (0..escalations.len()).map(|index| {
                             CreateSelectMenuOption::new(
                                 format!(
                                     "Remove {}{} escalation",

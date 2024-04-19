@@ -1,4 +1,4 @@
-use std::sync::atomic::AtomicBool;
+use std::{sync::atomic::AtomicBool, fmt::{self, Write, Display, Formatter}};
 
 use tracing::error;
 
@@ -6,7 +6,7 @@ use crate::{common::duration::Duration, models::response::ResponseError};
 
 use super::{handler::Handler, response::ResponseResult};
 
-#[derive(Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum ActionType {
     Strike,
     Mute,
@@ -14,13 +14,13 @@ pub enum ActionType {
     Ban,
 }
 
-impl ToString for ActionType {
-    fn to_string(&self) -> String {
+impl Display for ActionType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            ActionType::Strike => "strike".to_string(),
-            ActionType::Mute => "mute".to_string(),
-            ActionType::Kick => "kick".to_string(),
-            ActionType::Ban => "ban".to_string(),
+            ActionType::Strike => write!(f, "strike"),
+            ActionType::Mute => write!(f, "mute"),
+            ActionType::Kick => write!(f, "kick"),
+            ActionType::Ban => write!(f, "ban"),
         }
     }
 }
