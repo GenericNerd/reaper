@@ -196,7 +196,7 @@ impl Handler {
 
             let attachment = message
                 .attachments
-                .get(0)
+                .first()
                 .map(|attachment| attachment.url.to_string());
 
             let mut embed = CreateEmbed::new()

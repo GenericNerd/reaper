@@ -41,7 +41,6 @@ impl From<&str> for ActionType {
 }
 
 impl From<String> for ActionType {
-    #[inline(always)]
     fn from(value: String) -> Self {
         value.as_str().into()
     }

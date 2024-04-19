@@ -192,7 +192,7 @@ impl Command for SearchCommand {
         if !ctx.user_permissions.contains(&permission_required) {
             return Err(ResponseError::Execution(
                 "You do not have permission to do this!",
-                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", permission_required.to_string())),
+                Some(format!("You are missing the `{permission_required}` permission. If you believe this is a mistake, please contact your server administrators.")),
             ));
         }
 
@@ -261,8 +261,7 @@ impl Command for SearchCommand {
                         ResponseError::Execution(
                             "You do not have permission to do this!",
                             Some(format!(
-                                "You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.",
-                                permission_required.to_string()
+                                "You are missing the `{permission_required}` permission. If you believe this is a mistake, please contact your server administrators."
                             ))
                         )).await {
                         error!("Failed to reply to command interaction with error: {:?}", err);

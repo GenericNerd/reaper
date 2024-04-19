@@ -27,7 +27,7 @@ const MODERATION_TITLE: &str = "Configuration - Moderation";
 pub struct ModerationEscalations;
 
 impl ModerationEscalations {
-    fn generate_message(escalations: &Vec<ActionEscalation>) -> Response {
+    fn generate_message(escalations: &[ActionEscalation]) -> Response {
         let mut components = Vec::with_capacity(1);
         if escalations.len() < 15 {
             components.push(CreateActionRow::SelectMenu(CreateSelectMenu::new(
@@ -75,7 +75,7 @@ impl ModerationEscalations {
                     .description("You can now configure your strike escalations. These are actions that will happen when a user reaches a certain amount of strikes.")
                     .color(EMBED_COLOR)
                     .fields(escalations.iter().enumerate().map(|(index, escalation)| {
-                        (format!("{}{} escalation", index + 1, ordinal::Ordinal(index + 1).suffix()), format!("At **{}** strikes, Reaper will **{}** the user {}.", escalation.strike_count, escalation.action_type.to_string(), match escalation.action_duration.as_ref() {
+                        (format!("{}{} escalation", index + 1, ordinal::Ordinal(index + 1).suffix()), format!("At **{}** strikes, Reaper will **{}** the user {}.", escalation.strike_count, escalation.action_type, match escalation.action_duration.as_ref() {
                             Some(duration) => format!("for **{duration}**"),
                             None => "**indefinitely**".to_string(),
                         }), false)
@@ -607,7 +607,7 @@ impl ConfigStage for ModerationMuteRole {
                         interaction.data.kind
                     {
                         let role = values
-                            .get(0)
+                            .first()
                             .ok_or_else(|| {
                                 ResponseError::Execution(
                                     "No role selected",

@@ -88,7 +88,7 @@ pub async fn role(
                         .description(existing_permissions.iter().fold(
                             String::new(),
                             |mut acc, f| {
-                                write!(&mut acc, "`{f}`\n").unwrap();
+                                writeln!(&mut acc, "`{f}`").unwrap();
                                 acc
                             },
                         ))
@@ -202,7 +202,7 @@ pub async fn role(
                     .unwrap(),
             );
         } else {
-            temp_permissions.push(permission_to_change.clone());
+            temp_permissions.push(permission_to_change);
         }
 
         if let Err(err) = ctx
@@ -215,7 +215,7 @@ pub async fn role(
                             .description(temp_permissions.iter().fold(
                                 String::new(),
                                 |mut acc, f| {
-                                    write!(&mut acc, "`{f}`\n").unwrap();
+                                    writeln!(&mut acc, "`{f}`").unwrap();
                                     acc
                                 },
                             ))

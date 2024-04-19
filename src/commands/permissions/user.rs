@@ -36,9 +36,9 @@ fn create_components(permissions: &[Permission]) -> Vec<CreateActionRow> {
                 options: Permission::iter()
                     .map(|permission| {
                         let label = if permissions.contains(&permission) {
-                            format!("Remove {}", permission.to_string())
+                            format!("Remove {permission}")
                         } else {
-                            format!("Add {}", permission.to_string())
+                            format!("Add {permission}")
                         };
 
                         CreateSelectMenuOption::new(label, permission.to_string())
@@ -108,7 +108,7 @@ pub async fn user(
                         .description(existing_permissions.iter().fold(
                             String::new(),
                             |mut acc, permission| {
-                                write!(&mut acc, "`{permission}`\n").unwrap();
+                                writeln!(&mut acc, "`{permission}`").unwrap();
                                 acc
                             },
                         ))
@@ -153,7 +153,7 @@ pub async fn user(
                     "You do not have permission to do this",
                     Some(format!(
                         "You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.",
-                        Permission::PermissionsEdit.to_string())
+                        Permission::PermissionsEdit)
                     )
                 )).await {
                 error!(
@@ -226,7 +226,7 @@ pub async fn user(
                     .unwrap(),
             );
         } else {
-            temp_permissions.push(permission_to_change.clone());
+            temp_permissions.push(permission_to_change);
         }
 
         if let Err(err) = ctx
@@ -239,7 +239,7 @@ pub async fn user(
                             .description(temp_permissions.iter().fold(
                                 String::new(),
                                 |mut acc, permission| {
-                                    write!(&mut acc, "`{permission}`\n").unwrap();
+                                    writeln!(&mut acc, "`{permission}`").unwrap();
                                     acc
                                 },
                             ))
