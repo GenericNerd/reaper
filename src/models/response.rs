@@ -38,7 +38,7 @@ impl Response {
         self
     }
 
-    pub const fn components(mut self, components: Vec<CreateActionRow>) -> Self {
+    pub fn components(mut self, components: Vec<CreateActionRow>) -> Self {
         self.components = Some(components);
         self
     }
