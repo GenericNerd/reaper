@@ -272,7 +272,7 @@ impl ConfigStage for ModerationEscalations {
                             &interaction.data.components[1].components[0]
                         {
                             let value = text.value.clone().unwrap();
-                            if value == String::new() {
+                            if value.is_empty() {
                                 None
                             } else {
                                 let duration =
@@ -478,7 +478,7 @@ impl ConfigStage for ModerationDefaultStrikeDuration {
                             &interaction.data.components[0].components[0]
                         {
                             let value = text.value.clone().unwrap();
-                            if value == String::new() {
+                            if value.is_empty() {
                                 return Err(ConfigError {
                                     error: ResponseError::Execution(
                                         "Invalid duration",
