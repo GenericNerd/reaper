@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{fmt::Write, time::Duration};
 
 use serenity::{
     all::{ButtonStyle, CommandInteraction, ComponentInteractionDataKind},
@@ -105,7 +105,7 @@ pub async fn user(
                         .description(existing_permissions.iter().fold(
                             String::new(),
                             |mut acc, permission| {
-                                acc.push_str(&format!("`{}`\n", permission.to_string()));
+                                write!(&mut acc, "`{permission}`\n").unwrap();
                                 acc
                             },
                         ))
@@ -236,7 +236,7 @@ pub async fn user(
                             .description(temp_permissions.iter().fold(
                                 String::new(),
                                 |mut acc, permission| {
-                                    acc.push_str(&format!("`{}`\n", permission.to_string()));
+                                    write!(&mut acc, "`{permission}`\n").unwrap();
                                     acc
                                 },
                             ))

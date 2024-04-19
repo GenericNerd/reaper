@@ -32,9 +32,9 @@ fn create_components(permissions: &[Permission]) -> Vec<CreateActionRow> {
                 options: Permission::iter()
                     .map(|permission| {
                         let label = if permissions.contains(&permission) {
-                            format!("Remove {}", permission.to_string())
+                            format!("Remove {permission}")
                         } else {
-                            format!("Add {}", permission.to_string())
+                            format!("Add {permission}")
                         };
 
                         CreateSelectMenuOption::new(label, permission.to_string())
@@ -126,7 +126,7 @@ pub async fn role(
                     "You do not have permission to do this",
                     Some(format!(
                         "You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.",
-                        Permission::PermissionsEdit.to_string())
+                        Permission::PermissionsEdit)
                     )
                 )).await {
                 error!(
@@ -212,7 +212,7 @@ pub async fn role(
                             .description(temp_permissions.iter().fold(
                                 String::new(),
                                 |mut acc, f| {
-                                    acc.push_str(&format!("`{}`\n", f.to_string()));
+                                    write!(&mut acc, "`{f}`\n").unwrap();
                                     acc
                                 },
                             ))
