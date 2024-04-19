@@ -4,9 +4,9 @@
 #![allow(clippy::cast_sign_loss)]
 #![allow(clippy::unreadable_literal)]
 
-use std::{env, time::Instant};
 use serenity::{framework::StandardFramework, prelude::GatewayIntents, Client};
 use sqlx::postgres::PgPoolOptions;
+use std::{env, time::Instant};
 use tracing::{error, info};
 
 mod commands;
