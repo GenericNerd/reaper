@@ -78,7 +78,7 @@ impl InteractionContext {
                 ctx,
                 interaction: interaction.clone(),
                 has_responsed: Arc::new(AtomicBool::new(false)),
-                user_permissions: Permission::iter().collect::<Vec<Permission>>(),
+                user_permissions: Permission::iter().collect::<Vec<_>>(),
             };
         }
 

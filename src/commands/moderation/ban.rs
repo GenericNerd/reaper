@@ -1,4 +1,7 @@
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::{
+    sync::atomic::{AtomicBool, Ordering},
+    time::Instant,
+};
 
 use serenity::{
     all::{ChannelId, CommandInteraction, CommandOptionType, GuildId, UserId},
@@ -32,7 +35,7 @@ impl Handler {
         moderator_id: Option<i64>,
         duration: Option<Duration>,
     ) -> Result<ActionDatabaseInsert, ResponseError> {
-        let start = std::time::Instant::now();
+        let start = Instant::now();
 
         let duration = if let Some(duration) = duration {
             if duration.permanent {
@@ -196,12 +199,12 @@ impl Command for BanCommand {
         ctx: &CommandContext,
         cmd: &CommandInteraction,
     ) -> ResponseResult {
-        let start = std::time::Instant::now();
+        let start = Instant::now();
 
         if !ctx.user_permissions.contains(&Permission::ModerationStrike) {
             return Err(ResponseError::Execution(
                 "You do not have permission to do this!",
-                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationBan.to_string())),
+                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationBan)),
             ));
         }
 

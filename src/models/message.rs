@@ -1,3 +1,4 @@
+use std::time::Instant;
 use tracing::{debug, error};
 
 use super::response::ResponseError;
@@ -22,7 +23,7 @@ impl Message {
         content: String,
         attachment: Option<String>,
     ) -> Result<Self, ResponseError> {
-        let start = std::time::Instant::now();
+        let start = Instant::now();
 
         let mut connection = match redis.get_multiplexed_async_connection().await {
             Ok(connection) => connection,
@@ -126,7 +127,7 @@ pub struct MessageQuery {
 
 impl MessageQuery {
     pub async fn get_message(&self, redis: &redis::Client) -> Result<Message, ResponseError> {
-        let start = std::time::Instant::now();
+        let start = Instant::now();
 
         let mut connection = match redis.get_multiplexed_async_connection().await {
             Ok(connection) => connection,

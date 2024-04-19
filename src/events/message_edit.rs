@@ -55,7 +55,7 @@ impl Handler {
 
         let current_attachment = match event.attachments {
             Some(attachments) => attachments
-                .get(0)
+                .first()
                 .map(|attachment| attachment.url.to_string()),
             None => None,
         };
