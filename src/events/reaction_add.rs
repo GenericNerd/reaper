@@ -134,10 +134,10 @@ impl Handler {
             let is_valid = match message_reaction.emoji {
                 // TODO: This is awful, rewrite this to make it better
                 ReactionType::Unicode(ref emoji) => {
-                    let first_char = emoji.chars().first().unwrap();
-                    let mut found = false; 
+                    let first_char = emoji.chars().next().unwrap();
+                    let mut found = false;
                     for emote in &emotes {
-                        let first_emote_char = emote.chars().first().unwrap();
+                        let first_emote_char = emote.chars().next().unwrap();
                         if !is_emoji(first_emote_char) {
                             continue;
                         }
