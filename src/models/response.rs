@@ -28,8 +28,8 @@ impl Response {
         }
     }
 
-    pub fn content(mut self, content: String) -> Self {
-        self.content = Some(content);
+    pub fn content(mut self, content: impl Into<String>) -> Self {
+        self.content = Some(content.into());
         self
     }
 
