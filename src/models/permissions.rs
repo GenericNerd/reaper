@@ -36,7 +36,9 @@ impl Display for Permission {
             Permission::ModerationSearchSelf => write!(f, "moderation.search.self"),
             Permission::ModerationSearchSelfExpired => write!(f, "moderation.search.self.expired"),
             Permission::ModerationSearchOthers => write!(f, "moderation.search.others"),
-            Permission::ModerationSearchOthersExpired => write!(f, "moderation.search.others.expired"),
+            Permission::ModerationSearchOthersExpired => {
+                write!(f, "moderation.search.others.expired")
+            }
             Permission::ModerationSearchUuid => write!(f, "moderation.search.uuid"),
             Permission::ModerationMute => write!(f, "moderation.mute"),
             Permission::ModerationUnmute => write!(f, "moderation.unmute"),

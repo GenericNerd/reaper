@@ -45,7 +45,8 @@ impl ModerationEscalations {
             components.push(CreateActionRow::SelectMenu(CreateSelectMenu::new(
                 "remove_escalation",
                 CreateSelectMenuKind::String {
-                    options: (0..escalations.len()).map(|index| {
+                    options: (0..escalations.len())
+                        .map(|index| {
                             CreateSelectMenuOption::new(
                                 format!(
                                     "Remove {}{} escalation",
@@ -117,14 +118,13 @@ impl ConfigStage for ModerationEscalations {
         ctx: &CommandContext,
         cmd: &CommandInteraction,
     ) -> Result<Option<usize>, ConfigError> {
-        let original_escalations = sqlx::query_as!(
+        let mut escalations = sqlx::query_as!(
             ActionEscalation,
             "SELECT * FROM strike_escalations WHERE guild_id = $1",
             ctx.guild.id.get() as i64
         )
         .fetch_all(&handler.main_database)
         .await?;
-        let mut escalations = original_escalations.clone();
 
         let message = ctx
             .reply_get_message(cmd, ModerationEscalations::generate_message(&escalations))
