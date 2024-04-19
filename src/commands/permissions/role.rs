@@ -186,7 +186,7 @@ pub async fn role(
                 continue;
             }
             ComponentInteractionDataKind::StringSelect { values } => {
-                Permission::from(&values[0])
+                Permission::from(values[0].as_str())
             }
             _ => continue,
         };

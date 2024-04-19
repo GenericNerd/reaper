@@ -40,6 +40,13 @@ impl From<&str> for ActionType {
     }
 }
 
+impl From<String> for ActionType {
+    #[inline(always)]
+    fn from(value: String) -> Self {
+        value.as_str().into()
+    }
+}
+
 #[derive(Clone)]
 pub struct Action {
     pub id: Result<objectid::ObjectId, String>,
@@ -92,7 +99,7 @@ impl From<DatabaseAction> for Action {
     fn from(value: DatabaseAction) -> Self {
         Action {
             id: objectid::ObjectId::with_string(&value.id).map_err(|_| value.id),
-            action_type: ActionType::from(&value.action_type),
+            action_type: ActionType::from(value.action_type.as_str()),
             user_id: value.user_id,
             moderator_id: value.moderator_id,
             guild_id: value.moderator_id,
@@ -185,7 +192,7 @@ impl From<DatabaseActionEscalation> for ActionEscalation {
         ActionEscalation {
             guild_id: value.guild_id,
             strike_count: value.strike_count,
-            action_type: ActionType::from(&value.action_type),
+            action_type: ActionType::from(value.action_type.as_str()),
             action_duration: value.action_duration,
         }
     }
