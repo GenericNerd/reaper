@@ -210,7 +210,7 @@ pub async fn user(
                 continue;
             }
             ComponentInteractionDataKind::StringSelect { values } => {
-                Permission::from(values[0].clone())
+                Permission::from(&values[0])
             }
             _ => continue,
         };

@@ -102,7 +102,7 @@ impl Handler {
                 .iter()
                 .find(|escalation| escalation.strike_count == (strike_count + 1) as i64)
             {
-                match ActionType::from(escalation.action_type.clone()) {
+                match ActionType::from(&escalation.action_type) {
                     ActionType::Strike => {
                         return Err(ResponseError::Execution(
                             "Strike escalation action type is strike!",

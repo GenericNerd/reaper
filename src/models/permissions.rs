@@ -57,9 +57,9 @@ impl Display for Permission {
     }
 }
 
-impl From<String> for Permission {
-    fn from(value: String) -> Self {
-        match value.as_str() {
+impl From<&str> for Permission {
+    fn from(value: &str) -> Self {
+        match value {
             "permissions.view" => Permission::PermissionsView,
             "permissions.edit" => Permission::PermissionsEdit,
             "config.edit" => Permission::ConfigEdit,

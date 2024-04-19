@@ -150,7 +150,7 @@ impl ConfigStage for ModerationEscalations {
                     let action_type = if let ComponentInteractionDataKind::StringSelect { values } =
                         &interaction.data.kind
                     {
-                        ActionType::from(values.first().unwrap().clone())
+                        ActionType::from(values.first().unwrap())
                     } else {
                         ModerationEscalations::save_escalations(&escalations, handler, ctx).await?;
                         return Err(ConfigError {

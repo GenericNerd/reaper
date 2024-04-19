@@ -28,9 +28,9 @@ impl Display for ActionType {
     }
 }
 
-impl From<String> for ActionType {
-    fn from(value: String) -> Self {
-        match value.as_str() {
+impl From<&str> for ActionType {
+    fn from(value: &str) -> Self {
+        match value {
             "strike" => ActionType::Strike,
             "mute" => ActionType::Mute,
             "kick" => ActionType::Kick,
@@ -92,7 +92,7 @@ impl From<DatabaseAction> for Action {
     fn from(value: DatabaseAction) -> Self {
         Action {
             id: objectid::ObjectId::with_string(&value.id).map_err(|_| value.id),
-            action_type: ActionType::from(value.action_type),
+            action_type: ActionType::from(&value.action_type),
             user_id: value.user_id,
             moderator_id: value.moderator_id,
             guild_id: value.moderator_id,
@@ -185,7 +185,7 @@ impl From<DatabaseActionEscalation> for ActionEscalation {
         ActionEscalation {
             guild_id: value.guild_id,
             strike_count: value.strike_count,
-            action_type: ActionType::from(value.action_type),
+            action_type: ActionType::from(&value.action_type),
             action_duration: value.action_duration,
         }
     }

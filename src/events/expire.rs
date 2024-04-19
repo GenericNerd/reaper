@@ -56,7 +56,7 @@ pub async fn expire_actions(handler: Handler, ctx: Context) {
                 "Expiring action with ID {} from guild {}",
                 action.id, action.guild_id
             );
-            match ActionType::from(action.action_type) {
+            match ActionType::from(&action.action_type) {
                 ActionType::Mute => {
                     if let Some(mute_role) = guild_configurations.get(&action.guild_id) {
                         if let Err(err) = ctx
