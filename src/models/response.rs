@@ -18,7 +18,7 @@ pub enum ResponseError {
 pub type ResponseResult = Result<(), ResponseError>;
 
 impl Response {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Response {
             content: None,
             embeds: None,
@@ -38,12 +38,12 @@ impl Response {
         self
     }
 
-    pub fn components(mut self, components: Vec<CreateActionRow>) -> Self {
+    pub const fn components(mut self, components: Vec<CreateActionRow>) -> Self {
         self.components = Some(components);
         self
     }
 
-    pub fn ephemeral(mut self, ephemeral: bool) -> Self {
+    pub const fn ephemeral(mut self, ephemeral: bool) -> Self {
         self.ephemeral = ephemeral;
         self
     }
