@@ -1,4 +1,4 @@
-use std::{sync::atomic::AtomicBool, fmt::{self, Write, Display, Formatter}};
+use std::{sync::atomic::AtomicBool, fmt::{self, Display, Formatter}};
 
 use tracing::error;
 

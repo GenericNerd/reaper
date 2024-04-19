@@ -1,4 +1,4 @@
-use std::fmt::{self, Write, Display, Formatter};
+use std::fmt::{self, Display, Formatter};
 
 #[derive(strum::EnumIter, Copy, Clone, PartialEq)]
 pub enum Permission {

@@ -74,7 +74,7 @@ impl ModerationEscalations {
                     .description("You can now configure your strike escalations. These are actions that will happen when a user reaches a certain amount of strikes.")
                     .color(EMBED_COLOR)
                     .fields(escalations.iter().enumerate().map(|(index, escalation)| {
-                        (format!("{}{} escalation", index + 1, ordinal::Ordinal(index + 1).suffix()), format!("At **{}** strikes, Reaper will **{}** the user {}.", escalation.strike_count, escalation.action_type.to_string(), match escalation.action_duration.clone() {
+                        (format!("{}{} escalation", index + 1, ordinal::Ordinal(index + 1).suffix()), format!("At **{}** strikes, Reaper will **{}** the user {}.", escalation.strike_count, escalation.action_type.to_string(), match escalation.action_duration.as_ref() {
                             Some(duration) => format!("for **{duration}**"),
                             None => "**indefinitely**".to_string(),
                         }), false)
