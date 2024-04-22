@@ -2,6 +2,7 @@ use serenity::{
     all::{ChannelId, CommandInteraction, CommandOptionType, GuildId, UserId},
     builder::{CreateCommand, CreateCommandOption, CreateEmbed, CreateEmbedFooter, CreateMessage},
 };
+use std::time::Instant;
 use tracing::debug;
 
 use crate::{
@@ -37,7 +38,7 @@ impl Handler {
         moderator_id: Option<i64>,
         duration: Option<Duration>,
     ) -> Result<StrikeAction, ResponseError> {
-        let start = std::time::Instant::now();
+        let start = Instant::now();
 
         let duration = if let Some(duration) = duration {
             if duration.permanent {
@@ -102,7 +103,7 @@ impl Handler {
                 .iter()
                 .find(|escalation| escalation.strike_count == (strike_count + 1) as i64)
             {
-                match ActionType::from(escalation.action_type.clone()) {
+                match ActionType::from(escalation.action_type.as_str()) {
                     ActionType::Strike => {
                         return Err(ResponseError::Execution(
                             "Strike escalation action type is strike!",
@@ -297,12 +298,12 @@ impl Command for StrikeCommand {
         ctx: &CommandContext,
         cmd: &CommandInteraction,
     ) -> ResponseResult {
-        let start = std::time::Instant::now();
+        let start = Instant::now();
 
         if !ctx.user_permissions.contains(&Permission::ModerationStrike) {
             return Err(ResponseError::Execution(
                 "You do not have permission to do this!",
-                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationStrike.to_string())),
+                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationStrike)),
             ));
         }
 

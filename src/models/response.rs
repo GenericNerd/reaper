@@ -18,7 +18,7 @@ pub enum ResponseError {
 pub type ResponseResult = Result<(), ResponseError>;
 
 impl Response {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Response {
             content: None,
             embeds: None,
@@ -28,8 +28,8 @@ impl Response {
         }
     }
 
-    pub fn content(mut self, content: String) -> Self {
-        self.content = Some(content);
+    pub fn content(mut self, content: impl Into<String>) -> Self {
+        self.content = Some(content.into());
         self
     }
 
@@ -43,7 +43,7 @@ impl Response {
         self
     }
 
-    pub fn ephemeral(mut self, ephemeral: bool) -> Self {
+    pub const fn ephemeral(mut self, ephemeral: bool) -> Self {
         self.ephemeral = ephemeral;
         self
     }

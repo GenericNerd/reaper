@@ -28,7 +28,7 @@ pub async fn get_user(handler: &Handler, guild_id: i64, user_id: i64) -> Vec<Per
 
     permissions
         .into_iter()
-        .map(|p| Permission::from(p.permission))
+        .map(|p| Permission::from(p.permission.as_str()))
         .collect()
 }
 
@@ -112,7 +112,7 @@ pub async fn get_role(handler: &Handler, guild_id: i64, role_id: i64) -> Vec<Per
 
     permissions
         .into_iter()
-        .map(|p| Permission::from(p.permission))
+        .map(|p| Permission::from(p.permission.as_str()))
         .collect()
 }
 

@@ -95,15 +95,3 @@ impl Duration {
         ))
     }
 }
-
-impl From<String> for Duration {
-    fn from(string: String) -> Self {
-        Duration::new(string.as_str())
-    }
-}
-
-impl From<&str> for Duration {
-    fn from(string: &str) -> Self {
-        Duration::new(string)
-    }
-}

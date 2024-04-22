@@ -39,7 +39,7 @@ impl Handler {
             .await
         {
             Ok(audit_log) => {
-                if let Some(entry) = audit_log.entries.get(0) {
+                if let Some(entry) = audit_log.entries.first() {
                     if entry.action.num() == 72 {
                         if let Some(target) = entry.target_id {
                             if target.get() == message.user_id as u64 {
