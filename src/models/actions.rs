@@ -76,7 +76,10 @@ impl Action {
             moderator_id,
             guild_id,
             reason,
-            expiry: expiry.map(|duration| duration.to_timestamp().unwrap()),
+            expiry: match expiry {
+                Some(duration) => duration.to_timestamp(),
+                None => None,
+            },
             active,
             created_at: time::OffsetDateTime::now_utc(),
         }
