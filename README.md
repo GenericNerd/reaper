@@ -4,7 +4,7 @@ A Discord bot designed to make your users reap what they sow.
 </div>
 <div align="center">
 
-[![Version](https://img.shields.io/badge/version-1.0.5--rc-purple)](https://img.shields.io/badge/version-1.0.5--rc-purple)
+[![Version](https://img.shields.io/badge/version-1.0.7--rc-purple)](https://img.shields.io/badge/version-1.0.7--rc-purple)
 </div>
 
 ## What is Reaper?
@@ -49,4 +49,4 @@ docker-compose up --build -d
 # License
 MIT License
 
-Copyright © 2023 Fabio Almeida
+Copyright © 2024 Fabio Almeida
