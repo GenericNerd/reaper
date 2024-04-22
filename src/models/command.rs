@@ -1,5 +1,5 @@
 use serenity::{
-    all::{CommandInteraction, ComponentInteraction, Message, PartialGuild},
+    all::{CommandInteraction, ComponentInteraction, Message, PartialGuild, Permissions},
     builder::{CreateCommand, CreateEmbed},
     prelude::Context as IncomingContext,
 };
@@ -91,6 +91,13 @@ impl InteractionContext {
 
         if let Ok(member) = guild.member(&ctx.http, interaction.user.id).await {
             for role in member.roles {
+                if let Some(role) = guild.roles.get(&role) {
+                    if role.permissions.contains(Permissions::ADMINISTRATOR) {
+                        permissions = Permission::iter().collect::<Vec<_>>();
+                        break;
+                    }
+                }
+
                 permissions
                     .append(&mut get_role(handler, guild_id.get() as i64, role.get() as i64).await);
             }
