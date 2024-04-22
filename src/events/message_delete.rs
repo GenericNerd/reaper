@@ -19,9 +19,9 @@ impl Handler {
         message_id: i64,
     ) {
         let query = MessageQuery {
-            guild_id,
-            channel_id,
-            message_id,
+            guild: guild_id,
+            channel: channel_id,
+            message: message_id,
         };
 
         let message = match query.get_message(&self.redis_database).await {

@@ -350,16 +350,15 @@ impl Command for StrikeCommand {
             .as_deref()
             .map(Duration::new);
 
-        let action = handler
-            .strike_user(
-                ctx,
-                ctx.guild.id.get() as i64,
-                user.id.get() as i64,
-                reason.clone(),
-                Some(cmd.user.id.get() as i64),
-                duration,
-            )
-            .await?;
+        let action = Box::pin(handler.strike_user(
+            ctx,
+            ctx.guild.id.get() as i64,
+            user.id.get() as i64,
+            reason.clone(),
+            Some(cmd.user.id.get() as i64),
+            duration,
+        ))
+        .await?;
 
         ctx.reply(
             cmd,

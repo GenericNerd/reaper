@@ -1,3 +1,5 @@
+#![allow(clippy::struct_field_names)]
+
 #[derive(Clone)]
 pub struct BoardConfiguration {
     pub guild_id: i64,

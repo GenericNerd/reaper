@@ -35,16 +35,15 @@ impl Handler {
             guild,
         };
 
-        if let Err(err) = self
-            .strike_user(
-                &context,
-                context.guild.id.get() as i64,
-                execution.user_id.get() as i64,
-                format!("Violated \"{}\" automod rule", rule.name),
-                None,
-                None,
-            )
-            .await
+        if let Err(err) = Box::pin(self.strike_user(
+            &context,
+            context.guild.id.get() as i64,
+            execution.user_id.get() as i64,
+            format!("Violated \"{}\" automod rule", rule.name),
+            None,
+            None,
+        ))
+        .await
         {
             error!("Could not strike user. Failed with error: {:?}", err);
         }

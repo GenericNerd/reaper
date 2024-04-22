@@ -66,7 +66,7 @@ fn generate_search_response(
                     "Type",
                     format!(
                         "{} {}",
-                        action.action_type.to_string().to_title_case(),
+                        action.typ.to_string().to_title_case(),
                         if action.active { "" } else { "(Expired)" }
                     ),
                     true,
@@ -87,14 +87,14 @@ fn generate_search_response(
                     true,
                 )
                 .color(if action.active {
-                    match action.action_type {
+                    match action.typ {
                         ActionType::Strike => 0xeb966d,
                         ActionType::Mute => 0x2e4045,
                         ActionType::Kick => 0x000080,
                         ActionType::Ban => 0xf54029,
                     }
                 } else {
-                    match action.action_type {
+                    match action.typ {
                         ActionType::Strike => 0xbd7857,
                         ActionType::Mute => 0x182124,
                         ActionType::Kick => 0x000054,

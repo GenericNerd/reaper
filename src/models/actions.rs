@@ -49,7 +49,7 @@ impl From<String> for ActionType {
 #[derive(Clone)]
 pub struct Action {
     pub id: Result<objectid::ObjectId, String>,
-    pub action_type: ActionType,
+    pub typ: ActionType,
     pub user_id: i64,
     pub moderator_id: i64,
     pub guild_id: i64,
@@ -61,17 +61,17 @@ pub struct Action {
 
 impl Action {
     pub fn new(
-        action_type: ActionType,
+        typ: ActionType,
         user_id: i64,
         moderator_id: i64,
         guild_id: i64,
         reason: String,
         expiry: Option<Duration>,
     ) -> Self {
-        let active = action_type != ActionType::Kick;
+        let active = typ != ActionType::Kick;
         Action {
             id: Ok(objectid::ObjectId::new().unwrap()),
-            action_type,
+            typ,
             user_id,
             moderator_id,
             guild_id,
@@ -101,7 +101,7 @@ impl From<DatabaseAction> for Action {
     fn from(value: DatabaseAction) -> Self {
         Action {
             id: objectid::ObjectId::with_string(&value.id).map_err(|_| value.id),
-            action_type: ActionType::from(value.action_type.as_str()),
+            typ: ActionType::from(value.action_type.as_str()),
             user_id: value.user_id,
             moderator_id: value.moderator_id,
             guild_id: value.moderator_id,
@@ -133,7 +133,7 @@ impl From<Action> for DatabaseAction {
                 Ok(oid) => oid.to_string(),
                 Err(string) => string,
             },
-            action_type: value.action_type.to_string(),
+            action_type: value.typ.to_string(),
             user_id: value.user_id,
             moderator_id: value.moderator_id,
             guild_id: value.guild_id,
