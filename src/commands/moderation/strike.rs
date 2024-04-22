@@ -196,7 +196,10 @@ impl Handler {
             ("Reason", action.reason.to_string(), true),
             (
                 "Expires",
-                format!("<t:{}:F>", action.expiry.unwrap().unix_timestamp()),
+                match action.expiry {
+                    Some(expiry) => format!("<t:{}:F>", expiry.unix_timestamp()),
+                    None => "Never".to_string(),
+                },
                 true,
             ),
         ];
@@ -376,7 +379,10 @@ impl Command for StrikeCommand {
                     .field("Moderator", format!("<@{}>", cmd.user.id.get()), true)
                     .field(
                         "Expires",
-                        format!("<t:{}:F>", action.strike.expiry.unwrap().unix_timestamp()),
+                        match action.strike.expiry {
+                            Some(expiry) => format!("<t:{}:F>", expiry.unix_timestamp()),
+                            None => "Never".to_string(),
+                        },
                         true,
                     )
                     .footer(CreateEmbedFooter::new(format!(
