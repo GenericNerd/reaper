@@ -4,7 +4,7 @@
 #![allow(clippy::cast_sign_loss)]
 #![allow(clippy::unreadable_literal)]
 
-use serenity::{framework::StandardFramework, prelude::GatewayIntents, Client};
+use serenity::{prelude::GatewayIntents, Client};
 use sqlx::postgres::PgPoolOptions;
 use std::{env, time::Instant};
 use tracing::{error, info};
@@ -64,7 +64,6 @@ async fn main() {
         | GatewayIntents::MESSAGE_CONTENT;
     let mut client = Client::builder(&discord_token, intents)
         .event_handler(handler)
-        .framework(StandardFramework::new())
         .await
         .unwrap();
 

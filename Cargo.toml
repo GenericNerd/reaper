@@ -1,13 +1,13 @@
 [package]
 name = "reaper"
-version = "1.0.7"
+version = "1.0.8"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "time"] }
-serenity = { git = "https://github.com/serenity-rs/serenity", branch = "next", features = ["collector"] }
+serenity = { version = "0.12.1", features = ["collector"] }
 tokio = { version = "1.32", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3" }
