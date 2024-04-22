@@ -1,3 +1,4 @@
+use std::time::Instant;
 use tracing::{debug, error};
 
 use super::response::ResponseError;
@@ -7,7 +8,7 @@ pub struct Message {
     pub guild_id: i64,
     pub user_id: i64,
     pub channel_id: i64,
-    pub message_id: i64,
+    pub id: i64,
     pub content: String,
     pub attachment: Option<String>,
 }
@@ -22,7 +23,7 @@ impl Message {
         content: String,
         attachment: Option<String>,
     ) -> Result<Self, ResponseError> {
-        let start = std::time::Instant::now();
+        let start = Instant::now();
 
         let mut connection = match redis.get_multiplexed_async_connection().await {
             Ok(connection) => connection,
@@ -38,7 +39,7 @@ impl Message {
             guild_id,
             user_id,
             channel_id,
-            message_id,
+            id: message_id,
             content,
             attachment,
         };
@@ -52,7 +53,7 @@ impl Message {
             .arg("channel_id")
             .arg(message.channel_id)
             .arg("message_id")
-            .arg(message.message_id)
+            .arg(message.id)
             .arg("content")
             .arg(message.content.clone())
             .arg("attachment")
@@ -88,7 +89,7 @@ impl Message {
     }
 
     pub fn key(&self) -> String {
-        format!("{}:{}:{}", self.guild_id, self.channel_id, self.message_id)
+        format!("{}:{}:{}", self.guild_id, self.channel_id, self.id)
     }
 
     pub async fn update(
@@ -110,7 +111,7 @@ impl Message {
             self.guild_id,
             self.user_id,
             self.channel_id,
-            self.message_id,
+            self.id,
             content,
             attachment,
         )
@@ -119,14 +120,14 @@ impl Message {
 }
 
 pub struct MessageQuery {
-    pub guild_id: i64,
-    pub channel_id: i64,
-    pub message_id: i64,
+    pub guild: i64,
+    pub channel: i64,
+    pub message: i64,
 }
 
 impl MessageQuery {
     pub async fn get_message(&self, redis: &redis::Client) -> Result<Message, ResponseError> {
-        let start = std::time::Instant::now();
+        let start = Instant::now();
 
         let mut connection = match redis.get_multiplexed_async_connection().await {
             Ok(connection) => connection,
@@ -252,23 +253,23 @@ impl MessageQuery {
             guild_id,
             user_id,
             channel_id,
-            message_id,
+            id: message_id,
             content,
             attachment,
         })
     }
 
     pub fn key(&self) -> String {
-        format!("{}:{}:{}", self.guild_id, self.channel_id, self.message_id)
+        format!("{}:{}:{}", self.guild, self.channel, self.message)
     }
 }
 
 impl From<Message> for MessageQuery {
     fn from(value: Message) -> Self {
         Self {
-            guild_id: value.guild_id,
-            channel_id: value.channel_id,
-            message_id: value.message_id,
+            guild: value.guild_id,
+            channel: value.channel_id,
+            message: value.id,
         }
     }
 }

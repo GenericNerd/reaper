@@ -1,4 +1,7 @@
-use std::sync::atomic::AtomicBool;
+use std::{
+    fmt::{self, Display, Formatter},
+    sync::atomic::AtomicBool,
+};
 
 use tracing::error;
 
@@ -6,7 +9,7 @@ use crate::{common::duration::Duration, models::response::ResponseError};
 
 use super::{handler::Handler, response::ResponseResult};
 
-#[derive(Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum ActionType {
     Strike,
     Mute,
@@ -14,20 +17,20 @@ pub enum ActionType {
     Ban,
 }
 
-impl ToString for ActionType {
-    fn to_string(&self) -> String {
+impl Display for ActionType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            ActionType::Strike => "strike".to_string(),
-            ActionType::Mute => "mute".to_string(),
-            ActionType::Kick => "kick".to_string(),
-            ActionType::Ban => "ban".to_string(),
+            ActionType::Strike => write!(f, "strike"),
+            ActionType::Mute => write!(f, "mute"),
+            ActionType::Kick => write!(f, "kick"),
+            ActionType::Ban => write!(f, "ban"),
         }
     }
 }
 
-impl From<String> for ActionType {
-    fn from(value: String) -> Self {
-        match value.as_str() {
+impl From<&str> for ActionType {
+    fn from(value: &str) -> Self {
+        match value {
             "strike" => ActionType::Strike,
             "mute" => ActionType::Mute,
             "kick" => ActionType::Kick,
@@ -37,10 +40,16 @@ impl From<String> for ActionType {
     }
 }
 
+impl From<String> for ActionType {
+    fn from(value: String) -> Self {
+        value.as_str().into()
+    }
+}
+
 #[derive(Clone)]
 pub struct Action {
     pub id: Result<objectid::ObjectId, String>,
-    pub action_type: ActionType,
+    pub typ: ActionType,
     pub user_id: i64,
     pub moderator_id: i64,
     pub guild_id: i64,
@@ -52,22 +61,25 @@ pub struct Action {
 
 impl Action {
     pub fn new(
-        action_type: ActionType,
+        typ: ActionType,
         user_id: i64,
         moderator_id: i64,
         guild_id: i64,
         reason: String,
         expiry: Option<Duration>,
     ) -> Self {
-        let active = action_type != ActionType::Kick;
+        let active = typ != ActionType::Kick;
         Action {
             id: Ok(objectid::ObjectId::new().unwrap()),
-            action_type,
+            typ,
             user_id,
             moderator_id,
             guild_id,
             reason,
-            expiry: expiry.map(|duration| duration.to_timestamp().unwrap()),
+            expiry: match expiry {
+                Some(duration) => duration.to_timestamp(),
+                None => None,
+            },
             active,
             created_at: time::OffsetDateTime::now_utc(),
         }
@@ -89,7 +101,7 @@ impl From<DatabaseAction> for Action {
     fn from(value: DatabaseAction) -> Self {
         Action {
             id: objectid::ObjectId::with_string(&value.id).map_err(|_| value.id),
-            action_type: ActionType::from(value.action_type),
+            typ: ActionType::from(value.action_type.as_str()),
             user_id: value.user_id,
             moderator_id: value.moderator_id,
             guild_id: value.moderator_id,
@@ -121,7 +133,7 @@ impl From<Action> for DatabaseAction {
                 Ok(oid) => oid.to_string(),
                 Err(string) => string,
             },
-            action_type: value.action_type.to_string(),
+            action_type: value.typ.to_string(),
             user_id: value.user_id,
             moderator_id: value.moderator_id,
             guild_id: value.guild_id,
@@ -182,7 +194,7 @@ impl From<DatabaseActionEscalation> for ActionEscalation {
         ActionEscalation {
             guild_id: value.guild_id,
             strike_count: value.strike_count,
-            action_type: ActionType::from(value.action_type),
+            action_type: ActionType::from(value.action_type.as_str()),
             action_duration: value.action_duration,
         }
     }

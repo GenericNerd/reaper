@@ -1,4 +1,7 @@
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::{
+    sync::atomic::{AtomicBool, Ordering},
+    time::Instant,
+};
 
 use serenity::{
     all::{ChannelId, CommandInteraction, CommandOptionType, GuildId, RoleId, UserId},
@@ -33,7 +36,7 @@ impl Handler {
         moderator_id: Option<i64>,
         duration: Duration,
     ) -> Result<ActionDatabaseInsert, ResponseError> {
-        let start = std::time::Instant::now();
+        let start = Instant::now();
 
         let mute_role = match get_moderation_config(self, guild_id).await {
             Some(config) => match config.mute_role {
@@ -85,7 +88,10 @@ impl Handler {
             ("Reason", action.reason.to_string(), true),
             (
                 "Expires",
-                format!("<t:{}:F>", action.expiry.unwrap().unix_timestamp()),
+                match action.expiry {
+                    Some(expiry) => format!("<t:{}:F>", expiry.unix_timestamp()),
+                    None => "Never".to_string(),
+                },
                 true,
             ),
         ];
@@ -116,7 +122,17 @@ impl Handler {
             Err(_) => None
         };
 
-        let dm_channel = UserId::new(user_id as u64).create_dm_channel(&ctx.ctx.http);
+        let dm_channel = if ctx
+            .ctx
+            .http
+            .get_member(GuildId::new(guild_id as u64), UserId::new(user_id as u64))
+            .await
+            .is_ok()
+        {
+            Some(UserId::new(user_id as u64).create_dm_channel(&ctx.ctx.http))
+        } else {
+            None
+        };
 
         let mute_role_future = ctx.ctx.http.add_member_role(
             GuildId::new(guild_id as u64),
@@ -125,9 +141,19 @@ impl Handler {
             Some(&action.reason),
         );
 
-        if let Ok(channel) = match log_message {
-            Some(log_future) => tokio::join!(log_future, mute_role_future, dm_channel).2,
-            None => tokio::join!(mute_role_future, dm_channel).1,
+        if let Some(Ok(channel)) = match (log_message, dm_channel) {
+            (Some(log_future), Some(dm_channel)) => {
+                Some(tokio::join!(log_future, mute_role_future, dm_channel).2)
+            }
+            (None, Some(dm_channel)) => Some(tokio::join!(mute_role_future, dm_channel).1),
+            (Some(log_future), None) => {
+                let _ = tokio::join!(mute_role_future, log_future);
+                None
+            }
+            (None, None) => {
+                let _ = mute_role_future.await;
+                None
+            }
         } {
             if channel
                 .send_message(
@@ -201,12 +227,12 @@ impl Command for MuteCommand {
         ctx: &CommandContext,
         cmd: &CommandInteraction,
     ) -> ResponseResult {
-        let start = std::time::Instant::now();
+        let start = Instant::now();
 
         if !ctx.user_permissions.contains(&Permission::ModerationMute) {
             return Err(ResponseError::Execution(
                 "You do not have permission to do this!",
-                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationMute.to_string())),
+                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationMute)),
             ));
         }
 

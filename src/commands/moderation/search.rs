@@ -1,4 +1,7 @@
-use std::{collections::HashMap, time::Duration};
+use std::{
+    collections::HashMap,
+    time::{Duration, Instant},
+};
 
 use inflections::Inflect;
 use serenity::{
@@ -34,7 +37,7 @@ fn generate_search_response(
     actions: &HashMap<u8, Action>,
     page: u8,
     expired: bool,
-    time: &std::time::Instant,
+    time: &Instant,
 ) -> Response {
     if actions.is_empty() {
         return Response::new().embed(
@@ -63,7 +66,7 @@ fn generate_search_response(
                     "Type",
                     format!(
                         "{} {}",
-                        action.action_type.to_string().to_title_case(),
+                        action.typ.to_string().to_title_case(),
                         if action.active { "" } else { "(Expired)" }
                     ),
                     true,
@@ -84,14 +87,14 @@ fn generate_search_response(
                     true,
                 )
                 .color(if action.active {
-                    match action.action_type {
+                    match action.typ {
                         ActionType::Strike => 0xeb966d,
                         ActionType::Mute => 0x2e4045,
                         ActionType::Kick => 0x000080,
                         ActionType::Ban => 0xf54029,
                     }
                 } else {
-                    match action.action_type {
+                    match action.typ {
                         ActionType::Strike => 0xbd7857,
                         ActionType::Mute => 0x182124,
                         ActionType::Kick => 0x000054,
@@ -155,7 +158,7 @@ impl Command for SearchCommand {
         ctx: &CommandContext,
         cmd: &CommandInteraction,
     ) -> ResponseResult {
-        let mut start = std::time::Instant::now();
+        let mut start = Instant::now();
 
         let options = Options {
             options: cmd.data.options(),
@@ -189,7 +192,7 @@ impl Command for SearchCommand {
         if !ctx.user_permissions.contains(&permission_required) {
             return Err(ResponseError::Execution(
                 "You do not have permission to do this!",
-                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", permission_required.to_string())),
+                Some(format!("You are missing the `{permission_required}` permission. If you believe this is a mistake, please contact your server administrators.")),
             ));
         }
 
@@ -198,16 +201,16 @@ impl Command for SearchCommand {
         } else {
             sqlx::query_as!(DatabaseAction, "SELECT * FROM actions WHERE user_id = $1 AND guild_id = $2 AND active=true ORDER BY created_at DESC", user.id.get() as i64, cmd.guild_id.unwrap().get() as i64).fetch_all(&handler.main_database).await
         } {
-            Ok(db_actions) => {
-                let mut actions = HashMap::new();
-                for (index, db_action) in db_actions.iter().enumerate() {
-                    actions.insert(
+            Ok(db_actions) => db_actions
+                .iter()
+                .enumerate()
+                .map(|(index, db_action)| {
+                    (
                         u8::try_from(index).unwrap(),
                         Action::from(db_action.clone()),
-                    );
-                }
-                actions
-            }
+                    )
+                })
+                .collect::<HashMap<_, _>>(),
             Err(_) => {
                 return Err(ResponseError::Execution(
                     "Failed to fetch actions",
@@ -232,7 +235,7 @@ impl Command for SearchCommand {
             let interaction_context =
                 InteractionContext::new(handler, ctx.ctx.clone(), &interaction).await;
 
-            start = std::time::Instant::now();
+            start = Instant::now();
             match interaction_context.interaction.data.kind {
                 ComponentInteractionDataKind::Button => {}
                 _ => continue,
@@ -258,8 +261,7 @@ impl Command for SearchCommand {
                         ResponseError::Execution(
                             "You do not have permission to do this!",
                             Some(format!(
-                                "You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.",
-                                permission_required.to_string()
+                                "You are missing the `{permission_required}` permission. If you believe this is a mistake, please contact your server administrators."
                             ))
                         )).await {
                         error!("Failed to reply to command interaction with error: {:?}", err);

@@ -2,7 +2,10 @@ use serenity::{
     all::{ChannelId, CommandInteraction, CommandOptionType, GuildId, UserId},
     builder::{CreateCommand, CreateCommandOption, CreateEmbed, CreateEmbedFooter, CreateMessage},
 };
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::{
+    sync::atomic::{AtomicBool, Ordering},
+    time::Instant,
+};
 use tracing::{debug, error};
 
 use crate::{
@@ -29,7 +32,7 @@ impl Handler {
         reason: String,
         moderator_id: Option<i64>,
     ) -> Result<ActionDatabaseInsert, ResponseError> {
-        let start = std::time::Instant::now();
+        let start = Instant::now();
 
         let moderator_id = match moderator_id {
             Some(mod_id) => mod_id,
@@ -60,32 +63,40 @@ impl Handler {
             dm_notified: AtomicBool::new(false),
         };
 
-        if let Ok(dm_channel) = UserId::new(user_id as u64)
-            .create_dm_channel(&ctx.ctx.http)
+        if ctx
+            .ctx
+            .http
+            .get_member(GuildId::new(guild_id as u64), UserId::new(user_id as u64))
             .await
+            .is_ok()
         {
-            if dm_channel
-                .send_message(
-                    &ctx.ctx,
-                    CreateMessage::new().embed(
-                        CreateEmbed::new()
-                            .title("Kicked!")
-                            .description(match GuildId::new(guild_id as u64).name(&ctx.ctx) {
-                                Some(guild_name) => {
-                                    format!("You've been kicked from {guild_name}")
-                                }
-                                None => "A server has kicked you".to_string(),
-                            })
-                            .fields(fields.clone())
-                            .color(0x000080),
-                    ),
-                )
+            if let Ok(dm_channel) = UserId::new(user_id as u64)
+                .create_dm_channel(&ctx.ctx.http)
                 .await
-                .is_ok()
             {
-                action_insert.dm_notified.store(true, Ordering::Relaxed);
-            }
-        };
+                if dm_channel
+                    .send_message(
+                        &ctx.ctx,
+                        CreateMessage::new().embed(
+                            CreateEmbed::new()
+                                .title("Kicked!")
+                                .description(match GuildId::new(guild_id as u64).name(&ctx.ctx) {
+                                    Some(guild_name) => {
+                                        format!("You've been kicked from {guild_name}")
+                                    }
+                                    None => "A server has kicked you".to_string(),
+                                })
+                                .fields(fields.clone())
+                                .color(0x000080),
+                        ),
+                    )
+                    .await
+                    .is_ok()
+                {
+                    action_insert.dm_notified.store(true, Ordering::Relaxed);
+                }
+            };
+        }
 
         debug!("Attempted to send a DM in {:?}", start.elapsed());
 
@@ -167,12 +178,12 @@ impl Command for KickCommand {
         ctx: &CommandContext,
         cmd: &CommandInteraction,
     ) -> ResponseResult {
-        let start = std::time::Instant::now();
+        let start = Instant::now();
 
         if !ctx.user_permissions.contains(&Permission::ModerationKick) {
             return Err(ResponseError::Execution(
                 "You do not have permission to do this!",
-                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationKick.to_string())),
+                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationKick)),
             ));
         }
 

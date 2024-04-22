@@ -5,8 +5,10 @@ use crate::models::{handler::Handler, message::Message};
 
 impl Handler {
     pub async fn on_message(&self, message: DiscordMessage) {
-        let attachment = message.attachments.get(0);
-        let attachment_url = attachment.map(|attachment| attachment.url.to_string());
+        let attachment_url = message
+            .attachments
+            .first()
+            .map(|attachment| attachment.url.to_string());
 
         if let Err(err) = Message::new(
             &self.redis_database,

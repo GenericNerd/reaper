@@ -144,7 +144,7 @@ impl Command for GiveawayCommand {
             if !ctx.user_permissions.contains(&permission) {
                 return Err(ResponseError::Execution(
                     "You do not have permission to do this!",
-                    Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", permission.to_string())),
+                    Some(format!("You are missing the `{permission}` permission. If you believe this is a mistake, please contact your server administrators.")),
                 ));
             }
 

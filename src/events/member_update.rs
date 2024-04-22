@@ -47,14 +47,14 @@ impl Handler {
 
             let roles_to_add = event
                 .roles
-                .clone()
-                .into_iter()
+                .iter()
+                .copied()
                 .filter(|role| !roles.contains(role))
-                .collect::<Vec<RoleId>>();
+                .collect::<Vec<_>>();
             let roles_to_remove = roles
                 .into_iter()
                 .filter(|role| !event.roles.contains(role))
-                .collect::<Vec<RoleId>>();
+                .collect::<Vec<_>>();
             for role in roles_to_add {
                 let role_id = role.get() as i64;
 
