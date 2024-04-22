@@ -2,7 +2,6 @@ use serenity::{
     all::{ChannelId, CommandInteraction, CommandOptionType, GuildId, UserId},
     builder::{CreateCommand, CreateCommandOption, CreateEmbed, CreateEmbedFooter, CreateMessage},
 };
-use std::time::Instant;
 use tracing::debug;
 
 use crate::{
@@ -38,7 +37,7 @@ impl Handler {
         moderator_id: Option<i64>,
         duration: Option<Duration>,
     ) -> Result<StrikeAction, ResponseError> {
-        let start = Instant::now();
+        let start = std::time::Instant::now();
 
         let duration = if let Some(duration) = duration {
             if duration.permanent {
@@ -103,7 +102,7 @@ impl Handler {
                 .iter()
                 .find(|escalation| escalation.strike_count == (strike_count + 1) as i64)
             {
-                match ActionType::from(escalation.action_type.as_str()) {
+                match ActionType::from(escalation.action_type.clone()) {
                     ActionType::Strike => {
                         return Err(ResponseError::Execution(
                             "Strike escalation action type is strike!",
@@ -196,10 +195,7 @@ impl Handler {
             ("Reason", action.reason.to_string(), true),
             (
                 "Expires",
-                match action.expiry {
-                    Some(expiry) => format!("<t:{}:F>", expiry.unix_timestamp()),
-                    None => "Never".to_string(),
-                },
+                format!("<t:{}:F>", action.expiry.unwrap().unix_timestamp()),
                 true,
             ),
         ];
@@ -225,26 +221,11 @@ impl Handler {
             Err(_) => None
         };
 
-        let dm_channel = if ctx
-            .ctx
-            .http
-            .get_member(GuildId::new(guild_id as u64), UserId::new(user_id as u64))
-            .await
-            .is_ok()
-        {
-            Some(UserId::new(user_id as u64).create_dm_channel(&ctx.ctx.http))
-        } else {
-            None
-        };
+        let dm_channel = UserId::new(user_id as u64).create_dm_channel(&ctx.ctx.http);
 
-        if let Some(Ok(channel)) = match (log_message, dm_channel) {
-            (Some(log_future), Some(dm_channel)) => Some(tokio::join!(log_future, dm_channel).1),
-            (None, Some(dm_channel)) => Some(dm_channel.await),
-            (Some(log_future), None) => {
-                let _ = log_future.await;
-                None
-            }
-            (None, None) => None,
+        if let Ok(channel) = match log_message {
+            Some(log_future) => tokio::join!(log_future, dm_channel).1,
+            None => dm_channel.await,
         } {
             strike_action.dm_notified = channel
                 .send_message(
@@ -316,12 +297,12 @@ impl Command for StrikeCommand {
         ctx: &CommandContext,
         cmd: &CommandInteraction,
     ) -> ResponseResult {
-        let start = Instant::now();
+        let start = std::time::Instant::now();
 
         if !ctx.user_permissions.contains(&Permission::ModerationStrike) {
             return Err(ResponseError::Execution(
                 "You do not have permission to do this!",
-                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationStrike)),
+                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationStrike.to_string())),
             ));
         }
 
@@ -350,15 +331,16 @@ impl Command for StrikeCommand {
             .as_deref()
             .map(Duration::new);
 
-        let action = Box::pin(handler.strike_user(
-            ctx,
-            ctx.guild.id.get() as i64,
-            user.id.get() as i64,
-            reason.clone(),
-            Some(cmd.user.id.get() as i64),
-            duration,
-        ))
-        .await?;
+        let action = handler
+            .strike_user(
+                ctx,
+                ctx.guild.id.get() as i64,
+                user.id.get() as i64,
+                reason.clone(),
+                Some(cmd.user.id.get() as i64),
+                duration,
+            )
+            .await?;
 
         ctx.reply(
             cmd,
@@ -378,10 +360,7 @@ impl Command for StrikeCommand {
                     .field("Moderator", format!("<@{}>", cmd.user.id.get()), true)
                     .field(
                         "Expires",
-                        match action.strike.expiry {
-                            Some(expiry) => format!("<t:{}:F>", expiry.unix_timestamp()),
-                            None => "Never".to_string(),
-                        },
+                        format!("<t:{}:F>", action.strike.expiry.unwrap().unix_timestamp()),
                         true,
                     )
                     .footer(CreateEmbedFooter::new(format!(

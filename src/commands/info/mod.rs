@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Instant};
+use std::sync::Arc;
 
 use serenity::{
     all::CommandInteraction,
@@ -37,7 +37,7 @@ impl Command for InfoCommand {
         ctx: &CommandContext,
         cmd: &CommandInteraction,
     ) -> ResponseResult {
-        let start = Instant::now();
+        let start = std::time::Instant::now();
         let message = match cmd
             .channel_id
             .send_message(&ctx.ctx, CreateMessage::new().content("..."))
@@ -48,7 +48,7 @@ impl Command for InfoCommand {
                 return Err(ResponseError::Serenity(err));
             }
         };
-        let end = Instant::now();
+        let end = std::time::Instant::now();
         if let Err(err) = message.delete(&ctx.ctx).await {
             return Err(ResponseError::Serenity(err));
         }

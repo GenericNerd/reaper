@@ -199,7 +199,7 @@ impl ConfigStage for LoggingChannelMultipleMessages {
                         )
                         .execute(&handler.main_database)
                         .await?;
-                        return Ok(Some(2));
+                        return Ok(None);
                     }
                     return Err(ConfigError {
                         error: ResponseError::Execution(
@@ -210,7 +210,7 @@ impl ConfigStage for LoggingChannelMultipleMessages {
                     });
                 }
                 "cancel" => {
-                    return Ok(Some(2));
+                    return Ok(None);
                 }
                 _ => {
                     return Err(ConfigError {
@@ -316,7 +316,7 @@ impl ConfigStage for LoggingChannelMultipleActions {
                         )
                         .execute(&handler.main_database)
                         .await?;
-                        return Ok(Some(3));
+                        return Ok(None);
                     }
                     return Err(ConfigError {
                         error: ResponseError::Execution(
@@ -327,7 +327,7 @@ impl ConfigStage for LoggingChannelMultipleActions {
                     });
                 }
                 "cancel" => {
-                    return Ok(Some(3));
+                    return Ok(None);
                 }
                 _ => {
                     return Err(ConfigError {
@@ -413,7 +413,7 @@ impl ConfigStage for LoggingChannelSingle {
                         )
                         .execute(&handler.main_database)
                         .await?;
-                        return Ok(Some(4));
+                        return Ok(Some(3));
                     }
                     return Err(ConfigError {
                         error: ResponseError::Execution(
@@ -424,7 +424,7 @@ impl ConfigStage for LoggingChannelSingle {
                     });
                 }
                 "cancel" => {
-                    return Ok(Some(4));
+                    return Ok(None);
                 }
                 _ => {
                     return Err(ConfigError {

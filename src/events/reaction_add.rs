@@ -3,7 +3,6 @@ use serenity::{
     builder::{CreateEmbed, CreateEmbedAuthor, CreateEmbedFooter, CreateMessage},
     prelude::Context,
 };
-use std::time::Instant;
 use tracing::{debug, error};
 use unic::emoji::char::is_emoji;
 
@@ -14,7 +13,7 @@ use crate::models::{
 
 impl Handler {
     pub async fn on_reaction_add(&self, ctx: Context, reaction: Reaction) {
-        let start = Instant::now();
+        let start = std::time::Instant::now();
 
         let Some(guild_id) = reaction.guild_id else {
             return;
@@ -122,7 +121,7 @@ impl Handler {
                 Ok(emotes) => emotes
                     .iter()
                     .map(|emote| emote.emote.to_string())
-                    .collect::<Vec<_>>(),
+                    .collect::<Vec<String>>(),
                 Err(err) => {
                     error!("Could not fetch board emotes. Failed with error: {:?}", err);
                     continue;
@@ -134,15 +133,15 @@ impl Handler {
             let is_valid = match message_reaction.emoji {
                 // TODO: This is awful, rewrite this to make it better
                 ReactionType::Unicode(ref emoji) => {
-                    let first_char = emoji.chars().next().unwrap();
+                    let chars = emoji.chars().collect::<Vec<char>>();
                     let mut found = false;
                     for emote in &emotes {
-                        let first_emote_char = emote.chars().next().unwrap();
-                        if !is_emoji(first_emote_char) {
+                        let emote_chars = emote.chars().collect::<Vec<char>>();
+                        if !is_emoji(emote_chars[0]) {
                             continue;
                         }
 
-                        if first_char == first_emote_char {
+                        if chars[0] == emote_chars[0] {
                             found = true;
                             break;
                         }
@@ -196,7 +195,7 @@ impl Handler {
 
             let attachment = message
                 .attachments
-                .first()
+                .get(0)
                 .map(|attachment| attachment.url.to_string());
 
             let mut embed = CreateEmbed::new()

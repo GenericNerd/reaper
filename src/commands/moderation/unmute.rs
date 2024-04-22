@@ -2,7 +2,6 @@ use serenity::{
     all::{ChannelId, CommandInteraction, CommandOptionType, RoleId},
     builder::{CreateCommand, CreateCommandOption, CreateEmbed, CreateEmbedFooter, CreateMessage},
 };
-use std::time::Instant;
 use tracing::error;
 
 use crate::{
@@ -44,12 +43,12 @@ impl Command for UnmuteCommand {
         ctx: &CommandContext,
         cmd: &CommandInteraction,
     ) -> ResponseResult {
-        let start = Instant::now();
+        let start = std::time::Instant::now();
 
         if !ctx.user_permissions.contains(&Permission::ModerationUnmute) {
             return Err(ResponseError::Execution(
                 "You do not have permission to do this!",
-                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationUnmute)),
+                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationUnmute.to_string())),
             ));
         }
 

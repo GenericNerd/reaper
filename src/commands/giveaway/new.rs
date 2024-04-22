@@ -2,7 +2,6 @@ use serenity::{
     all::{ButtonStyle, CommandInteraction},
     builder::{CreateActionRow, CreateButton, CreateEmbed},
 };
-use std::time::Instant;
 use tracing::{debug, error};
 
 use crate::{
@@ -21,7 +20,7 @@ pub async fn new(
     ctx: &CommandContext,
     cmd: &CommandInteraction,
 ) -> ResponseResult {
-    let start = Instant::now();
+    let start = std::time::Instant::now();
 
     let options = Options {
         options: cmd.data.options(),

@@ -1,7 +1,4 @@
-use std::{
-    sync::{atomic::AtomicBool, Arc},
-    time::Instant,
-};
+use std::sync::{atomic::AtomicBool, Arc};
 use strum::IntoEnumIterator;
 
 use serenity::{
@@ -25,14 +22,14 @@ use crate::{
 
 impl Handler {
     pub async fn on_command(&self, ctx: IncomingContext, command: CommandInteraction) {
-        let start = Instant::now();
+        let start = std::time::Instant::now();
 
         let Some(guild_id) = command.guild_id else {
             let fail_context = FailedCommandContext { ctx };
             if let Err(err) = fail_context
                 .reply(
                     &command,
-                    Response::new().content("Reaper cannot be used outside of guilds"),
+                    Response::new().content("Reaper cannot be used outside of guilds".to_string()),
                 )
                 .await
             {
@@ -52,7 +49,7 @@ impl Handler {
                 if let Err(err) = fail_context
                     .reply(
                         &command,
-                        Response::new().content("Reaper could not obtain the guild"),
+                        Response::new().content("Reaper could not obtain the guild".to_string()),
                     )
                     .await
                 {

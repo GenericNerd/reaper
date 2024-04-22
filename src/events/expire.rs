@@ -1,7 +1,4 @@
-use std::{
-    collections::HashMap,
-    time::{Duration, Instant},
-};
+use std::{collections::HashMap, time::Duration};
 
 use serenity::{
     all::{GuildId, RoleId, UserId},
@@ -20,7 +17,7 @@ struct MuteRole {
 
 pub async fn expire_actions(handler: Handler, ctx: Context) {
     loop {
-        let start = Instant::now();
+        let start = std::time::Instant::now();
         let actions = match sqlx::query_as!(
             DatabaseAction,
             "SELECT * FROM actions WHERE expiry < now() AND active=true"
@@ -59,7 +56,7 @@ pub async fn expire_actions(handler: Handler, ctx: Context) {
                 "Expiring action with ID {} from guild {}",
                 action.id, action.guild_id
             );
-            match ActionType::from(action.action_type.as_str()) {
+            match ActionType::from(action.action_type) {
                 ActionType::Mute => {
                     if let Some(mute_role) = guild_configurations.get(&action.guild_id) {
                         if let Err(err) = ctx
@@ -114,7 +111,7 @@ pub async fn expire_actions(handler: Handler, ctx: Context) {
 
 pub async fn expire_giveaways(handler: Handler) {
     loop {
-        let start = Instant::now();
+        let start = std::time::Instant::now();
 
         if let Err(err) = sqlx::query!("DELETE FROM giveaways WHERE duration < NOW()")
             .execute(&handler.main_database)

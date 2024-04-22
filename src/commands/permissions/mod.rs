@@ -66,7 +66,7 @@ impl Command for PermissionsCommand {
         if !ctx.user_permissions.contains(&Permission::PermissionsView) {
             return Err(ResponseError::Execution(
                 "You do not have permission to do this!",
-                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::PermissionsView)),
+                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::PermissionsView.to_string())),
             ));
         }
 

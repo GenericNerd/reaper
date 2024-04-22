@@ -27,8 +27,8 @@ const MODERATION_TITLE: &str = "Configuration - Moderation";
 pub struct ModerationEscalations;
 
 impl ModerationEscalations {
-    fn generate_message(escalations: &[ActionEscalation]) -> Response {
-        let mut components = Vec::with_capacity(1);
+    fn generate_message(escalations: &Vec<ActionEscalation>) -> Response {
+        let mut components = vec![];
         if escalations.len() < 15 {
             components.push(CreateActionRow::SelectMenu(CreateSelectMenu::new(
                 "add_escalation",
@@ -45,8 +45,10 @@ impl ModerationEscalations {
             components.push(CreateActionRow::SelectMenu(CreateSelectMenu::new(
                 "remove_escalation",
                 CreateSelectMenuKind::String {
-                    options: (0..escalations.len())
-                        .map(|index| {
+                    options: escalations
+                        .iter()
+                        .enumerate()
+                        .map(|(index, _)| {
                             CreateSelectMenuOption::new(
                                 format!(
                                     "Remove {}{} escalation",
@@ -75,7 +77,7 @@ impl ModerationEscalations {
                     .description("You can now configure your strike escalations. These are actions that will happen when a user reaches a certain amount of strikes.")
                     .color(EMBED_COLOR)
                     .fields(escalations.iter().enumerate().map(|(index, escalation)| {
-                        (format!("{}{} escalation", index + 1, ordinal::Ordinal(index + 1).suffix()), format!("At **{}** strikes, Reaper will **{}** the user {}.", escalation.strike_count, escalation.action_type, match escalation.action_duration.as_ref() {
+                        (format!("{}{} escalation", index + 1, ordinal::Ordinal(index + 1).suffix()), format!("At **{}** strikes, Reaper will **{}** the user {}.", escalation.strike_count, escalation.action_type.to_string(), match escalation.action_duration.clone() {
                             Some(duration) => format!("for **{duration}**"),
                             None => "**indefinitely**".to_string(),
                         }), false)
@@ -118,13 +120,14 @@ impl ConfigStage for ModerationEscalations {
         ctx: &CommandContext,
         cmd: &CommandInteraction,
     ) -> Result<Option<usize>, ConfigError> {
-        let mut escalations = sqlx::query_as!(
+        let original_escalations = sqlx::query_as!(
             ActionEscalation,
             "SELECT * FROM strike_escalations WHERE guild_id = $1",
             ctx.guild.id.get() as i64
         )
         .fetch_all(&handler.main_database)
         .await?;
+        let mut escalations = original_escalations.clone();
 
         let message = ctx
             .reply_get_message(cmd, ModerationEscalations::generate_message(&escalations))
@@ -150,7 +153,7 @@ impl ConfigStage for ModerationEscalations {
                     let action_type = if let ComponentInteractionDataKind::StringSelect { values } =
                         &interaction.data.kind
                     {
-                        ActionType::from(values.first().unwrap().as_str())
+                        ActionType::from(values.first().unwrap().clone())
                     } else {
                         ModerationEscalations::save_escalations(&escalations, handler, ctx).await?;
                         return Err(ConfigError {
@@ -272,7 +275,7 @@ impl ConfigStage for ModerationEscalations {
                             &interaction.data.components[1].components[0]
                         {
                             let value = text.value.clone().unwrap();
-                            if value.is_empty() {
+                            if value == String::new() {
                                 None
                             } else {
                                 let duration =
@@ -404,7 +407,7 @@ impl ConfigStage for ModerationDefaultStrikeDuration {
                             .title(MODERATION_TITLE)
                             .description(format!(
                                 "You can configure the default strike duration, it is currently set to **{}**",
-                                default_strike_duration.as_deref().unwrap_or("30d")
+                                default_strike_duration.unwrap_or("30d".to_string())
                             ))
                             .color(EMBED_COLOR),
                     )
@@ -478,7 +481,7 @@ impl ConfigStage for ModerationDefaultStrikeDuration {
                             &interaction.data.components[0].components[0]
                         {
                             let value = text.value.clone().unwrap();
-                            if value.is_empty() {
+                            if value == String::new() {
                                 return Err(ConfigError {
                                     error: ResponseError::Execution(
                                         "Invalid duration",
@@ -607,7 +610,7 @@ impl ConfigStage for ModerationMuteRole {
                         interaction.data.kind
                     {
                         let role = values
-                            .first()
+                            .get(0)
                             .ok_or_else(|| {
                                 ResponseError::Execution(
                                     "No role selected",

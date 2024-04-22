@@ -6,7 +6,6 @@
 
 use serenity::{framework::StandardFramework, prelude::GatewayIntents, Client};
 use sqlx::postgres::PgPoolOptions;
-use std::{env, time::Instant};
 use tracing::{error, info};
 
 mod commands;
@@ -19,22 +18,22 @@ mod models;
 async fn main() {
     println!("cargo:rerun-if-changed=migrations");
 
-    let log_level = match env::var("DEBUG").unwrap_or(false.to_string()).as_str() {
+    let log_level = match std::env::var("DEBUG").unwrap_or(false.to_string()).as_str() {
         "true" => tracing::Level::DEBUG,
         _ => tracing::Level::INFO,
     };
     tracing_subscriber::fmt().with_max_level(log_level).init();
 
     info!("Getting environment variables");
-    let discord_token = env::var("DISCORD_TOKEN").unwrap();
-    let main_db_username = env::var("DB_USER").unwrap_or("postgres".to_string());
-    let main_db_password = env::var("DB_PASSWORD").unwrap();
-    let main_db_host = env::var("DB_HOST").unwrap_or("localhost".to_string());
-    let main_db_port = env::var("DB_PORT").unwrap_or("5432".to_string());
-    let main_db_name = env::var("DB_NAME").unwrap_or("postgres".to_string());
-    let redis_db_host = env::var("REDIS_HOST").unwrap_or("redis".to_string());
-    let redis_db_port = env::var("REDIS_PORT").unwrap_or("6379".to_string());
-    let redis_db_password = env::var("REDIS_PASSWORD").unwrap();
+    let discord_token = std::env::var("DISCORD_TOKEN").unwrap();
+    let main_db_username = std::env::var("DB_USER").unwrap_or("postgres".to_string());
+    let main_db_password = std::env::var("DB_PASSWORD").unwrap();
+    let main_db_host = std::env::var("DB_HOST").unwrap_or("localhost".to_string());
+    let main_db_port = std::env::var("DB_PORT").unwrap_or("5432".to_string());
+    let main_db_name = std::env::var("DB_NAME").unwrap_or("postgres".to_string());
+    let redis_db_host = std::env::var("REDIS_HOST").unwrap_or("redis".to_string());
+    let redis_db_port = std::env::var("REDIS_PORT").unwrap_or("6379".to_string());
+    let redis_db_password = std::env::var("REDIS_PASSWORD").unwrap();
 
     // Main database connection
     let connection_url = format!(
@@ -57,7 +56,7 @@ async fn main() {
     let handler = models::handler::Handler {
         main_database,
         redis_database,
-        start_time: Instant::now(),
+        start_time: std::time::Instant::now(),
     };
     let intents = GatewayIntents::non_privileged()
         | GatewayIntents::GUILD_MEMBERS

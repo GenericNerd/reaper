@@ -63,7 +63,7 @@ impl EventHandler for Handler {
     }
 
     async fn auto_moderation_action_execution(&self, ctx: Context, execution: ActionExecution) {
-        Box::pin(self.on_automod_trigger(ctx, execution)).await;
+        self.on_automod_trigger(ctx, execution).await;
     }
 
     async fn message(&self, _ctx: Context, new_message: Message) {

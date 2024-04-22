@@ -17,9 +17,9 @@ impl Handler {
         let message_id = event.id.get() as i64;
 
         let query = MessageQuery {
-            guild: guild_id,
-            channel: channel_id,
-            message: message_id,
+            guild_id,
+            channel_id,
+            message_id,
         };
 
         let message = match query.get_message(&self.redis_database).await {
@@ -55,7 +55,7 @@ impl Handler {
 
         let current_attachment = match event.attachments {
             Some(attachments) => attachments
-                .first()
+                .get(0)
                 .map(|attachment| attachment.url.to_string()),
             None => None,
         };

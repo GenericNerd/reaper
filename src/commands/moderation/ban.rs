@@ -1,7 +1,4 @@
-use std::{
-    sync::atomic::{AtomicBool, Ordering},
-    time::Instant,
-};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use serenity::{
     all::{ChannelId, CommandInteraction, CommandOptionType, GuildId, UserId},
@@ -35,7 +32,7 @@ impl Handler {
         moderator_id: Option<i64>,
         duration: Option<Duration>,
     ) -> Result<ActionDatabaseInsert, ResponseError> {
-        let start = Instant::now();
+        let start = std::time::Instant::now();
 
         let duration = if let Some(duration) = duration {
             if duration.permanent {
@@ -86,40 +83,32 @@ impl Handler {
             ),
         ];
 
-        if ctx
-            .ctx
-            .http
-            .get_member(GuildId::new(guild_id as u64), UserId::new(user_id as u64))
+        if let Ok(dm_channel) = UserId::new(user_id as u64)
+            .create_dm_channel(&ctx.ctx.http)
             .await
-            .is_ok()
         {
-            if let Ok(dm_channel) = UserId::new(user_id as u64)
-                .create_dm_channel(&ctx.ctx.http)
+            if dm_channel
+                .send_message(
+                    &ctx.ctx,
+                    CreateMessage::new().embed(
+                        CreateEmbed::new()
+                            .title("Banned!")
+                            .description(match GuildId::new(guild_id as u64).name(&ctx.ctx) {
+                                Some(guild_name) => {
+                                    format!("You've been banned from {guild_name}")
+                                }
+                                None => "A server has banned you".to_string(),
+                            })
+                            .fields(fields.clone())
+                            .color(0xf54029),
+                    ),
+                )
                 .await
+                .is_ok()
             {
-                if dm_channel
-                    .send_message(
-                        &ctx.ctx,
-                        CreateMessage::new().embed(
-                            CreateEmbed::new()
-                                .title("Banned!")
-                                .description(match GuildId::new(guild_id as u64).name(&ctx.ctx) {
-                                    Some(guild_name) => {
-                                        format!("You've been banned from {guild_name}")
-                                    }
-                                    None => "A server has banned you".to_string(),
-                                })
-                                .fields(fields.clone())
-                                .color(0xf54029),
-                        ),
-                    )
-                    .await
-                    .is_ok()
-                {
-                    action_insert.dm_notified.store(true, Ordering::Relaxed);
-                }
-            };
-        }
+                action_insert.dm_notified.store(true, Ordering::Relaxed);
+            }
+        };
 
         debug!("Attempted to send a DM in {:?}", start.elapsed());
 
@@ -207,12 +196,12 @@ impl Command for BanCommand {
         ctx: &CommandContext,
         cmd: &CommandInteraction,
     ) -> ResponseResult {
-        let start = Instant::now();
+        let start = std::time::Instant::now();
 
         if !ctx.user_permissions.contains(&Permission::ModerationStrike) {
             return Err(ResponseError::Execution(
                 "You do not have permission to do this!",
-                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationBan)),
+                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationBan.to_string())),
             ));
         }
 

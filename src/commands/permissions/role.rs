@@ -1,7 +1,4 @@
-use std::{
-    fmt::Write,
-    time::{Duration, Instant},
-};
+use std::time::Duration;
 
 use serenity::{
     all::{ButtonStyle, CommandInteraction, ComponentInteractionDataKind},
@@ -35,9 +32,9 @@ fn create_components(permissions: &[Permission]) -> Vec<CreateActionRow> {
                 options: Permission::iter()
                     .map(|permission| {
                         let label = if permissions.contains(&permission) {
-                            format!("Remove {permission}")
+                            format!("Remove {}", permission.to_string())
                         } else {
-                            format!("Add {permission}")
+                            format!("Add {}", permission.to_string())
                         };
 
                         CreateSelectMenuOption::new(label, permission.to_string())
@@ -56,7 +53,7 @@ pub async fn role(
     ctx: &CommandContext,
     cmd: &CommandInteraction,
 ) -> ResponseResult {
-    let mut start = Instant::now();
+    let mut start = std::time::Instant::now();
 
     let options = Options {
         options: cmd.data.options(),
@@ -88,7 +85,7 @@ pub async fn role(
                         .description(existing_permissions.iter().fold(
                             String::new(),
                             |mut acc, f| {
-                                writeln!(&mut acc, "`{f}`").unwrap();
+                                acc.push_str(&format!("`{}`\n", f.to_string()));
                                 acc
                             },
                         ))
@@ -117,7 +114,7 @@ pub async fn role(
     while let Some(interaction) = interaction_stream.next().await {
         let interaction_context =
             InteractionContext::new(handler, ctx.ctx.clone(), &interaction).await;
-        start = Instant::now();
+        start = std::time::Instant::now();
 
         if interaction_context.interaction.user.id != cmd.user.id
             && !interaction_context
@@ -129,7 +126,7 @@ pub async fn role(
                     "You do not have permission to do this",
                     Some(format!(
                         "You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.",
-                        Permission::PermissionsEdit)
+                        Permission::PermissionsEdit.to_string())
                     )
                 )).await {
                 error!(
@@ -189,7 +186,7 @@ pub async fn role(
                 continue;
             }
             ComponentInteractionDataKind::StringSelect { values } => {
-                Permission::from(values[0].as_str())
+                Permission::from(values[0].clone())
             }
             _ => continue,
         };
@@ -202,7 +199,7 @@ pub async fn role(
                     .unwrap(),
             );
         } else {
-            temp_permissions.push(permission_to_change);
+            temp_permissions.push(permission_to_change.clone());
         }
 
         if let Err(err) = ctx
@@ -215,7 +212,7 @@ pub async fn role(
                             .description(temp_permissions.iter().fold(
                                 String::new(),
                                 |mut acc, f| {
-                                    writeln!(&mut acc, "`{f}`").unwrap();
+                                    acc.push_str(&format!("`{}`\n", f.to_string()));
                                     acc
                                 },
                             ))

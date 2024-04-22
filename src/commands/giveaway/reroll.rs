@@ -70,7 +70,7 @@ pub async fn reroll(
         Ok(entries) => entries
             .iter()
             .map(|entry| format!("<@{}>", entry.user_id))
-            .collect::<Vec<_>>(),
+            .collect::<Vec<String>>(),
         Err(err) => {
             error!(
                 "Could not get giveaway entries for giveaway {} from database. Failed with error: {:?}",
@@ -87,7 +87,7 @@ pub async fn reroll(
         entries
             .choose_multiple(&mut rand::thread_rng(), usize::try_from(winners).unwrap())
             .map(std::string::ToString::to_string)
-            .collect::<Vec<_>>()
+            .collect::<Vec<String>>()
     } else {
         entries
     };
@@ -97,7 +97,7 @@ pub async fn reroll(
             .reply(
                 cmd,
                 Response::new()
-                    .content("No one won the giveaway.")
+                    .content("No one won the giveaway.".to_string())
                     .ephemeral(true),
             )
             .await;
