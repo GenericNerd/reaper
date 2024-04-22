@@ -119,7 +119,17 @@ impl Handler {
             Err(_) => None
         };
 
-        let dm_channel = UserId::new(user_id as u64).create_dm_channel(&ctx.ctx.http);
+        let dm_channel = if ctx
+            .ctx
+            .http
+            .get_member(GuildId::new(guild_id as u64), UserId::new(user_id as u64))
+            .await
+            .is_ok()
+        {
+            Some(UserId::new(user_id as u64).create_dm_channel(&ctx.ctx.http))
+        } else {
+            None
+        };
 
         let mute_role_future = ctx.ctx.http.add_member_role(
             GuildId::new(guild_id as u64),
@@ -128,9 +138,19 @@ impl Handler {
             Some(&action.reason),
         );
 
-        if let Ok(channel) = match log_message {
-            Some(log_future) => tokio::join!(log_future, mute_role_future, dm_channel).2,
-            None => tokio::join!(mute_role_future, dm_channel).1,
+        if let Some(Ok(channel)) = match (log_message, dm_channel) {
+            (Some(log_future), Some(dm_channel)) => {
+                Some(tokio::join!(log_future, mute_role_future, dm_channel).2)
+            }
+            (None, Some(dm_channel)) => Some(tokio::join!(mute_role_future, dm_channel).1),
+            (Some(log_future), None) => {
+                let _ = tokio::join!(mute_role_future, log_future);
+                None
+            }
+            (None, None) => {
+                let _ = mute_role_future.await;
+                None
+            }
         } {
             if channel
                 .send_message(

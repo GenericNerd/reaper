@@ -222,11 +222,26 @@ impl Handler {
             Err(_) => None
         };
 
-        let dm_channel = UserId::new(user_id as u64).create_dm_channel(&ctx.ctx.http);
+        let dm_channel = if ctx
+            .ctx
+            .http
+            .get_member(GuildId::new(guild_id as u64), UserId::new(user_id as u64))
+            .await
+            .is_ok()
+        {
+            Some(UserId::new(user_id as u64).create_dm_channel(&ctx.ctx.http))
+        } else {
+            None
+        };
 
-        if let Ok(channel) = match log_message {
-            Some(log_future) => tokio::join!(log_future, dm_channel).1,
-            None => dm_channel.await,
+        if let Some(Ok(channel)) = match (log_message, dm_channel) {
+            (Some(log_future), Some(dm_channel)) => Some(tokio::join!(log_future, dm_channel).1),
+            (None, Some(dm_channel)) => Some(dm_channel.await),
+            (Some(log_future), None) => {
+                let _ = log_future.await;
+                None
+            }
+            (None, None) => None,
         } {
             strike_action.dm_notified = channel
                 .send_message(

@@ -86,32 +86,40 @@ impl Handler {
             ),
         ];
 
-        if let Ok(dm_channel) = UserId::new(user_id as u64)
-            .create_dm_channel(&ctx.ctx.http)
+        if ctx
+            .ctx
+            .http
+            .get_member(GuildId::new(guild_id as u64), UserId::new(user_id as u64))
             .await
+            .is_ok()
         {
-            if dm_channel
-                .send_message(
-                    &ctx.ctx,
-                    CreateMessage::new().embed(
-                        CreateEmbed::new()
-                            .title("Banned!")
-                            .description(match GuildId::new(guild_id as u64).name(&ctx.ctx) {
-                                Some(guild_name) => {
-                                    format!("You've been banned from {guild_name}")
-                                }
-                                None => "A server has banned you".to_string(),
-                            })
-                            .fields(fields.clone())
-                            .color(0xf54029),
-                    ),
-                )
+            if let Ok(dm_channel) = UserId::new(user_id as u64)
+                .create_dm_channel(&ctx.ctx.http)
                 .await
-                .is_ok()
             {
-                action_insert.dm_notified.store(true, Ordering::Relaxed);
-            }
-        };
+                if dm_channel
+                    .send_message(
+                        &ctx.ctx,
+                        CreateMessage::new().embed(
+                            CreateEmbed::new()
+                                .title("Banned!")
+                                .description(match GuildId::new(guild_id as u64).name(&ctx.ctx) {
+                                    Some(guild_name) => {
+                                        format!("You've been banned from {guild_name}")
+                                    }
+                                    None => "A server has banned you".to_string(),
+                                })
+                                .fields(fields.clone())
+                                .color(0xf54029),
+                        ),
+                    )
+                    .await
+                    .is_ok()
+                {
+                    action_insert.dm_notified.store(true, Ordering::Relaxed);
+                }
+            };
+        }
 
         debug!("Attempted to send a DM in {:?}", start.elapsed());
 
