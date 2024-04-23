@@ -53,14 +53,75 @@ impl Handler {
 
         let start = Instant::now();
 
+        if sqlx::query!(
+            "SELECT user_id FROM user_kills WHERE user_id = $1",
+            command.user.id.get() as i64
+        )
+        .fetch_optional(&self.main_database)
+        .await
+        .unwrap_or(None)
+        .is_some()
+        {
+            let fail_context = FailedCommandContext { ctx };
+            if let Err(err) = fail_context
+                .reply(
+                    &command,
+                    Response::new()
+                        .embed(
+                            CreateEmbed::new()
+                                .title("You are currently disabled")
+                                .color(0xff0000)
+                                .description("Please reach out to the [support server](https://discord.gg/jhD3Xc5cm6) for more information.")
+                        ),
+                )
+                .await
+            {
+                error!("Failed to reply to command: {:?}", err);
+            }
+            return;
+        }
+
         let Some(guild_id) = command.guild_id else {
             let fail_context = FailedCommandContext { ctx };
             if let Err(err) = fail_context
                 .reply(
                     &command,
-                    Response::new().content("Reaper cannot be used outside of guilds"),
+                    Response::new().embed(
+                        CreateEmbed::new()
+                            .title("Reaper cannot be used here")
+                            .color(0xff0000)
+                            .description("This command can only be used in a guild."),
+                    ),
                 )
                 .await
+            {
+                error!("Failed to reply to command: {:?}", err);
+            }
+            return;
+        };
+
+        if sqlx::query!(
+            "SELECT guild_id FROM guild_kills WHERE guild_id = $1",
+            guild_id.get() as i64
+        )
+        .fetch_optional(&self.main_database)
+        .await
+        .unwrap_or(None)
+        .is_some()
+        {
+            let fail_context = FailedCommandContext { ctx };
+            if let Err(err) = fail_context
+            .reply(
+                &command,
+                Response::new()
+                    .embed(
+                        CreateEmbed::new()
+                            .title("This guild is currently disabled")
+                            .color(0xff0000)
+                            .description("Please reach out to the [support server](https://discord.gg/jhD3Xc5cm6) for more information.")
+                    ),
+            )
+            .await
             {
                 error!("Failed to reply to command: {:?}", err);
             }

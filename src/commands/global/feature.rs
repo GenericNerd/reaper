@@ -96,15 +96,14 @@ async fn status(
     cmd: &CommandInteraction,
     feature: String,
 ) -> ResponseResult {
-    let feature_flag = match sqlx::query!(
+    let Some(feature_flag) = sqlx::query!(
         "SELECT active, killed_by FROM global_kills WHERE feature = $1",
         feature
     )
     .fetch_optional(&handler.main_database)
     .await?
-    {
-        Some(row) => row,
-        None => return Err(ResponseError::Execution("Feature not found", None)),
+    else {
+        return Err(ResponseError::Execution("Feature not found", None));
     };
 
     ctx.reply(
@@ -116,24 +115,26 @@ async fn status(
                 .fields(vec![
                     (
                         "Active",
-                        match feature_flag.active {
-                            true => "✅".to_string(),
-                            false => "❌".to_string(),
+                        if feature_flag.active {
+                            "✅".to_string()
+                        } else {
+                            "❌".to_string()
                         },
                         true,
                     ),
                     (
                         "Killed by",
                         match feature_flag.killed_by {
-                            Some(killed_by) => format!("<@{}>", killed_by),
+                            Some(killed_by) => format!("<@{killed_by}>"),
                             None => "N/A".to_string(),
                         },
                         true,
                     ),
                 ])
-                .color(match feature_flag.active {
-                    true => 0x00ff00,
-                    false => 0xff0000,
+                .color(if feature_flag.active {
+                    0x00ff00
+                } else {
+                    0xff0000
                 }),
         ),
     )
@@ -150,14 +151,11 @@ pub async fn router(
         options: cmd.data.options(),
     };
 
-    let feature = match options.get_string("feature").into_owned() {
-        Some(feature) => feature,
-        None => {
-            return Err(ResponseError::Execution(
-                "Invalid command option",
-                Some("The command option you provided is invalid".to_string()),
-            ))
-        }
+    let Some(feature) = options.get_string("feature").into_owned() else {
+        return Err(ResponseError::Execution(
+            "Invalid command option",
+            Some("The command option you provided is invalid".to_string()),
+        ));
     };
 
     match &option.value {

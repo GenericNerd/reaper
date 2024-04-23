@@ -205,8 +205,8 @@ impl Command for GlobalCommand {
         for option in &cmd.data.options {
             match option.name.as_str() {
                 "feature" => return feature::router(handler, ctx, cmd, option).await,
-                "guild" => return guild::router(handler, ctx, cmd).await,
-                "user" => return user::router(handler, ctx, cmd).await,
+                "guild" => return guild::router(handler, ctx, cmd, option).await,
+                "user" => return user::router(handler, ctx, cmd, option).await,
                 _ => continue,
             }
         }

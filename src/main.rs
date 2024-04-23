@@ -50,9 +50,19 @@ async fn main() {
     sqlx::migrate!().run(&main_database).await.unwrap();
     info!("Connected to main database");
 
-    // Revive all previously killed features
+    // Revive all previously killed features, users and guilds
     info!("Reviving all previously killed features");
     sqlx::query!("UPDATE global_kills SET active = true, killed_by = NULL")
+        .execute(&main_database)
+        .await
+        .unwrap();
+    info!("Reviving all previously killed users");
+    sqlx::query!("DELETE FROM user_kills")
+        .execute(&main_database)
+        .await
+        .unwrap();
+    info!("Reviving all previously killed guilds");
+    sqlx::query!("DELETE FROM guild_kills")
         .execute(&main_database)
         .await
         .unwrap();
