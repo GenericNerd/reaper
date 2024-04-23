@@ -1,5 +1,4 @@
 use serenity::all::{CommandInteraction, CommandOptionType, CreateCommand, CreateCommandOption};
-use tracing::info;
 
 use crate::models::{
     command::{Command, CommandContext},
@@ -38,7 +37,7 @@ impl Command for GlobalCommand {
                     .add_sub_option(
                         CreateCommandOption::new(
                             CommandOptionType::String,
-                            "feature_string",
+                            "feature",
                             "The feature to globally kill",
                         )
                         .required(true),
@@ -53,7 +52,7 @@ impl Command for GlobalCommand {
                     .add_sub_option(
                         CreateCommandOption::new(
                             CommandOptionType::String,
-                            "feature_string",
+                            "feature",
                             "The feature to revive",
                         )
                         .required(true),
@@ -68,7 +67,7 @@ impl Command for GlobalCommand {
                     .add_sub_option(
                         CreateCommandOption::new(
                             CommandOptionType::String,
-                            "feature_string",
+                            "feature",
                             "The feature to check the status of",
                         )
                         .required(true),
@@ -203,11 +202,9 @@ impl Command for GlobalCommand {
             ));
         }
 
-        info!("{:?}", cmd);
         for option in &cmd.data.options {
-            info!("Received global command, {}", option.name.as_str());
             match option.name.as_str() {
-                "feature" => return feature::router(handler, ctx, cmd).await,
+                "feature" => return feature::router(handler, ctx, cmd, option).await,
                 "guild" => return guild::router(handler, ctx, cmd).await,
                 "user" => return user::router(handler, ctx, cmd).await,
                 _ => continue,

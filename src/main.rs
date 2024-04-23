@@ -52,7 +52,7 @@ async fn main() {
 
     // Revive all previously killed features
     info!("Reviving all previously killed features");
-    sqlx::query!("UPDATE global_kills SET active = true")
+    sqlx::query!("UPDATE global_kills SET active = true, killed_by = NULL")
         .execute(&main_database)
         .await
         .unwrap();

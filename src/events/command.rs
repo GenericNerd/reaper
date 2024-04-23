@@ -25,11 +25,12 @@ use tracing::{debug, error};
 
 impl Handler {
     pub async fn on_command(&self, ctx: IncomingContext, command: CommandInteraction) {
-        if !sqlx::query!("SELECT active FROM global_kills WHERE feature = 'commands'")
-            .fetch_one(&self.main_database)
-            .await
-            .unwrap()
-            .active
+        if command.data.name != "global"
+            && !sqlx::query!("SELECT active FROM global_kills WHERE feature = 'commands'")
+                .fetch_one(&self.main_database)
+                .await
+                .unwrap()
+                .active
         {
             let fail_context = FailedCommandContext { ctx };
             if let Err(err) = fail_context
