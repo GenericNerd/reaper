@@ -1,4 +1,4 @@
-use crate::models::config::LoggingConfig;
+use crate::models::{config::LoggingConfig, handler::Handler};
 
 pub enum LogType {
     Action,
@@ -6,20 +6,57 @@ pub enum LogType {
     Voice,
 }
 
-pub fn get_log_channel(logging_configuration: &LoggingConfig, log_type: &LogType) -> Option<i64> {
+pub async fn get_log_channel(
+    handler: &Handler,
+    logging_configuration: &LoggingConfig,
+    log_type: &LogType,
+) -> Option<i64> {
+    let feature_flags =
+        sqlx::query!("SELECT feature, active FROM global_kills WHERE feature ~ 'logging'")
+            .fetch_all(&handler.main_database)
+            .await
+            .unwrap();
+
+    if feature_flags
+        .iter()
+        .find(|flag| flag.feature == "logging")
+        .unwrap()
+        .active
+    {
+        return None;
+    }
+
     match log_type {
         LogType::Action => {
-            if !logging_configuration.log_actions {
+            if feature_flags
+                .iter()
+                .find(|flag| flag.feature == "logging.action")
+                .unwrap()
+                .active
+                || !logging_configuration.log_actions
+            {
                 return None;
             }
         }
         LogType::Message => {
-            if !logging_configuration.log_messages {
+            if feature_flags
+                .iter()
+                .find(|flag| flag.feature == "logging.message")
+                .unwrap()
+                .active
+                || !logging_configuration.log_messages
+            {
                 return None;
             }
         }
         LogType::Voice => {
-            if !logging_configuration.log_voice {
+            if feature_flags
+                .iter()
+                .find(|flag| flag.feature == "logging.voice")
+                .unwrap()
+                .active
+                || !logging_configuration.log_voice
+            {
                 return None;
             }
         }

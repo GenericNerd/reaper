@@ -7,6 +7,15 @@ use crate::models::{command::CommandContext, handler::Handler};
 
 impl Handler {
     pub async fn on_automod_trigger(&self, ctx: Context, execution: ActionExecution) {
+        if !sqlx::query!("SELECT active FROM global_kills WHERE feature = 'event.automod'")
+            .fetch_one(&self.main_database)
+            .await
+            .unwrap()
+            .active
+        {
+            return;
+        }
+
         let Ok(rule) = ctx
             .http
             .get_automod_rule(execution.guild_id, execution.rule_id)

@@ -109,7 +109,7 @@ impl Handler {
         .fetch_one(&self.main_database)
         .await {
             Ok(config) => {
-                get_log_channel(&config, &LogType::Action)
+                get_log_channel(self, &config, &LogType::Action).await
                     .map(|channel| {
                         ChannelId::new(channel as u64)
                             .send_message(
