@@ -4,16 +4,8 @@ use std::{
 };
 use strum::IntoEnumIterator;
 
-use serenity::{
-    all::{CommandInteraction, PartialGuild},
-    builder::{CreateEmbed, CreateInteractionResponse, CreateInteractionResponseMessage},
-    model::Permissions,
-    prelude::Context as IncomingContext,
-};
-use tracing::{debug, error};
-
 use crate::{
-    commands::get_command_list,
+    commands::{get_command_list, global::get_kill_commands},
     database::postgres::permissions::{get_role, get_user},
     models::{
         command::{CommandContext, CommandContextReply, FailedCommandContext},
@@ -22,9 +14,42 @@ use crate::{
         response::{Response, ResponseError},
     },
 };
+use inflections::Inflect;
+use serenity::{
+    all::{CommandInteraction, PartialGuild},
+    builder::{CreateEmbed, CreateInteractionResponse, CreateInteractionResponseMessage},
+    model::Permissions,
+    prelude::Context as IncomingContext,
+};
+use tracing::{debug, error};
 
 impl Handler {
     pub async fn on_command(&self, ctx: IncomingContext, command: CommandInteraction) {
+        if !sqlx::query!("SELECT active FROM global_kills WHERE feature = 'commands'")
+            .fetch_one(&self.main_database)
+            .await
+            .unwrap()
+            .active
+        {
+            let fail_context = FailedCommandContext { ctx };
+            if let Err(err) = fail_context
+                .reply(
+                    &command,
+                    Response::new()
+                        .embed(
+                            CreateEmbed::new()
+                                .title("Commands are currently disabled")
+                                .color(0xff0000)
+                                .description("Please reach out to the [support server](https://discord.gg/jhD3Xc5cm6) for more information.")
+                        ),
+                )
+                .await
+            {
+                error!("Failed to reply to command: {:?}", err);
+            }
+            return;
+        }
+
         let start = Instant::now();
 
         let Some(guild_id) = command.guild_id else {
@@ -104,7 +129,38 @@ impl Handler {
 
         debug!("Context generated in {:?}", start.elapsed());
 
-        for existing_command in get_command_list() {
+        if command.data.name != "global"
+            && !sqlx::query!(
+                "SELECT active FROM global_kills WHERE feature = $1",
+                format!("commands.{}", command.data.name)
+            )
+            .fetch_one(&self.main_database)
+            .await
+            .unwrap()
+            .active
+        {
+            if let Err(err) = command_context
+                    .reply(
+                        &command,
+                        Response::new()
+                            .embed(
+                                CreateEmbed::new()
+                                    .title(format!("{} is currently disabled", command.data.name.to_title_case()))
+                                    .color(0xff0000)
+                                    .description("Please reach out to the [support server](https://discord.gg/jhD3Xc5cm6) for more information.")
+                            )
+                    )
+                    .await
+                {
+                    error!("Failed to reply to command: {:?}", err);
+                }
+            return;
+        }
+
+        let mut existing_commands = get_command_list();
+        existing_commands.extend(get_kill_commands());
+
+        for existing_command in existing_commands {
             if existing_command.name() == command.data.name {
                 if let Err(err) = command
                     .create_response(

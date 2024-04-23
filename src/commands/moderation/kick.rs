@@ -63,12 +63,17 @@ impl Handler {
             dm_notified: AtomicBool::new(false),
         };
 
-        if ctx
-            .ctx
-            .http
-            .get_member(GuildId::new(guild_id as u64), UserId::new(user_id as u64))
+        if sqlx::query!("SELECT active FROM global_kills WHERE feature = 'commands.dm'")
+            .fetch_one(&self.main_database)
             .await
-            .is_ok()
+            .unwrap()
+            .active
+            && ctx
+                .ctx
+                .http
+                .get_member(GuildId::new(guild_id as u64), UserId::new(user_id as u64))
+                .await
+                .is_ok()
         {
             if let Ok(dm_channel) = UserId::new(user_id as u64)
                 .create_dm_channel(&ctx.ctx.http)
