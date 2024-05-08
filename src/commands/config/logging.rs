@@ -199,7 +199,7 @@ impl ConfigStage for LoggingChannelMultipleMessages {
                         )
                         .execute(&handler.main_database)
                         .await?;
-                        return Ok(Some(2));
+                        return Ok(None);
                     }
                     return Err(ConfigError {
                         error: ResponseError::Execution(
@@ -316,7 +316,7 @@ impl ConfigStage for LoggingChannelMultipleActions {
                         )
                         .execute(&handler.main_database)
                         .await?;
-                        return Ok(Some(3));
+                        return Ok(None);
                     }
                     return Err(ConfigError {
                         error: ResponseError::Execution(
