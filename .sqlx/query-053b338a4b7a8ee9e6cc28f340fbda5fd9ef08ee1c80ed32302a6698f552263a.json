@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE global_kills SET active = true, killed_by = NULL WHERE feature = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "053b338a4b7a8ee9e6cc28f340fbda5fd9ef08ee1c80ed32302a6698f552263a"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM guild_kills",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "a7b865aa449e4273088b783001e1f7ed422c7866434e6d33f081af65d46dcd4b"
+}

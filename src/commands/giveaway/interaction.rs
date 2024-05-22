@@ -59,6 +59,26 @@ pub async fn new_giveaway_entry_handler(handler: Handler, ctx: CommandContext, g
         let interaction_context =
             InteractionContext::new(&handler, ctx.ctx.clone(), &interaction).await;
 
+        if !sqlx::query!("SELECT active FROM global_kills WHERE feature = 'event.giveaways'")
+            .fetch_one(&handler.main_database)
+            .await
+            .unwrap()
+            .active
+        {
+            if let Err(err) = interaction_context
+                .error_message(ResponseError::Execution(
+                    "Giveaways are currently disabled",
+                    Some("Please reach out to the [support server](https://discord.gg/jhD3Xc5cm6) for more information.".to_string()),
+                ))
+                .await
+            {
+                error!(
+                    "Could not notify user of giveaway global kill. Failed with error: {:?}",
+                    err
+                );
+            }
+        }
+
         if let Some(restriction) = giveaway.role_restriction {
             let role = RoleId::new(restriction as u64);
             if !interaction.member.unwrap().roles.contains(&role) {

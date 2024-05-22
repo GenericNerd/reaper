@@ -14,6 +14,15 @@ use crate::models::{
 
 impl Handler {
     pub async fn on_reaction_add(&self, ctx: Context, reaction: Reaction) {
+        if !sqlx::query!("SELECT active FROM global_kills WHERE feature = 'event.boards'")
+            .fetch_one(&self.main_database)
+            .await
+            .unwrap()
+            .active
+        {
+            return;
+        }
+
         let start = Instant::now();
 
         let Some(guild_id) = reaction.guild_id else {

@@ -35,6 +35,10 @@ async fn main() {
     let redis_db_host = env::var("REDIS_HOST").unwrap_or("redis".to_string());
     let redis_db_port = env::var("REDIS_PORT").unwrap_or("6379".to_string());
     let redis_db_password = env::var("REDIS_PASSWORD").unwrap();
+    let global_kill_guild =
+        env::var("GLOBAL_KILL_GUILD").unwrap_or("1041788629250482208".to_string());
+    let global_kill_role =
+        env::var("GLOBAL_KILL_ROLE").unwrap_or("1232127614072918108".to_string());
 
     // Main database connection
     let connection_url = format!(
@@ -45,6 +49,23 @@ async fn main() {
     info!("Running outstanding migrations");
     sqlx::migrate!().run(&main_database).await.unwrap();
     info!("Connected to main database");
+
+    // Revive all previously killed features, users and guilds
+    info!("Reviving all previously killed features");
+    sqlx::query!("UPDATE global_kills SET active = true, killed_by = NULL")
+        .execute(&main_database)
+        .await
+        .unwrap();
+    info!("Reviving all previously killed users");
+    sqlx::query!("DELETE FROM user_kills")
+        .execute(&main_database)
+        .await
+        .unwrap();
+    info!("Reviving all previously killed guilds");
+    sqlx::query!("DELETE FROM guild_kills")
+        .execute(&main_database)
+        .await
+        .unwrap();
 
     // Redis database connection
     let redis_connection_url =
@@ -58,6 +79,8 @@ async fn main() {
         main_database,
         redis_database,
         start_time: Instant::now(),
+        global_kill_guild: global_kill_guild.parse().unwrap(),
+        global_kill_role: global_kill_role.parse().unwrap(),
     };
     let intents = GatewayIntents::non_privileged()
         | GatewayIntents::GUILD_MEMBERS

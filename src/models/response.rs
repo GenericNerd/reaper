@@ -15,6 +15,12 @@ pub enum ResponseError {
     Redis(redis::RedisError),
 }
 
+impl From<sqlx::Error> for ResponseError {
+    fn from(value: sqlx::Error) -> Self {
+        Self::Execution("Database Error", Some(format!("`{value}`")))
+    }
+}
+
 pub type ResponseResult = Result<(), ResponseError>;
 
 impl Response {

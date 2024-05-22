@@ -110,7 +110,7 @@ impl Handler {
         .fetch_one(&self.main_database)
         .await {
             Ok(config) => {
-                get_log_channel(&config, &LogType::Action)
+                get_log_channel(self, &config, &LogType::Action).await
                     .map(|channel| {
                         ChannelId::new(channel as u64)
                             .send_message(
@@ -123,17 +123,23 @@ impl Handler {
             Err(_) => None
         };
 
-        let dm_channel = if ctx
-            .ctx
-            .http
-            .get_member(GuildId::new(guild_id as u64), UserId::new(user_id as u64))
-            .await
-            .is_ok()
-        {
-            Some(UserId::new(user_id as u64).create_dm_channel(&ctx.ctx.http))
-        } else {
-            None
-        };
+        let dm_channel =
+            if sqlx::query!("SELECT active FROM global_kills WHERE feature = 'commands.dm'")
+                .fetch_one(&self.main_database)
+                .await
+                .unwrap()
+                .active
+                && ctx
+                    .ctx
+                    .http
+                    .get_member(GuildId::new(guild_id as u64), UserId::new(user_id as u64))
+                    .await
+                    .is_ok()
+            {
+                Some(UserId::new(user_id as u64).create_dm_channel(&ctx.ctx.http))
+            } else {
+                None
+            };
 
         let mute_role_future = ctx.ctx.http.add_member_role(
             GuildId::new(guild_id as u64),
