@@ -4,6 +4,7 @@ pub mod command;
 pub mod config;
 pub mod giveaway;
 pub mod handler;
+pub mod highest_role;
 pub mod message;
 pub mod permissions;
 pub mod response;

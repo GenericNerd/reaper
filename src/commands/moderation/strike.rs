@@ -17,6 +17,7 @@ use crate::{
         command::{Command, CommandContext, CommandContextReply},
         config::LoggingConfig,
         handler::Handler,
+        highest_role::get_highest_role,
         permissions::Permission,
         response::{Response, ResponseError, ResponseResult},
     },
@@ -349,6 +350,17 @@ impl Command for StrikeCommand {
             .into_owned()
             .as_deref()
             .map(Duration::new);
+
+        let target_user_highest_role = get_highest_role(ctx, &user).await;
+        if ctx.highest_role <= target_user_highest_role {
+            return Err(ResponseError::Execution(
+                "You cannot strike this user!",
+                Some(
+                    "You cannot strike a user with a role equal to or higher than yours."
+                        .to_string(),
+                ),
+            ));
+        }
 
         let action = Box::pin(handler.strike_user(
             ctx,

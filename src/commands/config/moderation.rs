@@ -1,7 +1,7 @@
 use serenity::{
     all::{
         ActionRowComponent, ButtonStyle, CommandInteraction, ComponentInteractionDataKind,
-        InputTextStyle,
+        InputTextStyle, Permissions,
     },
     builder::{
         CreateActionRow, CreateButton, CreateEmbed, CreateInputText, CreateInteractionResponse,
@@ -606,19 +606,45 @@ impl ConfigStage for ModerationMuteRole {
                     if let ComponentInteractionDataKind::RoleSelect { values } =
                         interaction.data.kind
                     {
-                        let role = values
-                            .first()
-                            .ok_or_else(|| {
-                                ResponseError::Execution(
-                                    "No role selected",
-                                    Some("Please select a role.".to_string()),
-                                )
-                            })?
-                            .get() as i64;
+                        let role = values.first().ok_or_else(|| {
+                            ResponseError::Execution(
+                                "No role selected",
+                                Some("Please select a role.".to_string()),
+                            )
+                        })?;
+
+                        let role_position = match ctx.guild.roles.get(role) {
+                            Some(role) => {
+                                if role.permissions.contains(Permissions::ADMINISTRATOR) {
+                                    u16::max_value() - 1
+                                } else {
+                                    role.position
+                                }
+                            }
+                            None => {
+                                return Err(ConfigError {
+                                    error: ResponseError::Execution(
+                                        "Invalid role",
+                                        Some("Please select a valid role.".to_string()),
+                                    ),
+                                    stages_to_skip: None,
+                                })
+                            }
+                        };
+
+                        if role_position >= ctx.highest_role {
+                            return Err(ConfigError {
+                                error: ResponseError::Execution(
+                                    "Cannot set this role",
+                                    Some("The role you have selected is higher than yours, please move it and try again.".to_string()),
+                                ),
+                                stages_to_skip: None,
+                            });
+                        }
 
                         sqlx::query!(
                             "UPDATE moderation_configuration SET mute_role = $1 WHERE guild_id = $2",
-                            role,
+                            role.get() as i64,
                             ctx.guild.id.get() as i64
                         )
                         .execute(&handler.main_database)

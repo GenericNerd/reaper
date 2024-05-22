@@ -20,6 +20,7 @@ use crate::{
         command::{Command, CommandContext, CommandContextReply},
         config::LoggingConfig,
         handler::Handler,
+        highest_role::get_highest_role,
         permissions::Permission,
         response::{Response, ResponseError, ResponseResult},
     },
@@ -244,6 +245,28 @@ impl Command for BanCommand {
             Some(duration) => duration,
             None => Duration::permanent(),
         };
+
+        let target_user_highest_role = get_highest_role(ctx, &user).await;
+        if ctx.highest_role <= target_user_highest_role {
+            return Err(ResponseError::Execution(
+                "You cannot ban this user!",
+                Some(
+                    "You cannot ban a user with a role equal to or higher than yours.".to_string(),
+                ),
+            ));
+        }
+
+        let bot = ctx.ctx.cache.current_user().to_owned();
+        let bot_highest_role = get_highest_role(ctx, &bot).await;
+        if bot_highest_role <= target_user_highest_role {
+            return Err(ResponseError::Execution(
+                "Reaper cannot ban this user!",
+                Some(
+                    "Reaper cannot ban a user with a role equal to or higher than itself."
+                        .to_string(),
+                ),
+            ));
+        }
 
         let action = handler
             .ban_user(

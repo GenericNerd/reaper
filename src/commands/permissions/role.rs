@@ -4,7 +4,7 @@ use std::{
 };
 
 use serenity::{
-    all::{ButtonStyle, CommandInteraction, ComponentInteractionDataKind},
+    all::{ButtonStyle, CommandInteraction, ComponentInteractionDataKind, Permissions},
     builder::{
         CreateActionRow, CreateButton, CreateEmbed, CreateEmbedFooter, CreateInteractionResponse,
         CreateSelectMenu, CreateSelectMenuKind, CreateSelectMenuOption,
@@ -64,6 +64,21 @@ pub async fn role(
     let Some(role) = options.get_role("role").into_owned() else {
         return Err(ResponseError::Execution("No member found!", Some("The role option either was not provided, or this command was not ran in a guild. Both of these should not occur, if they do, please contact a developer.".to_string())));
     };
+
+    let role_position = if role.permissions.contains(Permissions::ADMINISTRATOR) {
+        u16::max_value() - 1
+    } else {
+        role.position
+    };
+    if role_position >= ctx.highest_role {
+        return Err(ResponseError::Execution(
+            "You cannot edit the permissions of this role!",
+            Some(
+                "You cannot edit a role that is equal to or higher than your highest role"
+                    .to_string(),
+            ),
+        ));
+    }
 
     let existing_permissions = get_role(
         handler,

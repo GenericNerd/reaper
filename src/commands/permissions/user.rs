@@ -23,6 +23,7 @@ use crate::{
     models::{
         command::{CommandContext, CommandContextReply, InteractionContext},
         handler::Handler,
+        highest_role::get_highest_role,
         permissions::Permission,
         response::{Response, ResponseError, ResponseResult},
     },
@@ -65,6 +66,17 @@ pub async fn user(
     let Some(user) = options.get_user("user").into_owned() else {
         return Err(ResponseError::Execution("No member found!", Some("The user option either was not provided, or this command was not ran in a guild. Both of these should not occur, if they do, please contact a developer.".to_string())));
     };
+
+    let target_user_highest_role = get_highest_role(ctx, &user).await;
+    if ctx.highest_role <= target_user_highest_role {
+        return Err(ResponseError::Execution(
+            "You cannot change the permissions of this user!",
+            Some(
+                "You cannot change the permissions of a user with a role equal to or higher than yours."
+                    .to_string(),
+            ),
+        ));
+    }
 
     let has_admin = if let Ok(permissions) = ctx
         .guild

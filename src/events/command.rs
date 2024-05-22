@@ -65,7 +65,9 @@ impl Handler {
 
         debug!("Took {:?} to get guild ID and guild", start.elapsed());
 
-        let user_permissions = if guild.owner_id == command.user.id {
+        let mut highest_role = 0;
+        let user_permissions: Vec<Permission> = if guild.owner_id == command.user.id {
+            highest_role = u16::max_value();
             Permission::iter().collect::<Vec<_>>()
         } else {
             let mut user_permissions: Vec<Permission> = vec![];
@@ -78,7 +80,12 @@ impl Handler {
             }
             for role in command.member.clone().unwrap().roles {
                 if let Some(role) = guild.roles.get(&role) {
+                    if role.position > highest_role {
+                        highest_role = role.position;
+                    }
+
                     if role.permissions.contains(Permissions::ADMINISTRATOR) {
+                        highest_role = u16::max_value() - 1;
                         user_permissions = Permission::iter().collect::<Vec<_>>();
                         break;
                     }
@@ -99,6 +106,7 @@ impl Handler {
             ctx,
             has_responsed: Arc::new(AtomicBool::new(true)),
             user_permissions,
+            highest_role,
             guild,
         };
 

@@ -21,6 +21,7 @@ use crate::{
         command::{Command, CommandContext, CommandContextReply},
         config::LoggingConfig,
         handler::Handler,
+        highest_role::get_highest_role,
         permissions::Permission,
         response::{Response, ResponseError, ResponseResult},
     },
@@ -269,6 +270,16 @@ impl Command for MuteCommand {
                 ),
             ));
         };
+
+        let target_user_highest_role = get_highest_role(ctx, &user).await;
+        if ctx.highest_role <= target_user_highest_role {
+            return Err(ResponseError::Execution(
+                "You cannot mute this user!",
+                Some(
+                    "You cannot mute a user with a role equal to or higher than yours.".to_string(),
+                ),
+            ));
+        }
 
         let action = handler
             .mute_user(
