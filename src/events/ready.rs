@@ -9,7 +9,10 @@ use serenity::{
 use tracing::{debug, error, info};
 
 use crate::{
-    commands::{get_command_list, giveaway::interaction::new_giveaway_entry_handler},
+    commands::{
+        get_command_list, giveaway::interaction::new_giveaway_entry_handler,
+        global::get_kill_commands,
+    },
     events::expire::{expire_actions, expire_giveaways},
     models::{
         command::CommandContext,
@@ -67,6 +70,7 @@ impl Handler {
                         ctx: ctx.clone(),
                         has_responsed: Arc::new(AtomicBool::new(false)),
                         user_permissions: vec![],
+                        highest_role: u16::max_value(),
                         guild,
                     };
 
@@ -85,6 +89,20 @@ impl Handler {
 
         debug!("Adding current commands to slash commands list");
         let mut successful_commands = vec![];
+        for command in get_kill_commands() {
+            match self
+                .global_kill_guild
+                .create_command(&ctx.http, command.register())
+                .await
+            {
+                Ok(_) => successful_commands.push(command.name()),
+                Err(e) => error!(
+                    "Attempted to register command {} but failed with error: {}",
+                    command.name(),
+                    e
+                ),
+            }
+        }
         for command in get_command_list() {
             match Command::create_global_command(&ctx.http, command.register()).await {
                 Ok(_) => successful_commands.push(command.name()),

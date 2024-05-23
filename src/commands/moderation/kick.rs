@@ -18,6 +18,7 @@ use crate::{
         command::{Command, CommandContext, CommandContextReply},
         config::LoggingConfig,
         handler::Handler,
+        highest_role::get_highest_role,
         permissions::Permission,
         response::{Response, ResponseError, ResponseResult},
     },
@@ -63,12 +64,17 @@ impl Handler {
             dm_notified: AtomicBool::new(false),
         };
 
-        if ctx
-            .ctx
-            .http
-            .get_member(GuildId::new(guild_id as u64), UserId::new(user_id as u64))
+        if sqlx::query!("SELECT active FROM global_kills WHERE feature = 'commands.dm'")
+            .fetch_one(&self.main_database)
             .await
-            .is_ok()
+            .unwrap()
+            .active
+            && ctx
+                .ctx
+                .http
+                .get_member(GuildId::new(guild_id as u64), UserId::new(user_id as u64))
+                .await
+                .is_ok()
         {
             if let Ok(dm_channel) = UserId::new(user_id as u64)
                 .create_dm_channel(&ctx.ctx.http)
@@ -128,7 +134,7 @@ impl Handler {
         )
         .fetch_one(&self.main_database)
         .await {
-            if let Some(channel) = get_log_channel(&config, &LogType::Action) {
+            if let Some(channel) = get_log_channel(self, &config, &LogType::Action).await {
                 if let Err(err) = ChannelId::new(channel as u64)
                     .send_message(
                         &ctx.ctx,
@@ -206,6 +212,28 @@ impl Command for KickCommand {
                 Some("Please provide a reason for the kick.".to_string()),
             ));
         };
+
+        let target_user_highest_role = get_highest_role(ctx, &user).await;
+        if ctx.highest_role <= target_user_highest_role {
+            return Err(ResponseError::Execution(
+                "You cannot kick this user!",
+                Some(
+                    "You cannot kick a user with a role equal to or higher than yours.".to_string(),
+                ),
+            ));
+        }
+
+        let bot = ctx.ctx.cache.current_user().to_owned();
+        let bot_highest_role = get_highest_role(ctx, &bot).await;
+        if bot_highest_role <= target_user_highest_role {
+            return Err(ResponseError::Execution(
+                "Reaper cannot kick this user!",
+                Some(
+                    "Reaper cannot kick a user with a role equal to or higher than itself."
+                        .to_string(),
+                ),
+            ));
+        }
 
         let action = handler
             .kick_user(

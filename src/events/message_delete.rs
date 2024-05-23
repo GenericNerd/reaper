@@ -95,7 +95,7 @@ impl Handler {
         )
         .fetch_one(&self.main_database)
         .await {
-            if let Some(channel) = get_log_channel(&config, &LogType::Message) {
+            if let Some(channel) = get_log_channel(self, &config, &LogType::Message).await {
                 if let Err(err) = ChannelId::new(channel as u64)
                     .send_message(
                         &ctx,

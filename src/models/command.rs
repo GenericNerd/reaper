@@ -35,6 +35,7 @@ pub struct CommandContext {
     pub ctx: IncomingContext,
     pub has_responsed: Arc<AtomicBool>,
     pub user_permissions: Vec<Permission>,
+    pub highest_role: u16,
     pub guild: PartialGuild,
 }
 

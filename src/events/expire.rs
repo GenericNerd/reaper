@@ -20,6 +20,15 @@ struct MuteRole {
 
 pub async fn expire_actions(handler: Handler, ctx: Context) {
     loop {
+        if !sqlx::query!("SELECT active FROM global_kills WHERE feature = 'event.expiry'")
+            .fetch_one(&handler.main_database)
+            .await
+            .unwrap()
+            .active
+        {
+            tokio::time::sleep(Duration::from_secs(45)).await;
+        }
+
         let start = Instant::now();
         let actions = match sqlx::query_as!(
             DatabaseAction,
@@ -114,6 +123,15 @@ pub async fn expire_actions(handler: Handler, ctx: Context) {
 
 pub async fn expire_giveaways(handler: Handler) {
     loop {
+        if !sqlx::query!("SELECT active FROM global_kills WHERE feature = 'event.giveaways'")
+            .fetch_one(&handler.main_database)
+            .await
+            .unwrap()
+            .active
+        {
+            tokio::time::sleep(Duration::from_secs(45)).await;
+        }
+
         let start = Instant::now();
 
         if let Err(err) = sqlx::query!("DELETE FROM giveaways WHERE duration < NOW()")

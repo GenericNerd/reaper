@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT active, killed_by FROM global_kills WHERE feature = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "active",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 1,
+        "name": "killed_by",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "e0bb73bb102dd6d2f8710ff7c064c11b7b6de3d6eae364180061f377a624055e"
+}

@@ -2,6 +2,7 @@ use crate::models::command::Command;
 
 pub mod config;
 pub mod giveaway;
+pub mod global;
 pub mod info;
 pub mod moderation;
 pub mod permissions;
