@@ -17,7 +17,7 @@ pub async fn get_log_channel(
             .await
             .unwrap();
 
-    if feature_flags
+    if !feature_flags
         .iter()
         .find(|flag| flag.feature == "logging")
         .unwrap()
@@ -28,7 +28,7 @@ pub async fn get_log_channel(
 
     match log_type {
         LogType::Action => {
-            if feature_flags
+            if !feature_flags
                 .iter()
                 .find(|flag| flag.feature == "logging.action")
                 .unwrap()
@@ -39,7 +39,7 @@ pub async fn get_log_channel(
             }
         }
         LogType::Message => {
-            if feature_flags
+            if !feature_flags
                 .iter()
                 .find(|flag| flag.feature == "logging.message")
                 .unwrap()
@@ -50,7 +50,7 @@ pub async fn get_log_channel(
             }
         }
         LogType::Voice => {
-            if feature_flags
+            if !feature_flags
                 .iter()
                 .find(|flag| flag.feature == "logging.voice")
                 .unwrap()
