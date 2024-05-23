@@ -142,7 +142,7 @@ impl Command for UnmuteCommand {
         )
         .fetch_one(&handler.main_database)
         .await {
-            if let Some(channel) = get_log_channel(&handler, &config, &LogType::Action).await {
+            if let Some(channel) = get_log_channel(handler, &config, &LogType::Action).await {
                 Some(ChannelId::new(channel as u64)
                     .send_message(
                         &ctx.ctx,

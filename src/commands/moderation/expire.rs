@@ -101,7 +101,7 @@ impl Command for ExpireCommand {
         )
         .fetch_one(&handler.main_database)
         .await {
-            get_log_channel(&handler, &config, &LogType::Action).await.map(|channel| ChannelId::new(channel as u64)
+            get_log_channel(handler, &config, &LogType::Action).await.map(|channel| ChannelId::new(channel as u64)
                 .send_message(
                     &ctx.ctx,
                     CreateMessage::new()
