@@ -16,7 +16,7 @@ We process no personal information. We do not store or share any of your persona
 - Any input provided to Reaper (including, but not limited to action reasons)
 
 ## How we use your information
-We use the information we collect to provide and maitain Reaper's services. We do not share your information with third parties, and we vow to never do so. We do not use your information for any other purposes.
+We use the information we collect to provide and maintain Reaper's services. We do not share your information with third parties, and we vow to never do so. We do not use your information for any other purposes.
 
 ## Your rights and choices
 While using Reaper, you have the right to request the deletion of your data, regardless of your jurisdiction. You can do so by contacting the [Reaper Support Server](https://discord.gg/jhD3Xc5cm6). The process for data deletion is manual and will be processed as such:
