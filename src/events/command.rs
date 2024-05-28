@@ -191,7 +191,7 @@ impl Handler {
 
         let command_context = CommandContext {
             ctx,
-            has_responsed: Arc::new(AtomicBool::new(true)),
+            has_responsed: Arc::new(AtomicBool::new(false)),
             user_permissions,
             highest_role,
             guild,
@@ -199,7 +199,7 @@ impl Handler {
 
         debug!("Context generated in {:?}", start.elapsed());
 
-        if command.data.name != "global"
+        if (command.data.name != "global")
             && !sqlx::query!(
                 "SELECT active FROM global_kills WHERE feature = $1",
                 format!("commands.{}", command.data.name)
@@ -232,21 +232,26 @@ impl Handler {
 
         for existing_command in existing_commands {
             if existing_command.name() == command.data.name {
-                if let Err(err) = command
-                    .create_response(
-                        &command_context.ctx,
-                        CreateInteractionResponse::Defer(
-                            CreateInteractionResponseMessage::default(),
-                        ),
-                    )
-                    .await
-                {
-                    error!(
-                        "Failed to acknowledge command, took {:?}: {err:?}",
-                        start.elapsed(),
-                    );
-                    return;
-                };
+                if command.data.name != "privacy" {
+                    if let Err(err) = command
+                        .create_response(
+                            &command_context.ctx,
+                            CreateInteractionResponse::Defer(
+                                CreateInteractionResponseMessage::default(),
+                            ),
+                        )
+                        .await
+                    {
+                        error!(
+                            "Failed to acknowledge command, took {:?}: {err:?}",
+                            start.elapsed(),
+                        );
+                        return;
+                    };
+                    command_context
+                        .has_responsed
+                        .store(true, std::sync::atomic::Ordering::Relaxed);
+                }
 
                 if let Err(err) = existing_command
                     .router(self, &command_context, &command)
