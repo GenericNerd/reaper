@@ -31,7 +31,7 @@ impl Command for PrivacyCommand {
                     CreateEmbed::new()
                         .title("Privacy Policy")
                         .description(
-                            format!("You can view Reaper's Privacy Policy [here](https://github.com/GenericNerd/reaper/blob/development/PRIVACY.md).")
+                            "You can view Reaper's Privacy Policy [here](https://github.com/GenericNerd/reaper/blob/development/PRIVACY.md).".to_string()
                         )
                         .color(0xeb966d)
                 ).ephemeral(true)
