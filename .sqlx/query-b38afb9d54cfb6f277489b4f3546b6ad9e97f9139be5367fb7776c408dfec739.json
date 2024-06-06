@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT * FROM giveaways",
+  "query": "SELECT * FROM giveaways WHERE id = $1 AND guild_id = $2",
   "describe": {
     "columns": [
       {
@@ -45,7 +45,10 @@
       }
     ],
     "parameters": {
-      "Left": []
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
     },
     "nullable": [
       false,
@@ -58,5 +61,5 @@
       false
     ]
   },
-  "hash": "5ed4511955b715e4be273d38b9ceafeae1a631e5b4d18f24ea6f7368a48b1af7"
+  "hash": "b38afb9d54cfb6f277489b4f3546b6ad9e97f9139be5367fb7776c408dfec739"
 }

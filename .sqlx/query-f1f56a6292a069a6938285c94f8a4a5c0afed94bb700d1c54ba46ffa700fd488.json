@@ -37,6 +37,11 @@
         "ordinal": 6,
         "name": "role_restriction",
         "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "guild_id",
+        "type_info": "Int8"
       }
     ],
     "parameters": {
@@ -51,7 +56,8 @@
       true,
       false,
       false,
-      true
+      true,
+      false
     ]
   },
   "hash": "f1f56a6292a069a6938285c94f8a4a5c0afed94bb700d1c54ba46ffa700fd488"
