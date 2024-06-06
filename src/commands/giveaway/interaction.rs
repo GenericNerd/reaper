@@ -156,9 +156,10 @@ pub async fn new_giveaway_entry_handler(handler: Handler, ctx: CommandContext, g
         };
 
         match sqlx::query!(
-            "INSERT INTO giveaway_entry (id, user_id) VALUES ($1, $2)",
+            "INSERT INTO giveaway_entry (id, user_id, guild_id) VALUES ($1, $2, $3)",
             giveaway.id,
-            interaction_context.interaction.user.id.get() as i64
+            interaction_context.interaction.user.id.get() as i64,
+            ctx.guild.id.get() as i64
         )
         .execute(&handler.main_database)
         .await

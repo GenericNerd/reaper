@@ -39,8 +39,9 @@ pub async fn delete(
 
     let giveaway = match sqlx::query_as!(
         DatabaseGiveaway,
-        "SELECT * FROM giveaways WHERE id = $1",
-        id
+        "SELECT * FROM giveaways WHERE id = $1 AND guild_id = $2",
+        id,
+        ctx.guild.id.get() as i64
     )
     .fetch_one(&handler.main_database)
     .await

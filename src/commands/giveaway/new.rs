@@ -102,6 +102,7 @@ pub async fn new(
 
     let giveaway = Giveaway {
         id: message.id.get() as i64,
+        guild_id: ctx.guild.id.get() as i64,
         channel_id: message.channel_id.get() as i64,
         prize,
         description,
@@ -111,8 +112,9 @@ pub async fn new(
     };
 
     if let Err(err) = sqlx::query!(
-        "INSERT INTO giveaways (id, channel_id, prize, description, winners, duration, role_restriction) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+        "INSERT INTO giveaways (id, guild_id, channel_id, prize, description, winners, duration, role_restriction) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
         giveaway.id,
+        giveaway.guild_id,
         giveaway.channel_id,
         giveaway.prize,
         giveaway.description,

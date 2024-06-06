@@ -21,6 +21,34 @@ pub async fn end_giveaway(
     giveaway: &Giveaway,
     message: &mut Message,
 ) -> ResponseResult {
+    match sqlx::query!(
+        "SELECT id FROM giveaways WHERE id = $1 AND guild_id = $2",
+        giveaway.id,
+        ctx.guild.id.get() as i64
+    )
+    .fetch_optional(&handler.main_database)
+    .await
+    {
+        Ok(val) => {
+            if val.is_none() {
+                return Err(ResponseError::Execution(
+                    "This giveaway could not be found",
+                    Some("Please use the message ID for the giveaway ID".to_string()),
+                ));
+            }
+        }
+        Err(err) => {
+            error!(
+                "Could not get giveaway {} from database. Failed with error: {:?}",
+                giveaway.id, err
+            );
+            return Err(ResponseError::Execution(
+                "This giveaway could not be found",
+                Some("Please use the message ID for the giveaway ID".to_string()),
+            ));
+        }
+    }
+
     let entries = match sqlx::query!(
         "SELECT user_id FROM giveaway_entry WHERE id = $1",
         giveaway.id

@@ -48,9 +48,13 @@ pub async fn reroll(
         ));
     }
 
-    if let Ok(row) = sqlx::query!("SELECT id FROM giveaways WHERE id = $1", id)
-        .fetch_optional(&handler.main_database)
-        .await
+    if let Ok(row) = sqlx::query!(
+        "SELECT id FROM giveaways WHERE id = $1 AND guild_id = $2",
+        id,
+        ctx.guild.id.get() as i64
+    )
+    .fetch_optional(&handler.main_database)
+    .await
     {
         if row.is_some() {
             return Err(ResponseError::Execution(
@@ -63,9 +67,13 @@ pub async fn reroll(
         }
     }
 
-    let entries = match sqlx::query!("SELECT user_id FROM giveaway_entry WHERE id = $1", id)
-        .fetch_all(&handler.main_database)
-        .await
+    let entries = match sqlx::query!(
+        "SELECT user_id FROM giveaway_entry WHERE id = $1 AND guild_id = $2",
+        id,
+        ctx.guild.id.get() as i64
+    )
+    .fetch_all(&handler.main_database)
+    .await
     {
         Ok(entries) => entries
             .iter()

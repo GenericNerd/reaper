@@ -1,6 +1,7 @@
 #[derive(Clone)]
 pub struct Giveaway {
     pub id: i64,
+    pub guild_id: i64,
     pub channel_id: i64,
     pub prize: String,
     pub description: Option<String>,
@@ -13,6 +14,7 @@ impl From<DatabaseGiveaway> for Giveaway {
     fn from(value: DatabaseGiveaway) -> Self {
         Giveaway {
             id: value.id,
+            guild_id: value.guild_id,
             channel_id: value.channel_id,
             prize: value.prize,
             description: value.description,
@@ -25,6 +27,7 @@ impl From<DatabaseGiveaway> for Giveaway {
 
 pub struct DatabaseGiveaway {
     pub id: i64,
+    pub guild_id: i64,
     pub channel_id: i64,
     pub prize: String,
     pub description: Option<String>,
@@ -37,6 +40,7 @@ impl From<Giveaway> for DatabaseGiveaway {
     fn from(value: Giveaway) -> Self {
         DatabaseGiveaway {
             id: value.id,
+            guild_id: value.guild_id,
             channel_id: value.id,
             prize: value.prize,
             description: value.description,
