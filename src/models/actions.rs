@@ -169,7 +169,7 @@ impl DatabaseAction {
                 error!("Failed to insert action into database: {}", err);
                 Err(ResponseError::Execution(
                     "Failed to insert action into database!",
-                    Some("Please contac tthe bot owner for assistance".to_string())
+                    Some("Please contact the bot owner for assistance".to_string())
                 ))
             }
         }
