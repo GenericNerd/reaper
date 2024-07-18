@@ -41,6 +41,8 @@ impl Handler {
     ) -> Result<StrikeAction, ResponseError> {
         let start = Instant::now();
 
+        let moderation_config = get_moderation_config(self, guild_id).await;
+
         let duration = if let Some(duration) = duration {
             if duration.permanent {
                 None
@@ -48,11 +50,11 @@ impl Handler {
                 Some(duration)
             }
         } else {
-            let moderation_config = get_moderation_config(self, guild_id).await;
-            let duration = match moderation_config {
+            let duration = match &moderation_config {
                 Some(config) => config
                     .default_strike_duration
-                    .map(|duration| Duration::new(&duration)),
+                    .as_ref()
+                    .map(|duration| Duration::new(duration)),
                 None => None,
             };
             if duration.is_none() {
@@ -226,6 +228,18 @@ impl Handler {
             Err(_) => None
         };
 
+        let mut footer = match moderation_config {
+            Some(config) => match config.footer {
+                Some(footer) => footer,
+                None => "If you wish to appeal, please refer to the following action ID: {uuid}"
+                    .to_string(),
+            },
+            None => {
+                "If you wish to appeal, please refer to the following action ID: {uuid}".to_string()
+            }
+        };
+        footer = footer.replace("{uuid}", action.get_id().as_str());
+
         let dm_channel =
             if sqlx::query!("SELECT active FROM global_kills WHERE feature = 'commands.dm'")
                 .fetch_one(&self.main_database)
@@ -266,10 +280,7 @@ impl Handler {
                                 None => "A server has issued you a strike".to_string(),
                             })
                             .fields(fields)
-                            .footer(CreateEmbedFooter::new(format!(
-                                "If you wish to appeal, please refer to the following action ID: {}",
-                                action.get_id()
-                            )))
+                            .footer(CreateEmbedFooter::new(footer))
                             .color(0xeb966d),
                     ),
                 )

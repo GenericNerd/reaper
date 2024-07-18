@@ -13,6 +13,7 @@ use crate::{
         logging::{get_log_channel, LogType},
         options::Options,
     },
+    database::postgres::guild::get_moderation_config,
     models::{
         actions::{Action, ActionDatabaseInsert, ActionType},
         command::{Command, CommandContext, CommandContextReply},
@@ -64,6 +65,18 @@ impl Handler {
             dm_notified: AtomicBool::new(false),
         };
 
+        let mut footer = match get_moderation_config(self, guild_id).await {
+            Some(config) => match config.footer {
+                Some(footer) => footer,
+                None => "If you wish to appeal, please refer to the following action ID: {uuid}"
+                    .to_string(),
+            },
+            None => {
+                "If you wish to appeal, please refer to the following action ID: {uuid}".to_string()
+            }
+        };
+        footer = footer.replace("{uuid}", action.get_id().as_str());
+
         if sqlx::query!("SELECT active FROM global_kills WHERE feature = 'commands.dm'")
             .fetch_one(&self.main_database)
             .await
@@ -93,6 +106,7 @@ impl Handler {
                                     None => "A server has kicked you".to_string(),
                                 })
                                 .fields(fields.clone())
+                                .footer(CreateEmbedFooter::new(footer))
                                 .color(0x000080),
                         ),
                     )

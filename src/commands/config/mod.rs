@@ -90,6 +90,7 @@ impl Command for ConfigCommand {
             Box::new(moderation::ModerationMuteRole),
             Box::new(moderation::ModerationDefaultStrikeDuration),
             Box::new(moderation::ModerationEscalations),
+            Box::new(moderation::ModerationFooter),
             Box::new(logging::LoggingEnter),
             Box::new(logging::LoggingLogActions),
             Box::new(logging::LoggingLogMessages),

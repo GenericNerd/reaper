@@ -680,6 +680,145 @@ impl ConfigStage for ModerationMuteRole {
     }
 }
 
+pub struct ModerationFooter;
+#[async_trait::async_trait]
+impl ConfigStage for ModerationFooter {
+    async fn execute(
+        &self,
+        handler: &Handler,
+        ctx: &CommandContext,
+        cmd: &CommandInteraction,
+    ) -> Result<Option<usize>, ConfigError> {
+        let footer = sqlx::query!(
+            "SELECT footer FROM moderation_configuration WHERE guild_id = $1",
+            ctx.guild.id.get() as i64
+        )
+        .fetch_one(&handler.main_database)
+        .await?
+        .footer;
+
+        let message = ctx.reply_get_message(
+            cmd,
+            Response::new().embed(
+                CreateEmbed::new()
+                    .title(MODERATION_TITLE)
+                    .description(format!(
+                        "You can add a custom footer to DMs sent by Reaper.\n{}\n\nYou can use the placeholder `{}` to insert the action UUID.",
+                        match footer {
+                            Some(footer) => format!("The current footer is: **{footer}**"),
+                            None => "There is no footer set.".to_string(),
+                        },
+                        "{uuid}"
+                    ))
+                    .color(EMBED_COLOR),
+            ).components(vec![
+                CreateActionRow::Buttons(vec![
+                    CreateButton::new("change")
+                        .label("Change")
+                        .style(ButtonStyle::Success),
+                    CreateButton::new("skip")
+                        .label("Skip")
+                        .style(ButtonStyle::Secondary)
+                ]),
+            ]),
+        ).await?;
+
+        let collector = message
+            .await_component_interaction(&ctx.ctx)
+            .author_id(cmd.user.id)
+            .timeout(std::time::Duration::new(60, 0));
+
+        if let Some(interaction) = collector.await {
+            match interaction.data.custom_id.as_str() {
+                "skip" => {
+                    interaction
+                        .create_response(
+                            &ctx.ctx.http,
+                            serenity::builder::CreateInteractionResponse::Acknowledge,
+                        )
+                        .await?;
+                    return Ok(None);
+                }
+                "change" => {
+                    interaction
+                        .create_response(
+                            &ctx.ctx.http,
+                            CreateInteractionResponse::Modal(
+                                CreateModal::new("footer_modal", "Footer Text").components(vec![
+                                    CreateActionRow::InputText(
+                                        CreateInputText::new(
+                                            InputTextStyle::Short,
+                                            "Write {uuid} to replace it with the UUID",
+                                            "footer",
+                                        )
+                                        .placeholder("If you want to appeal, reference {uuid}")
+                                        .required(true),
+                                    ),
+                                ]),
+                            ),
+                        )
+                        .await?;
+
+                    let modal_collector = message
+                        .await_modal_interaction(&ctx.ctx)
+                        .author_id(cmd.user.id)
+                        .timeout(std::time::Duration::new(60, 0));
+
+                    if let Some(interaction) = modal_collector.await {
+                        interaction
+                            .create_response(
+                                &ctx.ctx.http,
+                                serenity::builder::CreateInteractionResponse::Acknowledge,
+                            )
+                            .await?;
+
+                        if let ActionRowComponent::InputText(text) =
+                            &interaction.data.components[0].components[0]
+                        {
+                            let value = text.value.clone().unwrap();
+
+                            sqlx::query!(
+                                "UPDATE moderation_configuration SET footer = $1 WHERE guild_id = $2",
+                                if value.is_empty() { None } else { Some(value) },
+                                ctx.guild.id.get() as i64
+                            )
+                            .execute(&handler.main_database)
+                            .await?;
+
+                            return Ok(None);
+                        }
+                        return Err(ConfigError {
+                            error: ResponseError::Execution(
+                                "Invalid option",
+                                Some("Please select a valid option.".to_string()),
+                            ),
+                            stages_to_skip: None,
+                        });
+                    }
+                    return Err(ConfigError {
+                        error: ResponseError::Execution(
+                            "Time out",
+                            Some("We didn't get a response in time. Please try again.".to_string()),
+                        ),
+                        stages_to_skip: Some(100),
+                    });
+                }
+                _ => {
+                    return Err(ConfigError {
+                        error: ResponseError::Execution(
+                            "Invalid option",
+                            Some("Please select a valid option.".to_string()),
+                        ),
+                        stages_to_skip: None,
+                    })
+                }
+            }
+        }
+
+        Ok(None)
+    }
+}
+
 pub struct ModerationEnter;
 #[async_trait::async_trait]
 impl ConfigStage for ModerationEnter {
@@ -726,7 +865,7 @@ impl ConfigStage for ModerationEnter {
                     return Ok(None);
                 }
                 "no" => {
-                    return Ok(Some(4));
+                    return Ok(Some(5));
                 }
                 _ => {
                     return Err(ConfigError {

@@ -39,7 +39,9 @@ impl Handler {
     ) -> Result<ActionDatabaseInsert, ResponseError> {
         let start = Instant::now();
 
-        let mute_role = match get_moderation_config(self, guild_id).await {
+        let moderation_config = get_moderation_config(self, guild_id).await;
+
+        let mute_role = match &moderation_config {
             Some(config) => match config.mute_role {
                 Some(id) => RoleId::new(id as u64),
                 None => {
@@ -148,6 +150,18 @@ impl Handler {
             Some(&action.reason),
         );
 
+        let mut footer = match moderation_config {
+            Some(config) => match config.footer {
+                Some(footer) => footer,
+                None => "If you wish to appeal, please refer to the following action ID: {uuid}"
+                    .to_string(),
+            },
+            None => {
+                "If you wish to appeal, please refer to the following action ID: {uuid}".to_string()
+            }
+        };
+        footer = footer.replace("{uuid}", action.get_id().as_str());
+
         if let Some(Ok(channel)) = match (log_message, dm_channel) {
             (Some(log_future), Some(dm_channel)) => {
                 Some(tokio::join!(log_future, mute_role_future, dm_channel).2)
@@ -175,17 +189,15 @@ impl Handler {
                                 None => "A server has muted you".to_string(),
                             })
                             .fields(fields)
-                            .footer(CreateEmbedFooter::new(format!(
-                                "If you wish to appeal, please refer to the following action ID: {}",
-                                action.get_id()
-                            )))
+                            .footer(CreateEmbedFooter::new(footer))
                             .color(0x2e4045),
                     ),
                 )
                 .await
-                .is_ok() {
-                    action_insert.dm_notified.store(true, Ordering::Relaxed);
-                }
+                .is_ok()
+            {
+                action_insert.dm_notified.store(true, Ordering::Relaxed);
+            }
         };
 
         debug!("Completed mute action in {:?}", start.elapsed());

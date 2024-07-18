@@ -6,7 +6,7 @@ pub async fn get_moderation_config(handler: &Handler, guild_id: i64) -> Option<M
     debug!("Querying main database for guild {guild_id} moderation configuration");
     match sqlx::query_as!(
         ModerationConfig,
-        "SELECT mute_role, default_strike_duration FROM moderation_configuration WHERE guild_id = $1",
+        "SELECT mute_role, default_strike_duration, footer FROM moderation_configuration WHERE guild_id = $1",
         guild_id
     )
     .fetch_optional(&handler.main_database)
