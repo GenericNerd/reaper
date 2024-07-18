@@ -66,7 +66,7 @@ pub async fn role(
     };
 
     let role_position = if role.permissions.contains(Permissions::ADMINISTRATOR) {
-        u16::max_value() - 1
+        u16::MAX - 1
     } else {
         role.position
     };

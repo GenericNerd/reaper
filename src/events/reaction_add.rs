@@ -7,10 +7,7 @@ use std::time::Instant;
 use tracing::{debug, error};
 use unic::emoji::char::is_emoji;
 
-use crate::models::{
-    boards::{BoardConfiguration, BoardEmote, BoardEntry, BoardIgnoredChannel},
-    handler::Handler,
-};
+use crate::models::{boards::BoardConfiguration, handler::Handler};
 
 impl Handler {
     pub async fn on_reaction_add(&self, ctx: Context, reaction: Reaction) {
@@ -33,7 +30,7 @@ impl Handler {
 
         let board_configurations = match sqlx::query_as!(
             BoardConfiguration,
-            "SELECT * FROM boards WHERE guild_id = $1",
+            "SELECT channel_id, emote_quota, ignore_self_reacts FROM boards WHERE guild_id = $1",
             guild_int
         )
         .fetch_all(&self.main_database)
@@ -56,8 +53,7 @@ impl Handler {
         };
 
         for board_configuration in board_configurations {
-            let ignored_channels = match sqlx::query_as!(
-                BoardIgnoredChannel,
+            let ignored_channels = match sqlx::query!(
                 "SELECT * FROM board_ignored_channels WHERE guild_id = $1 AND channel_id = $2",
                 guild_int,
                 board_configuration.channel_id
@@ -90,8 +86,7 @@ impl Handler {
                 start.elapsed()
             );
 
-            match sqlx::query_as!(
-                BoardEntry,
+            match sqlx::query!(
                 "SELECT * FROM board_entries WHERE guild_id = $1 AND channel_id = $2 AND message_id = $3",
                 guild_int,
                 board_configuration.channel_id,
@@ -119,8 +114,7 @@ impl Handler {
                 start.elapsed()
             );
 
-            let emotes = match sqlx::query_as!(
-                BoardEmote,
+            let emotes = match sqlx::query!(
                 "SELECT * FROM board_emotes WHERE guild_id = $1 AND channel_id = $2",
                 guild_int,
                 board_configuration.channel_id

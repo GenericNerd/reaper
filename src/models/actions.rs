@@ -183,7 +183,6 @@ pub struct ActionDatabaseInsert {
 
 #[derive(Clone)]
 pub struct ActionEscalation {
-    pub guild_id: i64,
     pub strike_count: i64,
     pub action_type: ActionType,
     pub action_duration: Option<String>,
@@ -192,7 +191,6 @@ pub struct ActionEscalation {
 impl From<DatabaseActionEscalation> for ActionEscalation {
     fn from(value: DatabaseActionEscalation) -> Self {
         ActionEscalation {
-            guild_id: value.guild_id,
             strike_count: value.strike_count,
             action_type: ActionType::from(value.action_type.as_str()),
             action_duration: value.action_duration,
@@ -201,7 +199,6 @@ impl From<DatabaseActionEscalation> for ActionEscalation {
 }
 
 pub struct DatabaseActionEscalation {
-    pub guild_id: i64,
     pub strike_count: i64,
     pub action_type: String,
     pub action_duration: Option<String>,

@@ -38,15 +38,7 @@ impl Handler {
     ) -> Result<ActionDatabaseInsert, ResponseError> {
         let start = Instant::now();
 
-        let duration = if let Some(duration) = duration {
-            if duration.permanent {
-                None
-            } else {
-                Some(duration)
-            }
-        } else {
-            None
-        };
+        let duration = duration.filter(|duration| !duration.permanent);
 
         let moderator_id = match moderator_id {
             Some(mod_id) => mod_id,

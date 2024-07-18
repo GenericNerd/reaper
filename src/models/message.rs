@@ -29,7 +29,7 @@ impl Message {
             Ok(connection) => connection,
             Err(err) => {
                 error!("Failed to get Redis connection: {:?}", err);
-                return Err(ResponseError::Redis(err));
+                return Err(ResponseError::Redis(()));
             }
         };
 
@@ -64,7 +64,7 @@ impl Message {
             Ok(res) => res,
             Err(err) => {
                 error!("Failed to set message in Redis: {:?}", err);
-                return Err(ResponseError::Redis(err));
+                return Err(ResponseError::Redis(()));
             }
         }
 
@@ -79,7 +79,7 @@ impl Message {
             Ok(res) => res,
             Err(err) => {
                 error!("Failed to set message expiration in Redis: {:?}", err);
-                return Err(ResponseError::Redis(err));
+                return Err(ResponseError::Redis(()));
             }
         }
 
@@ -133,7 +133,7 @@ impl MessageQuery {
             Ok(connection) => connection,
             Err(err) => {
                 error!("Failed to get Redis connection: {:?}", err);
-                return Err(ResponseError::Redis(err));
+                return Err(ResponseError::Redis(()));
             }
         };
 
@@ -148,7 +148,7 @@ impl MessageQuery {
             Ok(res) => res,
             Err(err) => {
                 error!("Failed to check if message exists in Redis: {:?}", err);
-                return Err(ResponseError::Redis(err));
+                return Err(ResponseError::Redis(()));
             }
         };
 
@@ -168,7 +168,7 @@ impl MessageQuery {
             Ok(res) => res,
             Err(err) => {
                 error!("Failed to get message guild ID from Redis: {:?}", err);
-                return Err(ResponseError::Redis(err));
+                return Err(ResponseError::Redis(()));
             }
         };
 
@@ -181,7 +181,7 @@ impl MessageQuery {
             Ok(res) => res,
             Err(err) => {
                 error!("Failed to get message user ID from Redis: {:?}", err);
-                return Err(ResponseError::Redis(err));
+                return Err(ResponseError::Redis(()));
             }
         };
 
@@ -194,7 +194,7 @@ impl MessageQuery {
             Ok(res) => res,
             Err(err) => {
                 error!("Failed to get message channel ID from Redis: {:?}", err);
-                return Err(ResponseError::Redis(err));
+                return Err(ResponseError::Redis(()));
             }
         };
 
@@ -207,7 +207,7 @@ impl MessageQuery {
             Ok(res) => res,
             Err(err) => {
                 error!("Failed to get message ID from Redis: {:?}", err);
-                return Err(ResponseError::Redis(err));
+                return Err(ResponseError::Redis(()));
             }
         };
 
@@ -220,7 +220,7 @@ impl MessageQuery {
             Ok(res) => res,
             Err(err) => {
                 error!("Failed to get message content from Redis: {:?}", err);
-                return Err(ResponseError::Redis(err));
+                return Err(ResponseError::Redis(()));
             }
         };
 
@@ -245,7 +245,7 @@ impl MessageQuery {
             }
             Err(err) => {
                 error!("Failed to get message attachment from Redis: {:?}", err);
-                return Err(ResponseError::Redis(err));
+                return Err(ResponseError::Redis(()));
             }
         };
 

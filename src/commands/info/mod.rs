@@ -1,10 +1,8 @@
-use std::{sync::Arc, time::Instant};
+use std::time::Instant;
 
 use serenity::{
     all::CommandInteraction,
     builder::{CreateCommand, CreateEmbed, CreateMessage, EditInteractionResponse},
-    gateway::ShardManager,
-    prelude::TypeMapKey,
 };
 
 use crate::models::{
@@ -14,12 +12,6 @@ use crate::models::{
 };
 
 pub struct InfoCommand;
-
-struct ShardManagerContainer;
-
-impl TypeMapKey for ShardManagerContainer {
-    type Value = Arc<ShardManager>;
-}
 
 #[async_trait::async_trait]
 impl Command for InfoCommand {

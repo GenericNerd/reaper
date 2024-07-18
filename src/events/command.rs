@@ -154,7 +154,7 @@ impl Handler {
 
         let mut highest_role = 0;
         let user_permissions: Vec<Permission> = if guild.owner_id == command.user.id {
-            highest_role = u16::max_value();
+            highest_role = u16::MAX;
             Permission::iter().collect::<Vec<_>>()
         } else {
             let mut user_permissions: Vec<Permission> = vec![];
@@ -172,7 +172,7 @@ impl Handler {
                     }
 
                     if role.permissions.contains(Permissions::ADMINISTRATOR) {
-                        highest_role = u16::max_value() - 1;
+                        highest_role = u16::MAX - 1;
                         user_permissions = Permission::iter().collect::<Vec<_>>();
                         break;
                     }
@@ -296,7 +296,7 @@ impl Handler {
                                 error!("Failed to send error message: {err:?}");
                             }
                         }
-                        ResponseError::Redis(_) => {}
+                        ResponseError::Redis(()) => {}
                     }
                 }
             }

@@ -88,7 +88,7 @@ impl Handler {
 
         let guild_escalations = match sqlx::query_as!(
             DatabaseActionEscalation,
-            "SELECT * FROM strike_escalations WHERE guild_id = $1",
+            "SELECT strike_count, action_type, action_duration FROM strike_escalations WHERE guild_id = $1",
             guild_id
         )
         .fetch_all(&self.main_database)

@@ -70,7 +70,7 @@ impl Handler {
                         ctx: ctx.clone(),
                         has_responsed: Arc::new(AtomicBool::new(false)),
                         user_permissions: vec![],
-                        highest_role: u16::max_value(),
+                        highest_role: u16::MAX,
                         guild,
                     };
 

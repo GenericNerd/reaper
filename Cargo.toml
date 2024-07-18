@@ -1,6 +1,6 @@
 [package]
 name = "reaper"
-version = "1.1.3"
+version = "1.1.4"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -8,15 +8,15 @@ edition = "2021"
 [dependencies]
 sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "time"] }
 serenity = { version = "0.12.1", features = ["collector"] }
-tokio = { version = "1.32", features = ["full"] }
+tokio = { version = "1.38", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3" }
 serde = "1.0"
 serde_derive = "1.0"
 async-trait = "0.1"
 strum = { version = "0.26", features = ["derive"] }
-regex = "1.9"
-lazy_static = "1.4"
+regex = "1.10"
+lazy_static = "1.5"
 objectid = { version = "0.2", features = ["serde"] }
 time = { version = "0.3", features = ["large-dates"] }
 inflections = "1.1"

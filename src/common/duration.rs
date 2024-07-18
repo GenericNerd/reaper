@@ -12,7 +12,6 @@ pub struct Duration {
     pub minutes: i64,
     pub seconds: i64,
     pub permanent: bool,
-    pub string: String,
 }
 
 impl Duration {
@@ -27,7 +26,6 @@ impl Duration {
             minutes: 0,
             seconds: 0,
             permanent: false,
-            string: string.to_string().to_lowercase(),
         };
 
         lazy_static! {
@@ -74,7 +72,6 @@ impl Duration {
             minutes: 0,
             seconds: 0,
             permanent: true,
-            string: String::new(),
         }
     }
 

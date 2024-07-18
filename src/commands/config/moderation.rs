@@ -120,7 +120,7 @@ impl ConfigStage for ModerationEscalations {
     ) -> Result<Option<usize>, ConfigError> {
         let mut escalations = sqlx::query_as!(
             ActionEscalation,
-            "SELECT * FROM strike_escalations WHERE guild_id = $1",
+            "SELECT strike_count, action_type, action_duration FROM strike_escalations WHERE guild_id = $1",
             ctx.guild.id.get() as i64
         )
         .fetch_all(&handler.main_database)
@@ -307,7 +307,6 @@ impl ConfigStage for ModerationEscalations {
                         };
 
                         escalations.push(ActionEscalation {
-                            guild_id: ctx.guild.id.get() as i64,
                             strike_count,
                             action_type,
                             action_duration,
@@ -616,7 +615,7 @@ impl ConfigStage for ModerationMuteRole {
                         let role_position = match ctx.guild.roles.get(role) {
                             Some(role) => {
                                 if role.permissions.contains(Permissions::ADMINISTRATOR) {
-                                    u16::max_value() - 1
+                                    u16::MAX - 1
                                 } else {
                                     role.position
                                 }

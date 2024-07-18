@@ -4,7 +4,7 @@ use super::command::CommandContext;
 
 pub async fn get_highest_role(ctx: &CommandContext, user: &User) -> u16 {
     if ctx.guild.owner_id == user.id {
-        return u16::max_value();
+        return u16::MAX;
     }
 
     let Ok(member) = ctx.guild.member(&ctx.ctx.http, user.id).await else {
@@ -15,7 +15,7 @@ pub async fn get_highest_role(ctx: &CommandContext, user: &User) -> u16 {
     for role in member.roles {
         if let Some(role) = ctx.guild.roles.get(&role) {
             if role.permissions.contains(Permissions::ADMINISTRATOR) {
-                return u16::max_value() - 1;
+                return u16::MAX - 1;
             }
 
             if role.position > highest_role {

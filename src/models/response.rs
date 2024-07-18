@@ -12,7 +12,7 @@ pub struct Response {
 pub enum ResponseError {
     Serenity(serenity::Error),
     Execution(&'static str, Option<String>),
-    Redis(redis::RedisError),
+    Redis(()),
 }
 
 impl From<sqlx::Error> for ResponseError {

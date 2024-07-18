@@ -130,7 +130,7 @@ impl InteractionContext {
                 .title("A Discord error occured while executing the command")
                 .description(format!("```{err:?}```"))
                 .color(0xff0000),
-            ResponseError::Redis(_) => return Ok(()),
+            ResponseError::Redis(()) => return Ok(()),
         };
 
         self.reply(Response::new().embed(embed).ephemeral(true))
