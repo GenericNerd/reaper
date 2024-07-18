@@ -11,4 +11,4 @@ jobs:
           components: rustfmt
       - uses: mbrobbel/rustfmt-check@master
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ github.token }}
