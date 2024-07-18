@@ -17,11 +17,6 @@ use crate::models::{
 use super::end::end_giveaway;
 
 fn generate_embed(giveaway: &Giveaway, entry_count: i64) -> CreateEmbed {
-    let color = match giveaway.color {
-        Some(color) => color,
-        None => 0xfdca4c,
-    };
-
     let mut embed = CreateEmbed::new()
         .title(format!("{} giveaway", giveaway.prize))
         .description(match &giveaway.description {
@@ -40,7 +35,7 @@ fn generate_embed(giveaway: &Giveaway, entry_count: i64) -> CreateEmbed {
                 giveaway.duration.unix_timestamp()
             ),
         })
-        .color(color);
+        .color(giveaway.color.unwrap_or(0xfdca4c));
 
     if let Some(image_url) = &giveaway.image_url {
         embed = embed.image(image_url);
