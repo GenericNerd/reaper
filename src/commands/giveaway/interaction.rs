@@ -17,23 +17,36 @@ use crate::models::{
 use super::end::end_giveaway;
 
 fn generate_embed(giveaway: &Giveaway, entry_count: i64) -> CreateEmbed {
-    CreateEmbed::new()
+    let color = match giveaway.color {
+        Some(color) => color,
+        None => 0xfdca4c,
+    };
+
+    let mut embed = CreateEmbed::new()
         .title(format!("{} giveaway", giveaway.prize))
         .description(match &giveaway.description {
             Some(description) => format!(
-                "{description}\n\nWinners: {}\nEntries: {}\n\nGiveaway ends at <t:{}:F>",
+                "{description}\n\nHosted by: <@{}>\nWinners: {}\nEntries: {}\n\nGiveaway ends at <t:{}:F>",
+                giveaway.host,
                 giveaway.winners,
                 entry_count + 1,
                 giveaway.duration.unix_timestamp()
             ),
             None => format!(
-                "Winners: {}\nEntries: {}\n\nGiveaway ends at <t:{}:F>",
+                "Hosted by: <@{}>\nWinners: {}\nEntries: {}\n\nGiveaway ends at <t:{}:F>",
+                giveaway.host,
                 giveaway.winners,
                 entry_count + 1,
                 giveaway.duration.unix_timestamp()
             ),
         })
-        .color(0xfdca4c)
+        .color(color);
+
+    if let Some(image_url) = &giveaway.image_url {
+        embed = embed.image(image_url);
+    }
+
+    embed
 }
 
 pub async fn new_giveaway_entry_handler(handler: Handler, ctx: CommandContext, giveaway: Giveaway) {

@@ -87,21 +87,40 @@ pub async fn end_giveaway(
             .collect::<Vec<_>>()
     };
 
+    let mut description = match &giveaway.description {
+        Some(description) => format!(
+            "{description}\n\nHosted by: <@{}>\nWinners: {}\nEntries: {}\n\n",
+            giveaway.host,
+            giveaway.winners,
+            entries.len(),
+        ),
+        None => format!(
+            "Hosted by: <@{}>\nWinners: {}\nEntries: {}\n\n",
+            giveaway.host,
+            giveaway.winners,
+            entries.len(),
+        ),
+    };
+
+    if winners.is_empty() {
+        description.push_str("This giveaway has ended. No one won the giveaway.");
+    } else {
+        description.push_str("This giveaway has ended. Congratulations to the winners!");
+    }
+
+    let mut embed = CreateEmbed::new()
+        .title(format!("{} giveaway", giveaway.prize))
+        .description(description)
+        .color(0x4752c4);
+
+    if let Some(image_url) = &giveaway.image_url {
+        embed = embed.image(image_url);
+    }
+
     if let Err(err) = message
         .edit(
             &ctx.ctx.http,
-            EditMessage::new()
-                .embed(
-                    CreateEmbed::new()
-                        .title(format!("{} giveaway", giveaway.prize))
-                        .description(if winners.is_empty() {
-                            "No one won the giveaway.".to_string()
-                        } else {
-                            "The giveaway is now over, congratulations to the winners!".to_string()
-                        })
-                        .color(0x4752c4),
-                )
-                .components(vec![]),
+            EditMessage::new().embed(embed).components(vec![]),
         )
         .await
     {

@@ -72,6 +72,30 @@ impl Command for GiveawayCommand {
                         "The description for the giveaway",
                     )
                     .required(false),
+                )
+                .add_sub_option(
+                    CreateCommandOption::new(
+                        CommandOptionType::User,
+                        "host",
+                        "The host of the giveaway",
+                    )
+                    .required(false),
+                )
+                .add_sub_option(
+                    CreateCommandOption::new(
+                        CommandOptionType::String,
+                        "color",
+                        "The color of the embed",
+                    )
+                    .required(false),
+                )
+                .add_sub_option(
+                    CreateCommandOption::new(
+                        CommandOptionType::String,
+                        "image",
+                        "The image URL for the embed",
+                    )
+                    .required(false),
                 ),
             )
             .add_option(

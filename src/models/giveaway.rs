@@ -8,6 +8,9 @@ pub struct Giveaway {
     pub winners: i32,
     pub duration: time::OffsetDateTime,
     pub role_restriction: Option<i64>,
+    pub host: i64,
+    pub image_url: Option<String>,
+    pub color: Option<i32>,
 }
 
 impl From<DatabaseGiveaway> for Giveaway {
@@ -21,6 +24,9 @@ impl From<DatabaseGiveaway> for Giveaway {
             winners: value.winners,
             duration: value.duration.assume_utc(),
             role_restriction: value.role_restriction,
+            host: value.host,
+            image_url: value.image_url,
+            color: value.color,
         }
     }
 }
@@ -34,6 +40,9 @@ pub struct DatabaseGiveaway {
     pub winners: i32,
     pub duration: time::PrimitiveDateTime,
     pub role_restriction: Option<i64>,
+    pub host: i64,
+    pub image_url: Option<String>,
+    pub color: Option<i32>,
 }
 
 impl From<Giveaway> for DatabaseGiveaway {
@@ -47,6 +56,9 @@ impl From<Giveaway> for DatabaseGiveaway {
             winners: value.winners,
             duration: time::PrimitiveDateTime::new(value.duration.date(), value.duration.time()),
             role_restriction: value.role_restriction,
+            host: value.host,
+            image_url: value.image_url,
+            color: value.color,
         }
     }
 }

@@ -42,6 +42,21 @@
         "ordinal": 7,
         "name": "guild_id",
         "type_info": "Int8"
+      },
+      {
+        "ordinal": 8,
+        "name": "host",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 9,
+        "name": "image_url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 10,
+        "name": "color",
+        "type_info": "Int4"
       }
     ],
     "parameters": {
@@ -58,7 +73,10 @@
       false,
       false,
       true,
-      false
+      false,
+      false,
+      true,
+      true
     ]
   },
   "hash": "b38afb9d54cfb6f277489b4f3546b6ad9e97f9139be5367fb7776c408dfec739"

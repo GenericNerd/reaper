@@ -63,30 +63,49 @@ pub async fn new(
 
     let role = options.get_role("role").into_owned();
 
+    let host = options
+        .get_user("host")
+        .into_owned()
+        .or_else(|| Some(cmd.user.clone()))
+        .unwrap()
+        .id
+        .get();
+
+    let color = match options.get_string("color").into_owned() {
+        Some(input) => i32::from_str_radix(&input, 16).unwrap(),
+        None => 0xfdca4c,
+    };
+
+    let image = options.get_string("image").into_owned();
+
     debug!(
         "Got all required information to create a giveaway in {:?}",
         start.elapsed()
     );
 
+    let mut embed = CreateEmbed::new()
+        .title(format!("{prize} giveaway"))
+        .description(match &description {
+            Some(description) => format!(
+                "{description}\n\nHosted by: <@{host}>\nWinners: {winners}\nEntries: 0\n\nGiveaway ends at <t:{}:F>",
+                duration.to_timestamp().unwrap().unix_timestamp()
+            ),
+            None => format!(
+                "Hosted by: <@{host}>\nWinners: {winners}\nEntries: 0\n\nGiveaway ends at <t:{}:F>",
+                duration.to_timestamp().unwrap().unix_timestamp()
+            ),
+        })
+        .color(color);
+
+    if let Some(image_url) = &image {
+        embed = embed.image(image_url);
+    }
+
     let message = ctx
         .reply_get_message(
             cmd,
             Response::new()
-                .embed(
-                    CreateEmbed::new()
-                        .title(format!("{prize} giveaway"))
-                        .description(match &description {
-                            Some(description) => format!(
-                                "{description}\n\nWinners: {winners}\nEntries: 0\n\nGiveaway ends at <t:{}:F>",
-                                duration.to_timestamp().unwrap().unix_timestamp()
-                            ),
-                            None => format!(
-                                "Winners: {winners}\nEntries: 0\n\nGiveaway ends at <t:{}:F>",
-                                duration.to_timestamp().unwrap().unix_timestamp()
-                            ),
-                        })
-                        .color(0xfdca4c),
-                )
+                .embed(embed)
                 .components(vec![CreateActionRow::Buttons(vec![CreateButton::new(
                     "enter",
                 )
@@ -109,10 +128,13 @@ pub async fn new(
         winners: i32::try_from(winners).unwrap(),
         duration: duration.to_timestamp().unwrap(),
         role_restriction: role.map(|role| role.id.get() as i64),
+        host: host as i64,
+        image_url: image,
+        color: Some(color),
     };
 
     if let Err(err) = sqlx::query!(
-        "INSERT INTO giveaways (id, guild_id, channel_id, prize, description, winners, duration, role_restriction) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+        "INSERT INTO giveaways (id, guild_id, channel_id, prize, description, winners, duration, role_restriction, host, image_url, color) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
         giveaway.id,
         giveaway.guild_id,
         giveaway.channel_id,
@@ -120,7 +142,10 @@ pub async fn new(
         giveaway.description,
         giveaway.winners,
         primative_duration,
-        giveaway.role_restriction
+        giveaway.role_restriction,
+        giveaway.host,
+        giveaway.image_url,
+        giveaway.color
     )
     .execute(&handler.main_database)
     .await
