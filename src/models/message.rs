@@ -126,6 +126,58 @@ pub struct MessageQuery {
 }
 
 impl MessageQuery {
+    pub async fn new(
+        redis: &redis::Client,
+        guild: i64,
+        channel: i64,
+        message: i64,
+    ) -> Result<Option<Self>, ResponseError> {
+        let mut connection = match redis.get_multiplexed_async_connection().await {
+            Ok(connection) => connection,
+            Err(err) => {
+                error!("Failed to get Redis connection: {:?}", err);
+                return Err(ResponseError::Redis(()));
+            }
+        };
+
+        let exists: u8 = match redis::cmd("EXISTS")
+            .arg(format!("edit:{guild}:{channel}:{message}"))
+            .query_async(&mut connection)
+            .await
+        {
+            Ok(res) => res,
+            Err(err) => {
+                error!("Failed to check if message exists in Redis: {:?}", err);
+                return Err(ResponseError::Redis(()));
+            }
+        };
+
+        if exists != 0 {
+            return Ok(None);
+        }
+
+        match redis::cmd("SET")
+            .arg(format!("edit:{guild}:{channel}:{message}"))
+            .arg("1")
+            .arg("EX")
+            .arg(2)
+            .query_async(&mut connection)
+            .await
+        {
+            Ok(res) => res,
+            Err(err) => {
+                error!("Failed to set message in Redis: {:?}", err);
+                return Err(ResponseError::Redis(()));
+            }
+        }
+
+        Ok(Some(Self {
+            guild,
+            channel,
+            message,
+        }))
+    }
+
     pub async fn get_message(&self, redis: &redis::Client) -> Result<Message, ResponseError> {
         let start = Instant::now();
 
@@ -261,6 +313,33 @@ impl MessageQuery {
 
     pub fn key(&self) -> String {
         format!("{}:{}:{}", self.guild, self.channel, self.message)
+    }
+
+    pub async fn release(&self, redis: &redis::Client) -> Result<(), ResponseError> {
+        let mut connection = match redis.get_multiplexed_async_connection().await {
+            Ok(connection) => connection,
+            Err(err) => {
+                error!("Failed to get Redis connection: {:?}", err);
+                return Err(ResponseError::Redis(()));
+            }
+        };
+
+        match redis::cmd("DEL")
+            .arg(format!(
+                "edit:{}:{}:{}",
+                self.guild, self.channel, self.message
+            ))
+            .query_async(&mut connection)
+            .await
+        {
+            Ok(res) => res,
+            Err(err) => {
+                error!("Failed to delete message from Redis: {:?}", err);
+                return Err(ResponseError::Redis(()));
+            }
+        }
+
+        Ok(())
     }
 }
 

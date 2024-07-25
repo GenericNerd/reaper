@@ -3,7 +3,7 @@ use serenity::{
     builder::{CreateEmbed, CreateEmbedAuthor, CreateEmbedFooter, CreateMessage},
     prelude::Context,
 };
-use tracing::error;
+use tracing::{debug, error};
 
 use crate::{
     common::logging::{get_log_channel, LogType},
@@ -16,11 +16,21 @@ impl Handler {
         let channel_id = event.channel_id.get() as i64;
         let message_id = event.id.get() as i64;
 
-        let query = MessageQuery {
-            guild: guild_id,
-            channel: channel_id,
-            message: message_id,
-        };
+        let query =
+            match MessageQuery::new(&self.redis_database, guild_id, channel_id, message_id).await {
+                Ok(query) => {
+                    if let Some(message_query) = query {
+                        message_query
+                    } else {
+                        debug!("Message not found");
+                        return;
+                    }
+                }
+                Err(err) => {
+                    error!("Failed to create message query: {:?}", err);
+                    return;
+                }
+            };
 
         let message = match query.get_message(&self.redis_database).await {
             Ok(message) => message,
@@ -94,6 +104,11 @@ impl Handler {
             fields.push(("Attachment changed", String::new(), false));
             embed = embed.image(attachment);
         }
+
+        if fields.is_empty() {
+            return;
+        }
+
         embed = embed.fields(fields);
 
         if let Ok(config) = sqlx::query_as!(
@@ -121,5 +136,9 @@ impl Handler {
         {
             error!("Failed to update message: {:?}", err);
         };
+
+        if let Err(err) = query.release(&self.redis_database).await {
+            error!("Failed to release message query: {:?}", err);
+        }
     }
 }
