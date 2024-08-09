@@ -91,7 +91,11 @@ impl Command for PurgeCommand {
                 .messages(
                     &ctx.ctx.http,
                     GetMessages::new()
-                        .limit(((message_count_to_delete - deleted_messages) as u8).min(100))
+                        .limit(
+                            u8::try_from(message_count_to_delete - deleted_messages)
+                                .unwrap()
+                                .min(100),
+                        )
                         .after(
                             ((SystemTime::now()
                                 .duration_since(UNIX_EPOCH)
@@ -112,16 +116,18 @@ impl Command for PurgeCommand {
                 }
             };
 
-            if messages.len() != (message_count_to_delete - deleted_messages).min(100) as usize {
+            if messages.len()
+                != usize::try_from((message_count_to_delete - deleted_messages).min(100)).unwrap()
+            {
                 capped_messages = true;
             }
 
             for message in messages {
                 if let Some(author) = &author {
-                    if message.author.id == author.id && message.author.bot == false {
+                    if message.author.id == author.id && !message.author.bot {
                         messages_to_delete.push(message);
                     }
-                } else if message.author.bot == false {
+                } else if !message.author.bot {
                     messages_to_delete.push(message);
                 }
             }
@@ -217,12 +223,11 @@ impl Command for PurgeCommand {
 
         let description = if author.is_some() {
             format!(
-                "`{}` messages by <@{}> have been purged",
-                deleted_messages,
+                "`{deleted_messages}` messages by <@{}> have been purged",
                 cmd.user.id.get()
             )
         } else {
-            format!("`{}` messages have been purged", deleted_messages)
+            format!("`{deleted_messages}` messages have been purged")
         };
 
         if ctx
