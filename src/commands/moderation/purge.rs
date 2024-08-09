@@ -223,8 +223,8 @@ impl Command for PurgeCommand {
 
         let description = if author.is_some() {
             format!(
-                "`{deleted_messages}` messages by <@{}> have been purged",
-                cmd.user.id.get()
+                "`{deleted_messages}` messages posted by <@{}> have been purged",
+                author.unwrap().id.get()
             )
         } else {
             format!("`{deleted_messages}` messages have been purged")
