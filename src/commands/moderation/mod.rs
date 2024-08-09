@@ -5,6 +5,7 @@ pub mod duration;
 pub mod expire;
 pub mod kick;
 pub mod mute;
+pub mod purge;
 pub mod reason;
 pub mod remove;
 pub mod search;
@@ -19,6 +20,7 @@ pub fn get_moderation_commands() -> Vec<Box<dyn Command>> {
         Box::new(expire::ExpireCommand),
         Box::new(kick::KickCommand),
         Box::new(mute::MuteCommand),
+        Box::new(purge::PurgeCommand),
         Box::new(reason::ReasonCommand),
         Box::new(remove::RemoveCommand),
         Box::new(search::SearchCommand),

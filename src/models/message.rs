@@ -341,6 +341,30 @@ impl MessageQuery {
 
         Ok(())
     }
+
+    pub async fn delete(&self, redis: &redis::Client) -> Result<(), ResponseError> {
+        let mut connection = match redis.get_multiplexed_async_connection().await {
+            Ok(connection) => connection,
+            Err(err) => {
+                error!("Failed to get Redis connection: {:?}", err);
+                return Err(ResponseError::Redis(()));
+            }
+        };
+
+        match redis::cmd("DEL")
+            .arg(self.key())
+            .query_async(&mut connection)
+            .await
+        {
+            Ok(res) => res,
+            Err(err) => {
+                error!("Failed to delete message from Redis: {:?}", err);
+                return Err(ResponseError::Redis(()));
+            }
+        }
+
+        Ok(())
+    }
 }
 
 impl From<Message> for MessageQuery {
