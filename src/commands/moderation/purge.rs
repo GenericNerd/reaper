@@ -1,5 +1,3 @@
-use std::time::{SystemTime, UNIX_EPOCH};
-
 use serenity::{
     all::{
         ChannelId, CommandInteraction, CommandOptionType, CreateCommand, CreateCommandOption,
@@ -83,6 +81,14 @@ impl Command for PurgeCommand {
 
         let mut messages_to_delete = vec![];
 
+        let cmd_reply_message_id = match cmd.get_response(&ctx.ctx.http).await {
+            Ok(response) => response.id,
+            Err(err) => {
+                error!("Error getting response message: {:?}", err);
+                return Err(ResponseError::Serenity(err));
+            }
+        };
+
         for _ in 0..((message_count_to_delete / 100) + 1).min(10) {
             let mut capped_messages = false;
 
@@ -92,20 +98,10 @@ impl Command for PurgeCommand {
                     &ctx.ctx.http,
                     GetMessages::new()
                         .limit(
-                            u8::try_from(message_count_to_delete - deleted_messages)
-                                .unwrap()
-                                .min(100),
+                            u8::try_from((message_count_to_delete - deleted_messages).min(100))
+                                .unwrap(),
                         )
-                        .after(
-                            ((SystemTime::now()
-                                .duration_since(UNIX_EPOCH)
-                                .unwrap()
-                                .as_secs()
-                                - (14 * 24 * 60 * 60))
-                                * 1000
-                                - 1420070400000)
-                                << 22,
-                        ),
+                        .before(cmd_reply_message_id),
                 )
                 .await
             {
