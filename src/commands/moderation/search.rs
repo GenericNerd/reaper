@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     collections::HashMap,
     time::{Duration, Instant},
 };
@@ -150,6 +151,18 @@ impl Command for SearchCommand {
                 )
                 .required(false),
             )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "filter",
+                    "Filter by action type",
+                )
+                .add_string_choice("Filter for strikes", "strike")
+                .add_string_choice("Filter for mutes", "mute")
+                .add_string_choice("Filter for kicks", "kick")
+                .add_string_choice("Filter for bans", "ban")
+                .required(false),
+            )
     }
 
     async fn router(
@@ -177,6 +190,11 @@ impl Command for SearchCommand {
 
         let expired = options.get_boolean("expired").unwrap_or(false);
 
+        let filter = match options.get_string("filter").to_owned() {
+            Cow::Owned(filter) => filter,
+            _ => None,
+        };
+
         let permission_required = if user == cmd.user {
             if expired {
                 Permission::ModerationSearchSelfExpired
@@ -196,10 +214,24 @@ impl Command for SearchCommand {
             ));
         }
 
-        let actions = match if expired {
-            sqlx::query_as!(DatabaseAction, "SELECT * FROM actions WHERE user_id = $1 AND guild_id = $2 ORDER BY created_at DESC", user.id.get() as i64, cmd.guild_id.unwrap().get() as i64).fetch_all(&handler.main_database).await
+        let actions: HashMap<u8, Action> = match if expired {
+            match filter.to_owned() {
+                Some(filter) => {
+                    sqlx::query_as!(DatabaseAction, "SELECT * FROM actions WHERE user_id = $1 AND guild_id = $2 AND action_type = $3 ORDER BY created_at DESC", user.id.get() as i64, cmd.guild_id.unwrap().get() as i64, filter.to_string()).fetch_all(&handler.main_database).await
+                }
+                None => {
+                    sqlx::query_as!(DatabaseAction, "SELECT * FROM actions WHERE user_id = $1 AND guild_id = $2 ORDER BY created_at DESC", user.id.get() as i64, cmd.guild_id.unwrap().get() as i64).fetch_all(&handler.main_database).await
+                }
+            }
         } else {
-            sqlx::query_as!(DatabaseAction, "SELECT * FROM actions WHERE user_id = $1 AND guild_id = $2 AND active=true ORDER BY created_at DESC", user.id.get() as i64, cmd.guild_id.unwrap().get() as i64).fetch_all(&handler.main_database).await
+            match filter {
+                Some(filter) => {
+                    sqlx::query_as!(DatabaseAction, "SELECT * FROM actions WHERE user_id = $1 AND guild_id = $2 AND active=true AND action_type = $3 ORDER BY created_at DESC", user.id.get() as i64, cmd.guild_id.unwrap().get() as i64, filter.to_string()).fetch_all(&handler.main_database).await
+                }
+                None => {
+                    sqlx::query_as!(DatabaseAction, "SELECT * FROM actions WHERE user_id = $1 AND guild_id = $2 AND active=true ORDER BY created_at DESC", user.id.get() as i64, cmd.guild_id.unwrap().get() as i64).fetch_all(&handler.main_database).await
+                }
+            }
         } {
             Ok(db_actions) => db_actions
                 .iter()
