@@ -26,7 +26,7 @@ pub async fn expire_actions(handler: Handler, ctx: Context) {
             .unwrap()
             .active
         {
-            tokio::time::sleep(Duration::from_secs(45)).await;
+            tokio::time::sleep(Duration::from_secs(1)).await;
         }
 
         let start = Instant::now();
@@ -117,7 +117,7 @@ pub async fn expire_actions(handler: Handler, ctx: Context) {
             "Finished expiring actions in {}ms",
             start.elapsed().as_millis()
         );
-        tokio::time::sleep(Duration::from_secs(45)).await;
+        tokio::time::sleep(Duration::from_secs(1)).await;
     }
 }
 
@@ -129,7 +129,7 @@ pub async fn expire_giveaways(handler: Handler) {
             .unwrap()
             .active
         {
-            tokio::time::sleep(Duration::from_secs(45)).await;
+            tokio::time::sleep(Duration::from_secs(1)).await;
         }
 
         let start = Instant::now();
@@ -145,6 +145,6 @@ pub async fn expire_giveaways(handler: Handler) {
             "Finished expiring giveaways in {}ms",
             start.elapsed().as_millis()
         );
-        tokio::time::sleep(Duration::from_secs(45)).await;
+        tokio::time::sleep(Duration::from_secs(1)).await;
     }
 }
