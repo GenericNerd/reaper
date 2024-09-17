@@ -88,17 +88,13 @@ impl Handler {
             dm_notified: false,
         };
 
-        let guild_escalations = match sqlx::query_as!(
+        let guild_escalations = sqlx::query_as!(
             DatabaseActionEscalation,
             "SELECT strike_count, action_type, action_duration FROM strike_escalations WHERE guild_id = $1",
             guild_id
         )
         .fetch_all(&self.main_database)
-        .await
-        {
-            Ok(escalations) => escalations,
-            Err(_) => vec![],
-        };
+        .await?;
 
         if !guild_escalations.is_empty() {
             let strike_count = get_active_strikes(self, guild_id, user_id).await.len();
