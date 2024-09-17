@@ -7,6 +7,7 @@ pub mod info;
 pub mod moderation;
 pub mod permissions;
 pub mod privacy;
+pub mod levels;
 
 pub fn get_command_list() -> Vec<Box<dyn Command>> {
     let mut commands = moderation::get_moderation_commands();

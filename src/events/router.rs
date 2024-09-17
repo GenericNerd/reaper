@@ -46,6 +46,16 @@ impl EventHandler for Handler {
         self.on_member_join(ctx, member).await;
     }
 
+    // TODO: Guild member leave
+    // 1. Get the guild configuration - is it enabled (not found = false)?
+    // 2. If guild is not enabled, don't care
+    // 3. If enabled, check if reset level on leave is enabled
+    // 4. If it isn't, stop here
+    // 5. Get the user's current XP
+    // 6. Get the user's current level reward(s)
+    // 7. Remove the user's level reward(s) from role recovery
+    // 8. Remove the user's XP from the database
+
     async fn guild_delete(
         &self,
         _ctx: Context,
