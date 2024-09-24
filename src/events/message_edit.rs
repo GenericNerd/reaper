@@ -125,7 +125,7 @@ impl Handler {
                         CreateMessage::new()
                             .embed(embed)
                 ).await {
-                    error!("Failed to send ban log message: {}", err);
+                    error!("Failed to send edit message log: {}", err);
                 }
             }
         }
