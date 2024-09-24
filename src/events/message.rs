@@ -184,6 +184,13 @@ impl Handler {
         };
 
         let new_xp = user_xp + i64::from(base_xp * multiplier as i32);
+
+        if let Some(max_level) = xp_configuration.max_level {
+            if new_xp > i64::from((50 * (max_level * max_level)) + (25 * max_level)) {
+                return;
+            }
+        }
+
         if let Err(err) = sqlx::query!(
             "UPDATE user_xp SET xp = $1 WHERE guild_id = $2 AND user_id = $3",
             new_xp,
