@@ -76,7 +76,7 @@ impl EventHandler for Handler {
         Box::pin(self.on_automod_trigger(ctx, execution)).await;
     }
 
-    async fn message(&self, _ctx: Context, new_message: Message) {
+    async fn message(&self, ctx: Context, new_message: Message) {
         if new_message.author.bot {
             return;
         }
@@ -85,7 +85,7 @@ impl EventHandler for Handler {
             return;
         }
 
-        self.on_message(new_message).await;
+        self.on_message(ctx, new_message).await;
     }
 
     async fn message_update(

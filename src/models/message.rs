@@ -22,6 +22,7 @@ impl Message {
         message_id: i64,
         content: String,
         attachment: Option<String>,
+        xp_duration: Option<i64>,
     ) -> Result<Self, ResponseError> {
         let start = Instant::now();
 
@@ -68,6 +69,24 @@ impl Message {
             }
         }
 
+        if xp_duration.is_some() {
+            match redis::cmd("HSET")
+                .arg(message.xp_key())
+                .arg("guild_id")
+                .arg(message.guild_id)
+                .arg("user_id")
+                .arg(message.user_id)
+                .query_async(&mut connection)
+                .await
+            {
+                Ok(res) => res,
+                Err(err) => {
+                    error!("Failed to set message in Redis: {:?}", err);
+                    return Err(ResponseError::Redis(()));
+                }
+            }
+        }
+
         debug!("Set message in Redis in {:?}", start.elapsed());
 
         match redis::cmd("EXPIRE")
@@ -83,6 +102,21 @@ impl Message {
             }
         }
 
+        if let Some(xp_duration) = xp_duration {
+            match redis::cmd("EXPIRE")
+                .arg(message.xp_key())
+                .arg(xp_duration)
+                .query_async(&mut connection)
+                .await
+            {
+                Ok(res) => res,
+                Err(err) => {
+                    error!("Failed to set XP message expiration in Redis: {:?}", err);
+                    return Err(ResponseError::Redis(()));
+                }
+            }
+        }
+
         debug!("Set message expiration in Redis in {:?}", start.elapsed());
 
         Ok(message)
@@ -90,6 +124,10 @@ impl Message {
 
     pub fn key(&self) -> String {
         format!("{}:{}:{}", self.guild_id, self.channel_id, self.id)
+    }
+
+    pub fn xp_key(&self) -> String {
+        format!("xp:{}:{}", self.guild_id, self.user_id)
     }
 
     pub async fn update(
@@ -114,8 +152,41 @@ impl Message {
             self.id,
             content,
             attachment,
+            None,
         )
         .await
+    }
+}
+
+pub struct XPMessageQuery {}
+
+impl XPMessageQuery {
+    pub async fn on_cooldown(
+        redis: &redis::Client,
+        guild: i64,
+        user: i64,
+    ) -> Result<bool, ResponseError> {
+        let mut connection = match redis.get_multiplexed_async_connection().await {
+            Ok(connection) => connection,
+            Err(err) => {
+                error!("Failed to get Redis connection: {:?}", err);
+                return Err(ResponseError::Redis(()));
+            }
+        };
+
+        let exists: u8 = match redis::cmd("EXISTS")
+            .arg(format!("xp:{guild}:{user}"))
+            .query_async(&mut connection)
+            .await
+        {
+            Ok(res) => res,
+            Err(err) => {
+                error!("Failed to check if XP message exists in Redis: {:?}", err);
+                return Err(ResponseError::Redis(()));
+            }
+        };
+
+        Ok(exists == 1)
     }
 }
 
