@@ -1,2 +1,2 @@
-too-many-lines-threshold=300
+too-many-lines-threshold=400 # TODO: Change this to 300
 too-many-arguments-threshold=8

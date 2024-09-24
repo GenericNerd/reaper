@@ -1,7 +1,7 @@
 #![allow(clippy::cast_possible_truncation)]
 #![allow(clippy::cast_precision_loss)]
 use rand::Rng;
-use serenity::all::{Context, Message as DiscordMessage, RoleId};
+use serenity::all::{ChannelId, Context, CreateMessage, Message as DiscordMessage, RoleId};
 use tracing::error;
 
 use crate::models::{
@@ -80,6 +80,55 @@ impl Handler {
             return;
         };
 
+        let roles = message.member(&ctx).await.unwrap().roles;
+        let blacklisted_roles = match sqlx::query!(
+            "SELECT role FROM xp_role_blacklists WHERE guild_id = $1",
+            guild_id
+        )
+        .fetch_all(&self.main_database)
+        .await
+        {
+            Ok(blacklisted_roles) => blacklisted_roles,
+            Err(err) => {
+                error!(
+                    "Failed to fetch XP role blacklists. Failed with error: {:?}",
+                    err
+                );
+                return;
+            }
+        }
+        .iter()
+        .map(|blacklisted_role| RoleId::new(blacklisted_role.role as u64))
+        .collect::<Vec<_>>();
+
+        for blacklisted_role in blacklisted_roles {
+            if roles.contains(&blacklisted_role) {
+                return;
+            }
+        }
+
+        if match sqlx::query!(
+            "SELECT channel FROM xp_channel_blacklists WHERE guild_id = $1 AND channel = $2",
+            guild_id,
+            message.channel_id.get() as i64
+        )
+        .fetch_optional(&self.main_database)
+        .await
+        {
+            Ok(blacklisted_channels) => blacklisted_channels,
+            Err(err) => {
+                error!(
+                    "Failed to fetch XP channel blacklists. Failed with error: {:?}",
+                    err
+                );
+                return;
+            }
+        }
+        .is_some()
+        {
+            return;
+        }
+
         let base_xp = if let Some(set_xp_per_message) = xp_configuration.set_xp_per_message {
             set_xp_per_message
         } else {
@@ -110,7 +159,6 @@ impl Handler {
             }
         };
 
-        let roles = message.member(&ctx).await.unwrap().roles;
         let mut role_multipliers = vec![];
         for role in roles {
             let role_multiplier = match sqlx::query!(
@@ -268,19 +316,31 @@ impl Handler {
         };
 
         if !level_up_configuration.enabled {
-            // return;
+            return;
         }
 
-        // TODO:
-        // 3h. If level up messages are enabled, check if level up messages are DM or channel messages
-        // 3i. If level up messages are DM, send the message to the user
-        // 3j. If level up messages are channel, check if it's a specific channel
-        // 3l. If it's a specific channel, send the message to the channel
-        // 3m. If it's not a specific channel, send the message in the current channel
-
-        // let mut content = level_up_configuration.message.unwrap();
-        // content = content.replace("{user.name}", &message.author.name);
-        // content = content.replace("{user.mention}", &format!("<@{}>", &message.author.id));
-        // content = content.replace("{user.level}", &new_level.to_string());
+        let mut content = level_up_configuration.message.unwrap();
+        content = content.replace("{user.name}", &message.author.name);
+        content = content.replace("{user.mention}", &format!("<@{}>", &message.author.id));
+        content = content.replace("{user.level}", &new_level.to_string());
+        let level_up_message = CreateMessage::new().content(content);
+        if level_up_configuration.dm_message {
+            if let Err(err) = message.author.dm(&ctx.http, level_up_message).await {
+                error!("Failed to send level up message to user: {:?}", err);
+            };
+        } else if let Some(channel) = level_up_configuration.channel {
+            if let Err(err) = ChannelId::new(channel as u64)
+                .send_message(&ctx.http, level_up_message)
+                .await
+            {
+                error!("Failed to send level up message to channel: {:?}", err);
+            };
+        } else if let Err(err) = message
+            .channel_id
+            .send_message(&ctx.http, level_up_message)
+            .await
+        {
+            error!("Failed to send level up message: {:?}", err);
+        }
     }
 }

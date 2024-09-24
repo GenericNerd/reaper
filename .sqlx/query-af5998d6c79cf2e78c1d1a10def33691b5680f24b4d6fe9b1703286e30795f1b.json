@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT channel FROM xp_channel_blacklists WHERE guild_id = $1 AND channel = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "channel",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "af5998d6c79cf2e78c1d1a10def33691b5680f24b4d6fe9b1703286e30795f1b"
+}
