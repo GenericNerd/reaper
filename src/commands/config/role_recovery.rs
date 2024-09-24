@@ -34,11 +34,11 @@ impl ConfigStage for RoleRecovery {
                     )
                     .components(vec![CreateActionRow::Buttons(vec![
                         CreateButton::new("yes")
-                            .label("Yes")
+                            .label("Enable")
                             .style(ButtonStyle::Success),
                         CreateButton::new("no")
-                            .label("No")
-                            .style(ButtonStyle::Secondary),
+                            .label("Disable")
+                            .style(ButtonStyle::Danger),
                     ])]),
             )
             .await?;
