@@ -9,6 +9,143 @@ use crate::models::{
     message::{Message, XPMessageQuery},
 };
 
+async fn handle_rewards(
+    handler: &Handler,
+    ctx: &Context,
+    guild_id: i64,
+    new_level: i64,
+    message: &DiscordMessage,
+    stack_rewards: bool,
+) {
+    let rewards = match sqlx::query!(
+        "SELECT role FROM xp_rewards WHERE guild_id = $1 AND level = $2",
+        guild_id,
+        new_level
+    )
+    .fetch_all(&handler.main_database)
+    .await
+    {
+        Ok(rewards) => rewards,
+        Err(err) => {
+            error!("Failed to fetch XP rewards. Failed with error: {:?}", err);
+            return;
+        }
+    }
+    .iter()
+    .map(|reward| RoleId::new(reward.role as u64))
+    .collect::<Vec<_>>();
+
+    if rewards.is_empty() {
+        return;
+    }
+
+    if !stack_rewards {
+        let roles = match sqlx::query!("WITH closest_level AS (SELECT MAX(level) AS max_level FROM xp_rewards WHERE guild_id = $1 AND level < $2) SELECT role FROM xp_rewards WHERE level = (SELECT max_level FROM closest_level) AND guild_id = $1", guild_id, new_level)
+        .fetch_all(&handler.main_database)
+        .await {
+            Ok(roles) => roles.iter().map(|role| RoleId::new(role.role as u64)).collect::<Vec<_>>(),
+            Err(err) => {
+                error!("Failed to fetch XP rewards. Failed with error: {:?}", err);
+                return;
+            }
+        };
+
+        if let Err(err) = message
+            .member(&ctx)
+            .await
+            .unwrap()
+            .remove_roles(&ctx.http, &roles)
+            .await
+        {
+            error!(
+                "Failed to remove roles from user. Failed with error: {:?}",
+                err
+            );
+        };
+    }
+
+    if let Err(err) = message
+        .member(&ctx)
+        .await
+        .unwrap()
+        .add_roles(&ctx.http, &rewards)
+        .await
+    {
+        error!("Failed to add roles to user. Failed with error: {:?}", err);
+    };
+}
+
+async fn calculate_multiplier(
+    handler: &Handler,
+    guild_id: i64,
+    message: &DiscordMessage,
+    user_roles: Vec<RoleId>,
+    stack_multipliers: bool,
+    multiplier_cap: Option<f32>,
+) -> f32 {
+    let channel_multiplier = match sqlx::query!(
+        "SELECT * FROM xp_channel_multipliers WHERE guild_id = $1 AND channel = $2",
+        guild_id,
+        message.channel_id.get() as i64
+    )
+    .fetch_optional(&handler.main_database)
+    .await
+    {
+        Ok(channel_multiplier) => match channel_multiplier {
+            Some(channel_multiplier) => channel_multiplier.multiplier,
+            None => 0.0,
+        },
+        Err(err) => {
+            error!(
+                "Failed to fetch XP channel multiplier. Failed with error: {:?}",
+                err
+            );
+            0.0
+        }
+    };
+
+    let mut role_multipliers = vec![];
+    for role in user_roles {
+        let role_multiplier = match sqlx::query!(
+            "SELECT * FROM xp_role_multipliers WHERE guild_id = $1 AND role = $2",
+            guild_id,
+            role.get() as i64
+        )
+        .fetch_optional(&handler.main_database)
+        .await
+        {
+            Ok(role_multiplier) => match role_multiplier {
+                Some(role_multiplier) => role_multiplier.multiplier,
+                None => 0.0,
+            },
+            Err(err) => {
+                error!(
+                    "Failed to fetch XP role multiplier. Failed with error: {:?}",
+                    err
+                );
+                0.0
+            }
+        };
+
+        role_multipliers.push(role_multiplier);
+    }
+
+    if stack_multipliers {
+        let mut multiplier = 1.0;
+        for role_multiplier in role_multipliers {
+            multiplier += role_multiplier;
+        }
+        multiplier += channel_multiplier;
+        multiplier.max(multiplier_cap.unwrap_or(0.0))
+    } else {
+        let mut multiplier = channel_multiplier;
+        for role_multiplier in role_multipliers {
+            multiplier = role_multiplier.max(multiplier);
+        }
+        multiplier.max(multiplier_cap.unwrap_or(0.0))
+    }
+}
+
 impl Handler {
     pub async fn on_message(&self, ctx: Context, message: DiscordMessage) {
         let guild_id = message.guild_id.unwrap().get() as i64;
@@ -138,67 +275,15 @@ impl Handler {
             rand::thread_rng().gen_range(min_xp..max_xp)
         };
 
-        let channel_multiplier = match sqlx::query!(
-            "SELECT * FROM xp_channel_multipliers WHERE guild_id = $1 AND channel = $2",
+        let multiplier = calculate_multiplier(
+            self,
             guild_id,
-            message.channel_id.get() as i64
+            &message,
+            roles,
+            xp_configuration.stack_multipliers,
+            xp_configuration.multiplier_cap,
         )
-        .fetch_optional(&self.main_database)
-        .await
-        {
-            Ok(channel_multiplier) => match channel_multiplier {
-                Some(channel_multiplier) => channel_multiplier.multiplier,
-                None => 0.0,
-            },
-            Err(err) => {
-                error!(
-                    "Failed to fetch XP channel multiplier. Failed with error: {:?}",
-                    err
-                );
-                return;
-            }
-        };
-
-        let mut role_multipliers = vec![];
-        for role in roles {
-            let role_multiplier = match sqlx::query!(
-                "SELECT * FROM xp_role_multipliers WHERE guild_id = $1 AND role = $2",
-                guild_id,
-                role.get() as i64
-            )
-            .fetch_optional(&self.main_database)
-            .await
-            {
-                Ok(role_multiplier) => match role_multiplier {
-                    Some(role_multiplier) => role_multiplier.multiplier,
-                    None => 0.0,
-                },
-                Err(err) => {
-                    error!(
-                        "Failed to fetch XP role multiplier. Failed with error: {:?}",
-                        err
-                    );
-                    return;
-                }
-            };
-
-            role_multipliers.push(role_multiplier);
-        }
-
-        let multiplier = if xp_configuration.stack_multipliers {
-            let mut multiplier = 1.0;
-            for role_multiplier in role_multipliers {
-                multiplier += role_multiplier;
-            }
-            multiplier += channel_multiplier;
-            multiplier.max(xp_configuration.multiplier_cap.unwrap_or(0.0))
-        } else {
-            let mut multiplier = channel_multiplier;
-            for role_multiplier in role_multipliers {
-                multiplier = role_multiplier.max(multiplier);
-            }
-            multiplier.max(xp_configuration.multiplier_cap.unwrap_or(0.0))
-        };
+        .await;
 
         let user_xp = match sqlx::query!(
             "SELECT xp FROM user_xp WHERE guild_id = $1 AND user_id = $2",
@@ -260,43 +345,15 @@ impl Handler {
             return;
         }
 
-        let rewards = match sqlx::query!(
-            "SELECT role FROM xp_rewards WHERE guild_id = $1 AND level = $2",
+        handle_rewards(
+            self,
+            &ctx,
             guild_id,
-            new_level
+            new_level,
+            &message,
+            xp_configuration.stack_rewards,
         )
-        .fetch_all(&self.main_database)
-        .await
-        {
-            Ok(rewards) => rewards,
-            Err(err) => {
-                error!("Failed to fetch XP rewards. Failed with error: {:?}", err);
-                return;
-            }
-        }
-        .iter()
-        .map(|reward| RoleId::new(reward.role as u64))
-        .collect::<Vec<_>>();
-
-        if !rewards.is_empty() {
-            if !xp_configuration.stack_rewards {
-                // TODO: This only gets 1 role whereas there can be multiple rewards - fix this
-                let _role = sqlx::query!("SELECT role FROM xp_rewards WHERE guild_id = $1 AND level < $2 ORDER BY level DESC LIMIT 1", guild_id, new_level)
-                .fetch_one(&self.main_database)
-                .await
-                .unwrap().role;
-            }
-
-            if let Err(err) = message
-                .member(&ctx)
-                .await
-                .unwrap()
-                .add_roles(&ctx.http, &rewards)
-                .await
-            {
-                error!("Failed to add roles to user. Failed with error: {:?}", err);
-            };
-        }
+        .await;
 
         let level_up_configuration = match sqlx::query!(
             "SELECT * FROM xp_level_up_messages WHERE guild_id = $1",
