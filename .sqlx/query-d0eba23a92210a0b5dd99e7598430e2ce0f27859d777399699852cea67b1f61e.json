@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT stack_rewards, reset_level_on_leave FROM xp_configuration WHERE guild_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "stack_rewards",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 1,
+        "name": "reset_level_on_leave",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "d0eba23a92210a0b5dd99e7598430e2ce0f27859d777399699852cea67b1f61e"
+}
