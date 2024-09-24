@@ -256,7 +256,7 @@ impl Handler {
             ((-25.0 + f64::sqrt((625 + (200 * user_xp)) as f64)) / 100.0).floor() as i64;
         let new_level = ((-25.0 + f64::sqrt((625 + (200 * new_xp)) as f64)) / 100.0).floor() as i64;
 
-        if new_level != old_level {
+        if new_level == 0 || new_level == old_level {
             return;
         }
 
