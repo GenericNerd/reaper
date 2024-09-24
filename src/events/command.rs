@@ -186,6 +186,12 @@ impl Handler {
                     }
                 }
             }
+            let everyone_role = get_role(self, guild_id.get() as i64, guild_id.get() as i64).await;
+            for role_permission in everyone_role {
+                if !user_permissions.contains(&role_permission) {
+                    user_permissions.push(role_permission);
+                }
+            }
             user_permissions
         };
 
