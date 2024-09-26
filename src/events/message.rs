@@ -1,79 +1,13 @@
 #![allow(clippy::cast_possible_truncation)]
 #![allow(clippy::cast_precision_loss)]
 use rand::Rng;
-use serenity::all::{ChannelId, Context, CreateMessage, Message as DiscordMessage, RoleId};
+use serenity::all::{Context, Message as DiscordMessage, RoleId};
 use tracing::error;
 
 use crate::models::{
     handler::Handler,
     message::{Message, XPMessageQuery},
 };
-
-async fn handle_rewards(
-    handler: &Handler,
-    ctx: &Context,
-    guild_id: i64,
-    new_level: i64,
-    message: &DiscordMessage,
-    stack_rewards: bool,
-) {
-    let rewards = match sqlx::query!(
-        "SELECT role FROM xp_rewards WHERE guild_id = $1 AND level = $2",
-        guild_id,
-        new_level
-    )
-    .fetch_all(&handler.main_database)
-    .await
-    {
-        Ok(rewards) => rewards,
-        Err(err) => {
-            error!("Failed to fetch XP rewards. Failed with error: {:?}", err);
-            return;
-        }
-    }
-    .iter()
-    .map(|reward| RoleId::new(reward.role as u64))
-    .collect::<Vec<_>>();
-
-    if rewards.is_empty() {
-        return;
-    }
-
-    if !stack_rewards {
-        let roles = match sqlx::query!("WITH closest_level AS (SELECT MAX(level) AS max_level FROM xp_rewards WHERE guild_id = $1 AND level < $2) SELECT role FROM xp_rewards WHERE level = (SELECT max_level FROM closest_level) AND guild_id = $1", guild_id, new_level)
-        .fetch_all(&handler.main_database)
-        .await {
-            Ok(roles) => roles.iter().map(|role| RoleId::new(role.role as u64)).collect::<Vec<_>>(),
-            Err(err) => {
-                error!("Failed to fetch XP rewards. Failed with error: {:?}", err);
-                return;
-            }
-        };
-
-        if let Err(err) = message
-            .member(&ctx)
-            .await
-            .unwrap()
-            .remove_roles(&ctx.http, &roles)
-            .await
-        {
-            error!(
-                "Failed to remove roles from user. Failed with error: {:?}",
-                err
-            );
-        };
-    }
-
-    if let Err(err) = message
-        .member(&ctx)
-        .await
-        .unwrap()
-        .add_roles(&ctx.http, &rewards)
-        .await
-    {
-        error!("Failed to add roles to user. Failed with error: {:?}", err);
-    };
-}
 
 async fn calculate_multiplier(
     handler: &Handler,
@@ -148,7 +82,17 @@ async fn calculate_multiplier(
 
 impl Handler {
     pub async fn on_message(&self, ctx: Context, message: DiscordMessage) {
-        let guild_id = message.guild_id.unwrap().get() as i64;
+        let guild_id = match message.guild_id {
+            Some(guild_id) => guild_id.get() as i64,
+            None => return,
+        };
+        let member = match message.member(&ctx.http).await {
+            Ok(member) => member,
+            Err(err) => {
+                error!("Failed to fetch member. Failed with error: {:?}", err);
+                return;
+            }
+        };
 
         let attachment_url = message
             .attachments
@@ -345,59 +289,7 @@ impl Handler {
             return;
         }
 
-        handle_rewards(
-            self,
-            &ctx,
-            guild_id,
-            new_level,
-            &message,
-            xp_configuration.stack_rewards,
-        )
-        .await;
-
-        let level_up_configuration = match sqlx::query!(
-            "SELECT * FROM xp_level_up_messages WHERE guild_id = $1",
-            guild_id
-        )
-        .fetch_one(&self.main_database)
-        .await
-        {
-            Ok(level_up_configuration) => level_up_configuration,
-            Err(err) => {
-                error!(
-                    "Failed to fetch XP level up configuration. Failed with error: {:?}",
-                    err
-                );
-                return;
-            }
-        };
-
-        if !level_up_configuration.enabled {
-            return;
-        }
-
-        let mut content = level_up_configuration.message.unwrap();
-        content = content.replace("{user.name}", &message.author.name);
-        content = content.replace("{user.mention}", &format!("<@{}>", &message.author.id));
-        content = content.replace("{user.level}", &new_level.to_string());
-        let level_up_message = CreateMessage::new().content(content);
-        if level_up_configuration.dm_message {
-            if let Err(err) = message.author.dm(&ctx.http, level_up_message).await {
-                error!("Failed to send level up message to user: {:?}", err);
-            };
-        } else if let Some(channel) = level_up_configuration.channel {
-            if let Err(err) = ChannelId::new(channel as u64)
-                .send_message(&ctx.http, level_up_message)
-                .await
-            {
-                error!("Failed to send level up message to channel: {:?}", err);
-            };
-        } else if let Err(err) = message
-            .channel_id
-            .send_message(&ctx.http, level_up_message)
-            .await
-        {
-            error!("Failed to send level up message: {:?}", err);
-        }
+        self.user_level_up(&ctx, member, message.channel_id, new_level)
+            .await;
     }
 }
