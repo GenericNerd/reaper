@@ -17,7 +17,7 @@ impl Command for LevelCommand {
     fn register(&self) -> CreateCommand {
         CreateCommand::new("level")
             .dm_permission(false)
-            .description("Set, reset or add to someone's level")
+            .description("Set, reset, or add to someone's level")
     }
 
     async fn router(
