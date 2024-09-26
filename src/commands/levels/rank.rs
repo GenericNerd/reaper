@@ -1,9 +1,10 @@
-use serenity::all::{CommandInteraction, CreateCommand};
+use serenity::all::{CommandInteraction, CreateAttachment, CreateCommand};
+use tracing::error;
 
 use crate::models::{
-    command::{Command, CommandContext},
+    command::{Command, CommandContext, CommandContextReply},
     handler::Handler,
-    response::ResponseResult,
+    response::{Response, ResponseError, ResponseResult},
 };
 
 pub struct RankCommand;
@@ -22,10 +23,30 @@ impl Command for RankCommand {
 
     async fn router(
         &self,
-        _handler: &Handler,
-        _ctx: &CommandContext,
-        _cmd: &CommandInteraction,
+        handler: &Handler,
+        ctx: &CommandContext,
+        cmd: &CommandInteraction,
     ) -> ResponseResult {
+        let res = handler.generate_image(*cmd.member.clone().unwrap()).await?;
+
+        let Ok(attachment) = CreateAttachment::path(res.clone()).await else {
+            return Err(ResponseError::Execution(
+                "Failed to get attachment",
+                Some("Failed to get attachment".to_string()),
+            ));
+        };
+
+        ctx.reply(cmd, Response::new().attachments(attachment))
+            .await?;
+
+        if let Err(err) = tokio::fs::remove_file(res).await {
+            error!("Failed to remove image file: {:?}", err);
+            return Err(ResponseError::Execution(
+                "Failed to remove image file from disk",
+                Some("Failed to remove image file from disk".to_string()),
+            ));
+        };
+
         Ok(())
     }
 }
