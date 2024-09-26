@@ -25,6 +25,7 @@ pub enum Permission {
     GiveawayEnd,
     GiveawayReroll,
     GiveawayDelete,
+    XPEdit,
 }
 
 impl Display for Permission {
@@ -55,6 +56,7 @@ impl Display for Permission {
             Permission::GiveawayEnd => write!(f, "giveaway.end"),
             Permission::GiveawayReroll => write!(f, "giveaway.reroll"),
             Permission::GiveawayDelete => write!(f, "giveaway.delete"),
+            Permission::XPEdit => write!(f, "xp.edit"),
         }
     }
 }
@@ -85,6 +87,7 @@ impl From<&str> for Permission {
             "giveaway.end" => Permission::GiveawayEnd,
             "giveaway.reroll" => Permission::GiveawayReroll,
             "giveaway.delete" => Permission::GiveawayDelete,
+            "xp.edit" => Permission::XPEdit,
             _ => panic!("Invalid permission"),
         }
     }
