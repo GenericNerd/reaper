@@ -27,50 +27,88 @@ impl Handler {
             }
         };
 
-        let rewards = match sqlx::query!(
-            "SELECT role FROM xp_rewards WHERE guild_id = $1 AND level = $2",
-            guild_id,
-            new_level
+        let guild_rewards = match sqlx::query!(
+            "SELECT level, role FROM xp_rewards WHERE guild_id = $1",
+            guild_id
         )
         .fetch_all(&self.main_database)
         .await
         {
-            Ok(rewards) => rewards,
+            Ok(guild_rewards) => guild_rewards,
             Err(err) => {
                 error!("Failed to fetch XP rewards. Failed with error: {:?}", err);
                 return;
             }
-        }
-        .iter()
-        .map(|reward| RoleId::new(reward.role as u64))
-        .collect::<Vec<_>>();
+        };
+        let guild_role_rewards = guild_rewards
+            .iter()
+            .map(|reward| RoleId::new(reward.role as u64))
+            .collect::<Vec<_>>();
 
-        if rewards.is_empty() {
+        if guild_rewards.is_empty() {
             return;
         }
 
-        if !stack_rewards {
-            let roles = match sqlx::query!("WITH closest_level AS (SELECT MAX(level) AS max_level FROM xp_rewards WHERE guild_id = $1 AND level < $2) SELECT role FROM xp_rewards WHERE level = (SELECT max_level FROM closest_level) AND guild_id = $1", guild_id, new_level)
-            .fetch_all(&self.main_database)
-            .await {
-                Ok(roles) => roles.iter().map(|role| RoleId::new(role.role as u64)).collect::<Vec<_>>(),
-                Err(err) => {
-                    error!("Failed to fetch XP rewards. Failed with error: {:?}", err);
-                    return;
+        let user_rewards = if stack_rewards {
+            guild_rewards
+                .iter()
+                .filter(|reward| reward.level <= new_level)
+                .map(|reward| RoleId::new(reward.role as u64))
+                .collect::<Vec<_>>()
+        } else {
+            match guild_rewards
+                .iter()
+                .filter(|reward| reward.level <= new_level)
+                .max_by_key(|reward| reward.level)
+            {
+                Some(closest_level) => guild_rewards
+                    .iter()
+                    .filter(|reward| reward.level == closest_level.level)
+                    .map(|reward| RoleId::new(reward.role as u64))
+                    .collect::<Vec<_>>(),
+                None => {
+                    vec![]
                 }
-            };
+            }
+        };
 
-            if let Err(err) = member.remove_roles(&ctx.http, &roles).await {
+        if member.roles == user_rewards {
+            return;
+        }
+
+        let roles_to_remove = member
+            .roles
+            .iter()
+            .filter(|role| !user_rewards.contains(role))
+            .filter(|role| guild_role_rewards.contains(role))
+            .map(|role| *role)
+            .collect::<Vec<_>>();
+
+        let roles_to_add = user_rewards
+            .iter()
+            .filter(|role| !member.roles.contains(role))
+            .map(|role| *role)
+            .collect::<Vec<_>>();
+
+        if !roles_to_remove.is_empty() {
+            if let Err(err) = member
+                .remove_roles(&ctx.http, roles_to_remove.as_slice())
+                .await
+            {
                 error!(
                     "Failed to remove roles from user. Failed with error: {:?}",
                     err
                 );
-            };
+                return;
+            }
         }
 
-        if let Err(err) = member.add_roles(&ctx.http, &rewards).await {
-            error!("Failed to add roles to user. Failed with error: {:?}", err);
-        };
+        if !roles_to_add.is_empty() {
+            if let Err(err) = member.add_roles(&ctx.http, roles_to_add.as_slice()).await {
+                error!("Failed to add roles to user. Failed with error: {:?}", err);
+                return;
+            }
+        }
     }
 
     async fn trigger_level_up_message(
@@ -80,6 +118,10 @@ impl Handler {
         summoning_channel: ChannelId,
         new_level: i64,
     ) {
+        if new_level == 0 {
+            return;
+        }
+
         let guild_id = member.guild_id.get() as i64;
 
         let level_up_configuration = match sqlx::query!(

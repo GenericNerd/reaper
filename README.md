@@ -27,6 +27,7 @@ When adding Reaper to your server, you will need to give it the following permis
 - Manage Roles
 - Manage Server
 - View Audit Logs
+- Manage Messages
 
 An additional scope of applications.commands is required for slash commands to work.
 

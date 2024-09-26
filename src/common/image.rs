@@ -155,14 +155,12 @@ impl Handler {
                 .color(colors::WHITE),
         );
 
-        if progress_to_next_level > 0_f32 {
+        let progress_width =
+            ((IMAGE_WIDTH - IMAGE_HEIGHT - 20 - 10) as f32 * progress_to_next_level).round() as u32;
+        if progress_width > 0 {
             image.add_rect(
                 Rect::new()
-                    .size(
-                        ((IMAGE_WIDTH - IMAGE_HEIGHT - 20 - 10) as f32 * progress_to_next_level)
-                            .round() as u32,
-                        IMAGE_HEIGHT / 3 - 10,
-                    )
+                    .size(progress_width, IMAGE_HEIGHT / 3 - 10)
                     .position(IMAGE_HEIGHT + 10, IMAGE_HEIGHT - (IMAGE_HEIGHT / 3))
                     .color([235, 151, 109, 255]),
             );
