@@ -1,7 +1,7 @@
 use std::{sync::atomic::Ordering, time::Instant};
 
 use serenity::{
-    all::{CommandInteraction, Message},
+    all::{CommandInteraction, EditAttachments, Message},
     builder::{
         CreateInteractionResponse, CreateInteractionResponseMessage, EditInteractionResponse,
     },
@@ -38,6 +38,9 @@ impl CommandContextReply for CommandContext {
             if let Some(components) = response.components {
                 edit = edit.components(components);
             }
+            if let Some(attachments) = response.attachments {
+                edit = edit.attachments(EditAttachments::new().add(attachments));
+            }
 
             match cmd.edit_response(&self.ctx.http, edit).await {
                 Ok(message) => message,
@@ -59,6 +62,9 @@ impl CommandContextReply for CommandContext {
             }
             if let Some(components) = response.components {
                 reply = reply.components(components);
+            }
+            if let Some(attachments) = response.attachments {
+                reply = reply.add_file(attachments);
             }
             if response.ephemeral {
                 reply = reply.ephemeral(true);
