@@ -1,5 +1,3 @@
-#![allow(clippy::cast_possible_truncation)]
-#![allow(clippy::cast_precision_loss)]
 use rand::Rng;
 use serenity::all::{Context, Message as DiscordMessage, RoleId};
 use tracing::error;

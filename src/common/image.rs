@@ -1,5 +1,3 @@
-#![allow(clippy::cast_possible_truncation)]
-#![allow(clippy::cast_precision_loss)]
 use image::load_from_memory;
 use image_builder::{colors, FilterType, Image, Picture, Rect, Text};
 use lazy_static::lazy_static;
