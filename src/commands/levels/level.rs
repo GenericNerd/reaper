@@ -356,7 +356,7 @@ async fn reset_level(
     let roles_to_remove = level_rewards
         .iter()
         .filter(|role| member_roles.contains(role))
-        .map(|role| *role)
+        .copied()
         .collect::<Vec<_>>();
 
     if let Err(err) = member

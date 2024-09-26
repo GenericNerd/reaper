@@ -81,13 +81,13 @@ impl Handler {
             .iter()
             .filter(|role| !user_rewards.contains(role))
             .filter(|role| guild_role_rewards.contains(role))
-            .map(|role| *role)
+            .copied()
             .collect::<Vec<_>>();
 
         let roles_to_add = user_rewards
             .iter()
             .filter(|role| !member.roles.contains(role))
-            .map(|role| *role)
+            .copied()
             .collect::<Vec<_>>();
 
         if !roles_to_remove.is_empty() {
@@ -106,7 +106,6 @@ impl Handler {
         if !roles_to_add.is_empty() {
             if let Err(err) = member.add_roles(&ctx.http, roles_to_add.as_slice()).await {
                 error!("Failed to add roles to user. Failed with error: {:?}", err);
-                return;
             }
         }
     }
