@@ -1,3 +1,5 @@
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::cast_precision_loss)]
 use image::load_from_memory;
 use image_builder::{colors, FilterType, Image, Picture, Rect, Text};
 use lazy_static::lazy_static;
@@ -33,14 +35,12 @@ impl Handler {
             None => ((user_id >> 22) % 6).to_string(),
         };
         let avatar_url = match member.user.avatar {
-            Some(avatar_hash) => format!(
-                "https://cdn.discordapp.com/avatars/{}/{}.png?size=1024",
-                user_id, avatar_hash
-            ),
-            None => format!(
-                "https://cdn.discordapp.com/avatars/{}/{}.png?size=1024",
-                user_id, avatar_hash
-            ),
+            Some(avatar_hash) => {
+                format!("https://cdn.discordapp.com/avatars/{user_id}/{avatar_hash}.png?size=1024",)
+            }
+            None => {
+                format!("https://cdn.discordapp.com/avatars/{user_id}/{avatar_hash}.png?size=1024",)
+            }
         };
 
         let reqwest_client = reqwest::Client::new();
@@ -115,14 +115,12 @@ impl Handler {
         let current_level =
             ((-25.0 + f64::sqrt((625 + (200 * xp_info.xp)) as f64)) / 100.0).floor() as i64;
         let next_level = current_level + 1;
-        let current_level_xp =
-            i64::from((50 * (current_level * current_level)) + (25 * current_level));
-        let next_level_xp =
-            i64::from((50 * (next_level * next_level)) + (25 * next_level)) - current_level_xp;
+        let current_level_xp = (50 * (current_level * current_level)) + (25 * current_level);
+        let next_level_xp = (50 * (next_level * next_level)) + (25 * next_level) - current_level_xp;
         let progress_to_next_level = (xp_info.xp - current_level_xp) as f32 / next_level_xp as f32;
 
         image.add_text(
-            Text::new(&format!("Level: {}", current_level))
+            Text::new(&format!("Level: {current_level}"))
                 .size(40)
                 .position(IMAGE_HEIGHT + 10, 50)
                 .color(colors::WHITE)
@@ -170,7 +168,7 @@ impl Handler {
                 .color([235, 151, 109, 255]),
         );
 
-        let filename = &format!("{}_{}.png", user_id, avatar_hash);
+        let filename = &format!("{user_id}_{avatar_hash}.png");
         image.save(filename);
         Ok(filename.to_string())
     }

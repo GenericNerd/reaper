@@ -137,7 +137,6 @@ impl Command for ConfigCommand {
             Some(category) => match category.as_str() {
                 "moderation" => 5,
                 "logging" => 14,
-                "role_recovery" => stages.len(),
                 _ => stages.len(),
             },
             None => stages.len(),
