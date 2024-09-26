@@ -236,71 +236,49 @@ impl Handler {
         .await
         {
             Ok(user_xp) => {
-                match user_xp {
-                    Some(user_xp) => user_xp.xp,
-                    None => {
-                        // This exception is written in for Troll. If the user doesn't have our XP,
-                        // we will get the closest level from the role reward they have
-                        let mut inserted = None;
-                        if guild_id == 690072854582264086 {
-                            let guild_rewards = match sqlx::query!(
-                                "SELECT level, role FROM xp_rewards WHERE guild_id = $1",
-                                guild_id
-                            )
-                            .fetch_all(&self.main_database)
-                            .await
-                            {
-                                Ok(guild_rewards) => guild_rewards,
-                                Err(err) => {
-                                    error!(
-                                        "Failed to fetch XP rewards. Failed with error: {:?}",
-                                        err
-                                    );
-                                    return;
-                                }
-                            };
-
-                            // Find intersection between user roles and guild rewards
-                            let user_role = guild_rewards
-                                .iter()
-                                .filter(|reward| {
-                                    member.roles.contains(&RoleId::new(reward.role as u64))
-                                })
-                                .collect::<Vec<_>>();
-                            let user_role = user_role.first();
-
-                            if let Some(user_role) = user_role {
-                                let user_xp = (50 * (user_role.level * user_role.level))
-                                    + (25 * user_role.level);
-                                match sqlx::query!(
-                                    "INSERT INTO user_xp (guild_id, user_id, xp) VALUES ($1, $2, $3)",
-                                    guild_id,
-                                    message.author.id.get() as i64,
-                                    user_xp
-                                )
-                                .execute(&self.main_database)
-                                .await
-                                {
-                                    Ok(_) => inserted = Some(user_xp),
-                                    Err(err) => {
-                                        error!("Failed to insert user XP. Failed with error: {:?}", err);
-                                        return;
-                                    }
-                                }
+                if let Some(user_xp) = user_xp {
+                    user_xp.xp
+                } else {
+                    // This exception is written in for Troll. If the user doesn't have our XP,
+                    // we will get the closest level from the role reward they have
+                    let mut inserted = None;
+                    if guild_id == 690072854582264086 {
+                        let guild_rewards = match sqlx::query!(
+                            "SELECT level, role FROM xp_rewards WHERE guild_id = $1",
+                            guild_id
+                        )
+                        .fetch_all(&self.main_database)
+                        .await
+                        {
+                            Ok(guild_rewards) => guild_rewards,
+                            Err(err) => {
+                                error!("Failed to fetch XP rewards. Failed with error: {:?}", err);
+                                return;
                             }
-                        }
-                        if let Some(xp_value) = inserted {
-                            xp_value
-                        } else {
+                        };
+
+                        // Find intersection between user roles and guild rewards
+                        let user_role = guild_rewards
+                            .iter()
+                            .filter(|reward| {
+                                member.roles.contains(&RoleId::new(reward.role as u64))
+                            })
+                            .collect::<Vec<_>>();
+                        let user_role = user_role.first();
+
+                        if let Some(user_role) = user_role {
+                            let user_xp =
+                                (50 * (user_role.level * user_role.level)) + (25 * user_role.level);
                             match sqlx::query!(
-                                "INSERT INTO user_xp (guild_id, user_id, xp) VALUES ($1, $2, 0)",
+                                "INSERT INTO user_xp (guild_id, user_id, xp) VALUES ($1, $2, $3)",
                                 guild_id,
-                                message.author.id.get() as i64
+                                message.author.id.get() as i64,
+                                user_xp
                             )
                             .execute(&self.main_database)
                             .await
                             {
-                                Ok(_) => 0,
+                                Ok(_) => inserted = Some(user_xp),
                                 Err(err) => {
                                     error!(
                                         "Failed to insert user XP. Failed with error: {:?}",
@@ -308,6 +286,24 @@ impl Handler {
                                     );
                                     return;
                                 }
+                            }
+                        }
+                    }
+                    if let Some(xp_value) = inserted {
+                        xp_value
+                    } else {
+                        match sqlx::query!(
+                            "INSERT INTO user_xp (guild_id, user_id, xp) VALUES ($1, $2, 0)",
+                            guild_id,
+                            message.author.id.get() as i64
+                        )
+                        .execute(&self.main_database)
+                        .await
+                        {
+                            Ok(_) => 0,
+                            Err(err) => {
+                                error!("Failed to insert user XP. Failed with error: {:?}", err);
+                                return;
                             }
                         }
                     }

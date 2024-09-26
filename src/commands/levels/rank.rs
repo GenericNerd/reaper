@@ -52,9 +52,13 @@ impl Command for RankCommand {
                         Some("Failed to fetch member".to_string()),
                     ));
                 };
-                handler.generate_image(member).await?
+                handler.generate_rank_image(member).await?
             }
-            None => handler.generate_image(*cmd.member.clone().unwrap()).await?,
+            None => {
+                handler
+                    .generate_rank_image(*cmd.member.clone().unwrap())
+                    .await?
+            }
         };
 
         let Ok(attachment) = CreateAttachment::path(res.clone()).await else {
