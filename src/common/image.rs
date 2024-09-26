@@ -248,6 +248,13 @@ impl Handler {
             });
         }
 
+        if leaderboard_users.is_empty() {
+            return Err(ResponseError::Execution(
+                "No users in leaderboard",
+                Some("No users in leaderboard".to_string()),
+            ));
+        }
+
         let lb_member_count = leaderboard_users.len();
         let image_height = (lb_member_count as u32 * 110)
             + if lb_member_count < 3 {
@@ -292,9 +299,9 @@ impl Handler {
                         },
                     )
                     .color(match i {
-                        0 => [255, 215, 0, 255],
-                        1 => [192, 192, 192, 255],
-                        2 => [205, 127, 50, 255],
+                        0 => [255, 204, 77, 255],
+                        1 => [204, 214, 221, 255],
+                        2 => [255, 138, 59, 255],
                         _ => [35, 36, 40, 255],
                     }),
             );
@@ -354,34 +361,50 @@ impl Handler {
             );
             image.add_text(
                 Text::new(&format!("#{}", i + 1))
-                    .size(80)
+                    .size(if i < 3 { 80 } else { 60 })
                     .position(
                         if i < 3 { 120 } else { 105 },
                         if i < 3 {
                             (i as u32 * 120) + 5
                         } else {
-                            30 + (i as u32 * 110)
+                            40 + (i as u32 * 110)
                         },
                     )
-                    .color(colors::WHITE)
-                    .font("JetBrains Bold"),
+                    .color(match i {
+                        0 => [255, 204, 77, 255],
+                        1 => [204, 214, 221, 255],
+                        2 => [255, 138, 59, 255],
+                        _ => [255, 255, 255, 255],
+                    })
+                    .font("JetBrains SemiBold"),
             );
 
             let level =
                 ((-25.0 + f64::sqrt((625 + (200 * user.xp)) as f64)) / 100.0).floor() as i64;
+            let level_string = number_to_string(level);
+            let offset = ((level_string.len() * 20) + 20) as u32;
             image.add_text(
-                Text::new(&format!("Level {}", number_to_string(level)))
-                    .size(60)
+                Text::new(&format!("Level {level_string}"))
+                    .size(if i < 3 { 50 } else { 40 })
                     .position(
-                        400,
                         if i < 3 {
-                            (i as u32 * 120) + 15
+                            IMAGE_WIDTH - 136 - offset
                         } else {
-                            40 + (i as u32 * 110)
+                            IMAGE_WIDTH - 100 - offset
+                        },
+                        if i < 3 {
+                            (i as u32 * 120) + 20
+                        } else {
+                            50 + (i as u32 * 110)
                         },
                     )
-                    .color(colors::WHITE)
-                    .font("JetBrains Regular"),
+                    .color(match i {
+                        0 => [255, 204, 77, 255],
+                        1 => [204, 214, 221, 255],
+                        2 => [255, 138, 59, 255],
+                        _ => [255, 255, 255, 255],
+                    })
+                    .font("JetBrains SemiBold"),
             );
         }
 
