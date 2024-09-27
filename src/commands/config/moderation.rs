@@ -28,7 +28,7 @@ pub struct ModerationEscalations;
 
 impl ModerationEscalations {
     fn generate_message(escalations: &[ActionEscalation]) -> Response {
-        let mut components = Vec::with_capacity(1);
+        let mut components = vec![];
         if escalations.len() < 15 {
             components.push(CreateActionRow::SelectMenu(CreateSelectMenu::new(
                 "add_escalation",
@@ -394,6 +394,11 @@ impl ConfigStage for ModerationDefaultStrikeDuration {
         .await?
         .default_strike_duration;
 
+        let help_text = r"> This refers to how long it takes for a strike to expire.
+> Strikes™️ are Reaper's method of punishing users for breaking a rule, like the warns used in other bots!
+> When a strike expires, they will not count towards strike escalations. Strike escalations allow you to automatically action against users for breaking a rule.
+> You will be able to configure strike escalations later in the config.";
+
         let message = ctx
             .reply_get_message(
                 cmd,
@@ -402,7 +407,7 @@ impl ConfigStage for ModerationDefaultStrikeDuration {
                         CreateEmbed::new()
                             .title(MODERATION_TITLE)
                             .description(format!(
-                                "You can configure the default strike duration, it is currently set to **{}**",
+                                "What should be the default strike duration?\n\n{help_text}\n\nYour current setting is: **{}**",
                                 default_strike_duration.as_deref().unwrap_or("30d")
                             ))
                             .color(EMBED_COLOR),
