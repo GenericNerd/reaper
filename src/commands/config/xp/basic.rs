@@ -76,7 +76,7 @@ impl ConfigStage for XPEnter {
                     return Ok(None);
                 }
                 "no" => {
-                    return Ok(Some(23));
+                    return Ok(Some(22));
                 }
                 _ => {
                     return Err(ConfigError {
@@ -823,12 +823,21 @@ impl ConfigStage for XPStackMultipliers {
                     .embed(
                         CreateEmbed::new()
                             .title(XP_TITLE)
-                            .description(format!("Would you like to enable stacking XP boosts?\n\n{help_text}\n\nYour current setting is: {stack_multipliers_string}"))
+                            .description(format!("{}?\n\n{help_text}\n\nYour current setting is: {stack_multipliers_string}",
+                            if stack_multipliers {
+                                "Would you like to configure XP boosts?"
+                            } else {
+                                "Would you like to enable stacking XP boosts?"
+                            }))
                             .color(EMBED_COLOR),
                     )
                     .components(vec![CreateActionRow::Buttons(vec![
                         CreateButton::new("enable")
-                            .label("Enable")
+                            .label(if stack_multipliers {
+                                "Configure"
+                            } else {
+                                "Enable"
+                            })
                             .style(ButtonStyle::Success),
                         CreateButton::new("disable")
                             .label("Disable")
