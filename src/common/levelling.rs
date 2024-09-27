@@ -127,10 +127,15 @@ impl Handler {
             "SELECT * FROM xp_level_up_messages WHERE guild_id = $1",
             guild_id
         )
-        .fetch_one(&self.main_database)
+        .fetch_optional(&self.main_database)
         .await
         {
-            Ok(level_up_configuration) => level_up_configuration,
+            Ok(level_up_configuration) => match level_up_configuration {
+                Some(level_up_configuration) => level_up_configuration,
+                None => {
+                    return;
+                }
+            },
             Err(err) => {
                 error!(
                     "Failed to fetch XP level up configuration. Failed with error: {:?}",
@@ -144,7 +149,9 @@ impl Handler {
             return;
         }
 
-        let mut content = level_up_configuration.message.unwrap();
+        let Some(mut content) = level_up_configuration.message else {
+            return;
+        };
         content = content.replace("{user.name}", &member.user.name);
         content = content.replace("{user.mention}", &format!("<@{}>", &member.user.id));
         content = content.replace("{user.level}", &new_level.to_string());
