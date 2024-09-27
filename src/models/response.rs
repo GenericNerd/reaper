@@ -1,10 +1,14 @@
-use serenity::builder::{CreateActionRow, CreateAllowedMentions, CreateEmbed};
+use serenity::{
+    all::CreateAttachment,
+    builder::{CreateActionRow, CreateAllowedMentions, CreateEmbed},
+};
 
 pub struct Response {
     pub content: Option<String>,
     pub embeds: Option<Vec<CreateEmbed>>,
     pub allowed_mentions: Option<CreateAllowedMentions>,
     pub components: Option<Vec<CreateActionRow>>,
+    pub attachments: Option<CreateAttachment>,
     pub ephemeral: bool,
 }
 
@@ -30,6 +34,7 @@ impl Response {
             embeds: None,
             allowed_mentions: None,
             components: None,
+            attachments: None,
             ephemeral: false,
         }
     }
@@ -46,6 +51,11 @@ impl Response {
 
     pub fn components(mut self, components: Vec<CreateActionRow>) -> Self {
         self.components = Some(components);
+        self
+    }
+
+    pub fn attachments(mut self, attachments: CreateAttachment) -> Self {
+        self.attachments = Some(attachments);
         self
     }
 

@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT channel, multiplier FROM xp_channel_multipliers WHERE guild_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "channel",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "multiplier",
+        "type_info": "Float4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "21d0f607a21420e5c2eeff323faaf2f0b4c64336007ef1f6ee994fe4fea99198"
+}

@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM xp_configuration WHERE guild_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "guild_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "min_xp_per_message",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "max_xp_per_message",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "set_xp_per_message",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "message_cooldown",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "max_level",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 6,
+        "name": "reset_level_on_leave",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 7,
+        "name": "stack_rewards",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 8,
+        "name": "stack_multipliers",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 9,
+        "name": "multiplier_cap",
+        "type_info": "Float4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "1603e6ea4b646b78f1ec7d19e6e066a65a41bc786f238ffbecc9bed8bb5d2f3f"
+}

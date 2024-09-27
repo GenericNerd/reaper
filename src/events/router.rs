@@ -2,7 +2,7 @@ use serenity::{
     all::{
         ActionExecution, ChannelId, Guild, GuildId, GuildMemberUpdateEvent, Interaction,
         InteractionType, Member, Message, MessageId, MessageUpdateEvent, Reaction,
-        UnavailableGuild, VoiceState,
+        UnavailableGuild, User, VoiceState,
     },
     model::prelude::Ready,
     prelude::{Context, EventHandler},
@@ -46,6 +46,17 @@ impl EventHandler for Handler {
         self.on_member_join(ctx, member).await;
     }
 
+    async fn guild_member_removal(
+        &self,
+        _ctx: Context,
+        guild_id: GuildId,
+        user: User,
+        _member: Option<Member>,
+    ) {
+        self.on_member_leave(guild_id.get() as i64, user.id.get() as i64)
+            .await;
+    }
+
     async fn guild_delete(
         &self,
         _ctx: Context,
@@ -66,7 +77,7 @@ impl EventHandler for Handler {
         Box::pin(self.on_automod_trigger(ctx, execution)).await;
     }
 
-    async fn message(&self, _ctx: Context, new_message: Message) {
+    async fn message(&self, ctx: Context, new_message: Message) {
         if new_message.author.bot {
             return;
         }
@@ -75,7 +86,7 @@ impl EventHandler for Handler {
             return;
         }
 
-        self.on_message(new_message).await;
+        self.on_message(ctx, new_message).await;
     }
 
     async fn message_update(

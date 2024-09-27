@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE xp_configuration SET max_level = NULL WHERE guild_id=$1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6ae95a68ea01a10b0361a1959a2c2fa813528b1fd602b41e19ec2fa371f41cba"
+}

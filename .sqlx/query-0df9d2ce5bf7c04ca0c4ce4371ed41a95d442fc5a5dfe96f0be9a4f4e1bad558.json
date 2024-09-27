@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT xp, rank FROM (SELECT user_id, xp, RANK() OVER (ORDER BY xp DESC) AS rank FROM user_xp WHERE guild_id = $1) ranked_users WHERE user_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "xp",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "rank",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "0df9d2ce5bf7c04ca0c4ce4371ed41a95d442fc5a5dfe96f0be9a4f4e1bad558"
+}

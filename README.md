@@ -4,7 +4,7 @@ A Discord bot designed to make your users reap what they sow.
 </div>
 <div align="center">
 
-[![Version](https://img.shields.io/badge/version-1.1.7-purple)](https://img.shields.io/badge/version-1.1.7-purple)
+[![Version](https://img.shields.io/badge/version-1.2.0-purple)](https://img.shields.io/badge/version-1.2.0-purple)
 </div>
 
 ## What is Reaper?
@@ -27,6 +27,7 @@ When adding Reaper to your server, you will need to give it the following permis
 - Manage Roles
 - Manage Server
 - View Audit Logs
+- Manage Messages
 
 An additional scope of applications.commands is required for slash commands to work.
 

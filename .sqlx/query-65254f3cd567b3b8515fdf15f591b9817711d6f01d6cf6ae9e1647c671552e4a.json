@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT role, multiplier FROM xp_role_multipliers WHERE guild_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "role",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "multiplier",
+        "type_info": "Float4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "65254f3cd567b3b8515fdf15f591b9817711d6f01d6cf6ae9e1647c671552e4a"
+}

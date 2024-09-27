@@ -1,13 +1,16 @@
 use serenity::{
-    all::CommandInteraction,
+    all::{CommandInteraction, CommandOptionType, CreateCommandOption},
     builder::{CreateCommand, CreateEmbed},
 };
 
-use crate::models::{
-    command::{Command, CommandContext, CommandContextReply},
-    handler::Handler,
-    permissions::Permission,
-    response::{Response, ResponseError, ResponseResult},
+use crate::{
+    common::options::Options,
+    models::{
+        command::{Command, CommandContext, CommandContextReply},
+        handler::Handler,
+        permissions::Permission,
+        response::{Response, ResponseError, ResponseResult},
+    },
 };
 
 const EMBED_COLOR: i32 = 0x5539cc;
@@ -15,6 +18,7 @@ const EMBED_COLOR: i32 = 0x5539cc;
 mod logging;
 mod moderation;
 mod role_recovery;
+mod xp;
 
 pub struct ConfigError {
     pub error: ResponseError,
@@ -70,6 +74,18 @@ impl Command for ConfigCommand {
         CreateCommand::new("config")
             .dm_permission(false)
             .description("Configure Reaper for this server")
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "category",
+                    "Pick a category to configure",
+                )
+                .add_string_choice("Moderation", "moderation")
+                .add_string_choice("Logging", "logging")
+                .add_string_choice("Levelling", "xp")
+                .add_string_choice("Role Recovery", "role_recovery")
+                .required(false),
+            )
     }
 
     async fn router(
@@ -84,6 +100,12 @@ impl Command for ConfigCommand {
                 Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ConfigEdit)),
             ));
         }
+
+        let options = Options {
+            options: cmd.data.options(),
+        };
+
+        let category = options.get_string("category").into_owned();
 
         let stages: Vec<Box<dyn ConfigStage>> = vec![
             Box::new(moderation::ModerationEnter),
@@ -100,12 +122,53 @@ impl Command for ConfigCommand {
             Box::new(logging::LoggingChannelMultipleActions),
             Box::new(logging::LoggingChannelMultipleMessages),
             Box::new(logging::LoggingChannelMultipleVoice),
+            Box::new(xp::basic::XPEnter),
+            Box::new(xp::basic::XPSetOrRandom),
+            Box::new(xp::basic::XPMessageCooldown),
+            Box::new(xp::basic::XPMaxLevelEnable),
+            Box::new(xp::basic::XPStackRewards),
+            Box::new(xp::basic::XPStackMultipliers),
+            Box::new(xp::basic::XPMultiplierCap),
+            Box::new(xp::basic::XPResetLevelOnLeave),
+            Box::new(xp::level_up::LevelUpEnable),
+            Box::new(xp::level_up::LevelUpDm),
+            Box::new(xp::level_up::LevelUpChannel),
+            Box::new(xp::level_up::LevelUpMessage),
+            Box::new(xp::rewards::RewardsEnter),
+            Box::new(xp::rewards::ManageRewards),
+            Box::new(xp::role_multiplier::RoleMultiplierEnter),
+            Box::new(xp::role_multiplier::RoleMultiplierManage),
+            Box::new(xp::channel_multiplier::ChannelMultiplierEnter),
+            Box::new(xp::channel_multiplier::ChannelMultiplierManage),
+            Box::new(xp::role_blacklist::RoleBlacklistEnter),
+            Box::new(xp::role_blacklist::RoleBlacklistManage),
+            Box::new(xp::channel_blacklist::ChannelBlacklistEnter),
+            Box::new(xp::channel_blacklist::ChannelBlacklistManage),
             Box::new(role_recovery::RoleRecovery),
         ];
 
-        let mut current_stage = 0;
+        let mut current_stage = match &category {
+            Some(category) => match category.as_str() {
+                "moderation" => 1,
+                "logging" => 6,
+                "xp" => 15,
+                "role_recovery" => 36,
+                _ => 0,
+            },
+            None => 0,
+        };
 
-        while current_stage < stages.len() {
+        let ending_stage = match &category {
+            Some(category) => match category.as_str() {
+                "moderation" => 5,
+                "logging" => 14,
+                "xp" => 36,
+                _ => stages.len(),
+            },
+            None => stages.len(),
+        };
+
+        while current_stage < ending_stage {
             match stages[current_stage].execute(handler, ctx, cmd).await {
                 Ok(Some(stages_to_skip)) => current_stage += stages_to_skip,
                 Ok(None) => current_stage += 1,

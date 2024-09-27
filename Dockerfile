@@ -15,4 +15,5 @@ RUN cargo build --release
 FROM rust AS runtime
 RUN apt-get update && apt-get install -y libssl-dev
 COPY --from=build /usr/src/reaper/target/release/reaper .
+COPY *.ttf .
 CMD ["./reaper"]

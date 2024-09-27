@@ -3,6 +3,8 @@
 #![allow(clippy::cast_possible_wrap)]
 #![allow(clippy::cast_sign_loss)]
 #![allow(clippy::unreadable_literal)]
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::cast_precision_loss)]
 
 use serenity::{prelude::GatewayIntents, Client};
 use sqlx::postgres::PgPoolOptions;
