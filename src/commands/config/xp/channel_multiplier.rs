@@ -43,9 +43,6 @@ impl ConfigStage for ChannelMultiplierEnter {
                         CreateButton::new("yes")
                             .label("Yes")
                             .style(ButtonStyle::Success),
-                        CreateButton::new("no")
-                            .label("No")
-                            .style(ButtonStyle::Danger),
                         CreateButton::new("skip")
                             .label("Skip")
                             .style(ButtonStyle::Secondary),
