@@ -22,6 +22,17 @@ impl ConfigStage for RoleRecovery {
         ctx: &CommandContext,
         cmd: &CommandInteraction,
     ) -> Result<Option<usize>, ConfigError> {
+        let role_recovery = sqlx::query!(
+            "SELECT enabled FROM guild_role_recovery_config WHERE guild_id = $1",
+            cmd.guild_id.unwrap().get() as i64
+        )
+        .fetch_one(&handler.main_database)
+        .await?
+        .enabled;
+
+        let help_text =
+            r"> This will allow users to recover their roles if they leave and rejoin the server.";
+
         let message = ctx
             .reply_get_message(
                 cmd,
@@ -29,7 +40,15 @@ impl ConfigStage for RoleRecovery {
                     .embed(
                         CreateEmbed::new()
                             .title(ROLE_RECOVERY_TITLE)
-                            .description("Would you like to enable role recovery?\nThis will allow users to recover their roles if they leave and rejoin the server.")
+                            .description(
+                                format!(
+                                    "Would you like to enable role recovery?\n\n{help_text}\n\nYour current setting is: **{}**",
+                                    if role_recovery {
+                                        "Enabled"
+                                    }
+                                    else {
+                                        "Disabled"
+                                    }))
                             .color(EMBED_COLOR),
                     )
                     .components(vec![CreateActionRow::Buttons(vec![
@@ -39,6 +58,9 @@ impl ConfigStage for RoleRecovery {
                         CreateButton::new("no")
                             .label("Disable")
                             .style(ButtonStyle::Danger),
+                        CreateButton::new("skip")
+                            .label("Skip")
+                            .style(ButtonStyle::Secondary),
                     ])]),
             )
             .await?;
@@ -71,6 +93,9 @@ impl ConfigStage for RoleRecovery {
                     )
                     .execute(&handler.main_database)
                     .await?;
+                    return Ok(None);
+                }
+                "skip" => {
                     return Ok(None);
                 }
                 _ => {

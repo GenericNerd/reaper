@@ -68,17 +68,37 @@ impl ModerationEscalations {
                 .label("Revert")
                 .style(ButtonStyle::Danger),
         ]));
+
+        let description_text = r"You can configure your strike escalations using the dropdowns below.
+> What are escalations?
+> 
+> These are automatic actions (such as a mute, kick, or ban) that occur when a user reaches a certain number of strikes.
+> If you make a mistake, press the Revert button to start over.";
+
         Response::new()
             .embed(
                 CreateEmbed::new()
                     .title(MODERATION_TITLE)
-                    .description("You can now configure your strike escalations. These are actions that will happen when a user reaches a certain amount of strikes.")
+                    .description(description_text)
                     .color(EMBED_COLOR)
                     .fields(escalations.iter().enumerate().map(|(index, escalation)| {
-                        (format!("{}{} escalation", index + 1, ordinal::Ordinal(index + 1).suffix()), format!("At **{}** strikes, Reaper will **{}** the user {}.", escalation.strike_count, escalation.action_type, match escalation.action_duration.as_ref() {
-                            Some(duration) => format!("for **{duration}**"),
-                            None => "**indefinitely**".to_string(),
-                        }), false)
+                        (
+                            format!(
+                                "{}{} escalation",
+                                index + 1,
+                                ordinal::Ordinal(index + 1).suffix()
+                            ),
+                            format!(
+                                "At **{}** strikes, Reaper will **{}** the user {}.",
+                                escalation.strike_count,
+                                escalation.action_type,
+                                match escalation.action_duration.as_ref() {
+                                    Some(duration) => format!("for **{duration}**"),
+                                    None => "**indefinitely**".to_string(),
+                                }
+                            ),
+                            false,
+                        )
                     })),
             )
             .components(components)
@@ -702,18 +722,20 @@ impl ConfigStage for ModerationFooter {
         .await?
         .footer;
 
+        let help_text =
+            "> Use the placeholder `{uuid}` to insert the action's universally unique identifier.";
+
         let message = ctx.reply_get_message(
             cmd,
             Response::new().embed(
                 CreateEmbed::new()
                     .title(MODERATION_TITLE)
                     .description(format!(
-                        "You can add a custom footer to DMs sent by Reaper.\n{}\n\nYou can use the placeholder `{}` to insert the action UUID.",
+                        "You can add a custom footer to DMs sent by Reaper when a user is punished.\n\n{help_text}\n\n{}",
                         match footer {
-                            Some(footer) => format!("The current footer is: **{footer}**"),
+                            Some(footer) => format!("Your current footer is: **{footer}**"),
                             None => "There is no footer set.".to_string(),
                         },
-                        "{uuid}"
                     ))
                     .color(EMBED_COLOR),
             ).components(vec![
