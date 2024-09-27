@@ -7,7 +7,7 @@ CREATE TABLE xp_configuration (
   message_cooldown INTEGER NOT NULL DEFAULT 60,
   max_level INTEGER NULL DEFAULT NULL,
   reset_level_on_leave BOOLEAN NOT NULL DEFAULT FALSE,
-  stack_rewards BOOLEAN NOT NULL DEFAULT TRUE,
+  stack_rewards BOOLEAN NOT NULL DEFAULT FALSE,
   stack_multipliers BOOLEAN NOT NULL DEFAULT TRUE,
   multiplier_cap FLOAT4 NULL DEFAULT NULL,
   PRIMARY KEY (guild_id)
@@ -16,9 +16,9 @@ CREATE TABLE xp_configuration (
 CREATE TABLE xp_level_up_messages (
   guild_id BIGINT NOT NULL,
   enabled BOOLEAN NOT NULL DEFAULT FALSE,
-  dm_message BOOLEAN NOT NULL DEFAULT TRUE,
+  dm_message BOOLEAN NOT NULL DEFAULT FALSE,
   channel BIGINT NULL DEFAULT NULL,
-  message TEXT NULL DEFAULT NULL,
+  message TEXT NULL DEFAULT '{user.mention} has reached level **{user.level}**!',
   PRIMARY KEY (guild_id)
 );
 
