@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE xp_level_up_messages SET dm_message = false WHERE guild_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "59bf8397edbab6ba7d9b848b838fa18df2b7e91eab37bf23119521b1228ac4db"
+}

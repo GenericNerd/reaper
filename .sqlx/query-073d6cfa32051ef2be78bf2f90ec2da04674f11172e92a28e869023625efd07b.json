@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE xp_configuration SET stack_multipliers = true WHERE guild_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "073d6cfa32051ef2be78bf2f90ec2da04674f11172e92a28e869023625efd07b"
+}

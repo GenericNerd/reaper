@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT min_xp_per_message, max_xp_per_message, set_xp_per_message FROM xp_configuration WHERE guild_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "min_xp_per_message",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "max_xp_per_message",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "set_xp_per_message",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "43e36985c24d3bbc078d98fd5272274c272bb480aaaecb2a7fe00156c6748f46"
+}

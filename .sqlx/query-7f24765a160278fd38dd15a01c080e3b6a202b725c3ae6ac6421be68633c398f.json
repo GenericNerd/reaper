@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE xp_configuration SET stack_rewards = true WHERE guild_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7f24765a160278fd38dd15a01c080e3b6a202b725c3ae6ac6421be68633c398f"
+}
