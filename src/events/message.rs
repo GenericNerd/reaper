@@ -62,19 +62,30 @@ async fn calculate_multiplier(
         role_multipliers.push(role_multiplier);
     }
 
+    let mut multiplier = 1.0;
     if stack_multipliers {
-        let mut multiplier = 1.0;
         for role_multiplier in role_multipliers {
-            multiplier += role_multiplier;
+            if role_multiplier > 1.0 {
+                multiplier += role_multiplier - 1.0;
+            }
         }
-        multiplier += channel_multiplier;
-        multiplier.max(multiplier_cap.unwrap_or(0.0))
+        if channel_multiplier > 1.0 {
+            multiplier += channel_multiplier - 1.0;
+        }
+
+        multiplier.min(multiplier_cap.unwrap_or(100.0))
     } else {
-        let mut multiplier = channel_multiplier;
-        for role_multiplier in role_multipliers {
-            multiplier = role_multiplier.max(multiplier);
+        if channel_multiplier > multiplier {
+            multiplier = channel_multiplier;
         }
-        multiplier.max(multiplier_cap.unwrap_or(0.0))
+
+        for role_multiplier in role_multipliers {
+            if role_multiplier > multiplier {
+                multiplier = role_multiplier;
+            }
+        }
+
+        multiplier
     }
 }
 
@@ -315,7 +326,7 @@ impl Handler {
             }
         };
 
-        let new_xp = user_xp + i64::from(base_xp * multiplier as i32);
+        let new_xp = user_xp + (base_xp as f32 * multiplier).round() as i64;
 
         if let Some(max_level) = xp_configuration.max_level {
             if new_xp > i64::from((50 * (max_level * max_level)) + (25 * max_level)) {
