@@ -432,7 +432,7 @@ impl ConfigStage for LevelUpMessage {
                     .embed(
                         CreateEmbed::new()
                             .title(XP_TITLE)
-                            .description(format!("What would you like your level up messages to say?\n\n{help_text}\n\nYour current setting is: **{level_up_configuration_string}**"))
+                            .description(format!("What would you like your level up messages to say?\n\n{help_text}\n\nYour current setting is: {level_up_configuration_string}"))
                             .color(EMBED_COLOR),
                     )
                     .components(vec![CreateActionRow::Buttons(buttons)]),
