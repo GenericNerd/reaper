@@ -70,6 +70,7 @@ impl ModerationEscalations {
         ]));
 
         let description_text = r"You can configure your strike escalations using the dropdowns below.
+
 > What are escalations?
 > 
 > These are automatic actions (such as a mute, kick, or ban) that occur when a user reaches a certain number of strikes.
@@ -733,8 +734,8 @@ impl ConfigStage for ModerationFooter {
                     .description(format!(
                         "You can add a custom footer to DMs sent by Reaper when a user is punished.\n\n{help_text}\n\n{}",
                         match footer {
-                            Some(footer) => format!("Your current footer is: **{footer}**"),
-                            None => "There is no footer set.".to_string(),
+                            Some(footer) => format!("Your current footer is:\n```{footer}```"),
+                            None => "There is no footer currently set.".to_string(),
                         },
                     ))
                     .color(EMBED_COLOR),
