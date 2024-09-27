@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM xp_channel_blacklists WHERE guild_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "28e6780feb763a7871e852fe8c58ebdc1f1ccc28c106e006d5501f8c21b7886f"
+}
