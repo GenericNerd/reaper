@@ -20,19 +20,34 @@ fn number_to_string(number: i64) -> String {
     get_number_formatter().fmt2(number).to_string()
 }
 
-fn get_url_from_user(user: &User) -> String {
-    let user_id = user.id.get() as i64;
-    let avatar_hash = match user.avatar {
-        Some(avatar_hash) => avatar_hash.to_string(),
-        None => ((user_id >> 22) % 6).to_string(),
+fn get_url_from_user(user: &User, size: Option<u64>) -> (String, String) {
+    let size = match size {
+        Some(temp_size) => {
+            if temp_size > 4096 {
+                4096
+            } else if temp_size < 16 {
+                16
+            } else if (temp_size & (temp_size - 1)) == 0 {
+                temp_size
+            } else {
+                1024
+            }
+        }
+        None => 1024,
     };
+    let user_id = user.id.get() as i64;
     match user.avatar {
-        Some(avatar_hash) => {
-            format!("https://cdn.discordapp.com/avatars/{user_id}/{avatar_hash}.png?size=1024")
-        }
-        None => {
-            format!("https://cdn.discordapp.com/avatars/{user_id}/{avatar_hash}.png?size=1024")
-        }
+        Some(hash) => (
+            format!("https://cdn.discordapp.com/avatars/{user_id}/{hash}.png?size={size}"),
+            hash.to_string(),
+        ),
+        None => (
+            format!(
+                "https://cdn.discordapp.com/embed/avatars/{}.png?size={size}",
+                ((user_id >> 22) % 6).to_string()
+            ),
+            ((user_id >> 22) % 6).to_string(),
+        ),
     }
 }
 
@@ -44,18 +59,24 @@ impl Handler {
         let user_id = member.user.id.get() as i64;
         let guild_id = member.guild_id.get() as i64;
 
-        let avatar_hash = match member.user.avatar {
-            Some(avatar_hash) => avatar_hash.to_string(),
-            None => ((user_id >> 22) % 6).to_string(),
+        let Some(xp_info) = sqlx::query!(
+            "SELECT xp, rank FROM (SELECT user_id, xp, RANK() OVER (ORDER BY xp DESC) AS rank FROM user_xp WHERE guild_id = $1) ranked_users WHERE user_id = $2",
+            guild_id,
+            user_id
+        )
+        .fetch_optional(&self.main_database)
+        .await? else {
+            return Err(ResponseError::Execution("User has no XP!", None));
         };
-        let avatar_url = match member.user.avatar {
-            Some(avatar_hash) => {
-                format!("https://cdn.discordapp.com/avatars/{user_id}/{avatar_hash}.png?size=1024",)
-            }
-            None => {
-                format!("https://cdn.discordapp.com/avatars/{user_id}/{avatar_hash}.png?size=1024",)
-            }
-        };
+
+        let current_level =
+            ((-25.0 + f64::sqrt((625 + (200 * xp_info.xp)) as f64)) / 100.0).floor() as i64;
+        let next_level = current_level + 1;
+        let current_level_xp = (50 * (current_level * current_level)) + (25 * current_level);
+        let next_level_xp = (50 * (next_level * next_level)) + (25 * next_level) - current_level_xp;
+        let progress_to_next_level = (xp_info.xp - current_level_xp) as f32 / next_level_xp as f32;
+
+        let (avatar_url, avatar_hash) = get_url_from_user(&member.user, None);
 
         let reqwest_client = reqwest::Client::new();
         let Ok(avatar_response) = reqwest_client.get(&avatar_url).send().await else {
@@ -117,21 +138,6 @@ impl Handler {
                 .position(IMAGE_HEIGHT + 10, 45)
                 .color([199, 89, 66, 255]),
         );
-
-        let xp_info = sqlx::query!(
-            "SELECT xp, rank FROM (SELECT user_id, xp, RANK() OVER (ORDER BY xp DESC) AS rank FROM user_xp WHERE guild_id = $1) ranked_users WHERE user_id = $2",
-            guild_id,
-            user_id
-        )
-        .fetch_one(&self.main_database)
-        .await?;
-
-        let current_level =
-            ((-25.0 + f64::sqrt((625 + (200 * xp_info.xp)) as f64)) / 100.0).floor() as i64;
-        let next_level = current_level + 1;
-        let current_level_xp = (50 * (current_level * current_level)) + (25 * current_level);
-        let next_level_xp = (50 * (next_level * next_level)) + (25 * next_level) - current_level_xp;
-        let progress_to_next_level = (xp_info.xp - current_level_xp) as f32 / next_level_xp as f32;
 
         image.add_text(
             Text::new(&format!("Level: {current_level}"))
@@ -220,7 +226,7 @@ impl Handler {
                 ));
             };
 
-            let avatar_url = get_url_from_user(&user);
+            let (avatar_url, _) = get_url_from_user(&user, Some(128));
             let reqwest_client = reqwest::Client::new();
             let Ok(avatar_response) = reqwest_client.get(&avatar_url).send().await else {
                 return Err(ResponseError::Execution(
