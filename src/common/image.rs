@@ -44,7 +44,7 @@ fn get_url_from_user(user: &User, size: Option<u64>) -> (String, String) {
         None => (
             format!(
                 "https://cdn.discordapp.com/embed/avatars/{}.png?size={size}",
-                ((user_id >> 22) % 6).to_string()
+                ((user_id >> 22) % 6)
             ),
             ((user_id >> 22) % 6).to_string(),
         ),
