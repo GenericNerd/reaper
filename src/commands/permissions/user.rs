@@ -78,17 +78,26 @@ pub async fn user(
         ));
     }
 
-    let has_admin = if let Ok(permissions) = ctx
-        .guild
-        .member(&ctx.ctx, user.id)
-        .await
-        .unwrap()
-        .permissions(&ctx.ctx)
-    {
-        permissions.contains(Permissions::ADMINISTRATOR)
-    } else {
-        false
+    let member = ctx.guild.member(&ctx.ctx, user.id).await.unwrap();
+
+    let Ok(guild_channels) = ctx.guild.channels(&ctx.ctx.http).await else {
+        return Err(ResponseError::Execution(
+            "Failed to get guild channels",
+            None,
+        ));
     };
+
+    let Some(channel) = guild_channels.get(&cmd.channel_id) else {
+        return Err(ResponseError::Execution(
+            "Failed to get channel in guild",
+            None,
+        ));
+    };
+
+    let has_admin = ctx
+        .guild
+        .user_permissions_in(channel, &member)
+        .contains(Permissions::ADMINISTRATOR);
 
     let existing_permissions = if user.id == ctx.guild.owner_id || has_admin {
         Permission::iter().collect::<Vec<_>>()
