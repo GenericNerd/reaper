@@ -552,7 +552,7 @@ impl ConfigStage for ModerationDefaultStrikeDuration {
                             Some("Please select a valid option.".to_string()),
                         ),
                         stages_to_skip: None,
-                    })
+                    });
                 }
             }
         }
@@ -653,7 +653,7 @@ impl ConfigStage for ModerationMuteRole {
                                         Some("Please select a valid role.".to_string()),
                                     ),
                                     stages_to_skip: None,
-                                })
+                                });
                             }
                         };
 
@@ -692,7 +692,7 @@ impl ConfigStage for ModerationMuteRole {
                             Some("Please select a valid option.".to_string()),
                         ),
                         stages_to_skip: None,
-                    })
+                    });
                 }
             }
         }
@@ -838,7 +838,7 @@ impl ConfigStage for ModerationFooter {
                             Some("Please select a valid option.".to_string()),
                         ),
                         stages_to_skip: None,
-                    })
+                    });
                 }
             }
         }
@@ -852,7 +852,7 @@ pub struct ModerationEnter;
 impl ConfigStage for ModerationEnter {
     async fn execute(
         &self,
-        _handler: &Handler,
+        handler: &Handler,
         ctx: &CommandContext,
         cmd: &CommandInteraction,
     ) -> Result<Option<usize>, ConfigError> {
@@ -890,6 +890,22 @@ impl ConfigStage for ModerationEnter {
                 .await?;
             match interaction.data.custom_id.as_str() {
                 "yes" => {
+                    let missing = sqlx::query!(
+                        "SELECT guild_id FROM moderation_configuration WHERE guild_id = $1",
+                        ctx.guild.id.get() as i64
+                    )
+                    .fetch_optional(&handler.main_database)
+                    .await?
+                    .is_none();
+
+                    if missing {
+                        sqlx::query!(
+                            "INSERT INTO moderation_configuration (guild_id) VALUES ($1)",
+                            ctx.guild.id.get() as i64
+                        )
+                        .execute(&handler.main_database)
+                        .await?;
+                    }
                     return Ok(None);
                 }
                 "no" => {
@@ -902,7 +918,7 @@ impl ConfigStage for ModerationEnter {
                             Some("Please select a valid option.".to_string()),
                         ),
                         stages_to_skip: None,
-                    })
+                    });
                 }
             }
         }

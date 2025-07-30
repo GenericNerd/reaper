@@ -58,9 +58,11 @@ impl ConfigStage for LoggingChannelMultipleVoice {
                                 default_channels: None,
                             },
                         )),
-                        CreateActionRow::Buttons(vec![CreateButton::new("cancel")
-                            .label("Cancel")
-                            .style(ButtonStyle::Danger)]),
+                        CreateActionRow::Buttons(vec![
+                            CreateButton::new("cancel")
+                                .label("Cancel")
+                                .style(ButtonStyle::Danger),
+                        ]),
                     ]),
             )
             .await?;
@@ -109,7 +111,7 @@ impl ConfigStage for LoggingChannelMultipleVoice {
                             Some("Please select a valid option.".to_string()),
                         ),
                         stages_to_skip: None,
-                    })
+                    });
                 }
             }
         }
@@ -168,9 +170,11 @@ impl ConfigStage for LoggingChannelMultipleMessages {
                                 default_channels: None,
                             },
                         )),
-                        CreateActionRow::Buttons(vec![CreateButton::new("cancel")
-                            .label("Cancel")
-                            .style(ButtonStyle::Danger)]),
+                        CreateActionRow::Buttons(vec![
+                            CreateButton::new("cancel")
+                                .label("Cancel")
+                                .style(ButtonStyle::Danger),
+                        ]),
                     ]),
             )
             .await?;
@@ -219,7 +223,7 @@ impl ConfigStage for LoggingChannelMultipleMessages {
                             Some("Please select a valid option.".to_string()),
                         ),
                         stages_to_skip: None,
-                    })
+                    });
                 }
             }
         }
@@ -285,9 +289,11 @@ impl ConfigStage for LoggingChannelMultipleActions {
                                 default_channels: None,
                             },
                         )),
-                        CreateActionRow::Buttons(vec![CreateButton::new("cancel")
-                            .label("Cancel")
-                            .style(ButtonStyle::Danger)]),
+                        CreateActionRow::Buttons(vec![
+                            CreateButton::new("cancel")
+                                .label("Cancel")
+                                .style(ButtonStyle::Danger),
+                        ]),
                     ]),
             )
             .await?;
@@ -336,7 +342,7 @@ impl ConfigStage for LoggingChannelMultipleActions {
                             Some("Please select a valid option.".to_string()),
                         ),
                         stages_to_skip: None,
-                    })
+                    });
                 }
             }
         }
@@ -382,9 +388,11 @@ impl ConfigStage for LoggingChannelSingle {
                                 default_channels: None,
                             },
                         )),
-                        CreateActionRow::Buttons(vec![CreateButton::new("cancel")
-                            .label("Cancel")
-                            .style(ButtonStyle::Danger)]),
+                        CreateActionRow::Buttons(vec![
+                            CreateButton::new("cancel")
+                                .label("Cancel")
+                                .style(ButtonStyle::Danger),
+                        ]),
                     ]),
             )
             .await?;
@@ -433,7 +441,7 @@ impl ConfigStage for LoggingChannelSingle {
                             Some("Please select a valid option.".to_string()),
                         ),
                         stages_to_skip: None,
-                    })
+                    });
                 }
             }
         }
@@ -514,7 +522,7 @@ impl ConfigStage for LoggingChannelEnter {
                             Some("Please select a valid option.".to_string()),
                         ),
                         stages_to_skip: None,
-                    })
+                    });
                 }
             }
         }
@@ -595,7 +603,7 @@ impl ConfigStage for LoggingLogVoice {
                             Some("Please select a valid option.".to_string()),
                         ),
                         stages_to_skip: None,
-                    })
+                    });
                 }
             }
         }
@@ -676,7 +684,7 @@ impl ConfigStage for LoggingLogMessages {
                             Some("Please select a valid option.".to_string()),
                         ),
                         stages_to_skip: None,
-                    })
+                    });
                 }
             }
         }
@@ -757,7 +765,7 @@ impl ConfigStage for LoggingLogActions {
                             Some("Please select a valid option.".to_string()),
                         ),
                         stages_to_skip: None,
-                    })
+                    });
                 }
             }
         }
@@ -776,7 +784,7 @@ pub struct LoggingEnter;
 impl ConfigStage for LoggingEnter {
     async fn execute(
         &self,
-        _handler: &Handler,
+        handler: &Handler,
         ctx: &CommandContext,
         cmd: &CommandInteraction,
     ) -> Result<Option<usize>, ConfigError> {
@@ -814,6 +822,22 @@ impl ConfigStage for LoggingEnter {
                 .await?;
             match interaction.data.custom_id.as_str() {
                 "yes" => {
+                    let missing = sqlx::query!(
+                        "SELECT guild_id FROM logging_configuration WHERE guild_id = $1",
+                        ctx.guild.id.get() as i64
+                    )
+                    .fetch_optional(&handler.main_database)
+                    .await?
+                    .is_none();
+
+                    if missing {
+                        sqlx::query!(
+                            "INSERT INTO logging_configuration (guild_id) VALUES ($1)",
+                            ctx.guild.id.get() as i64
+                        )
+                        .execute(&handler.main_database)
+                        .await?;
+                    }
                     return Ok(None);
                 }
                 "no" => {
@@ -826,7 +850,7 @@ impl ConfigStage for LoggingEnter {
                             Some("Please select a valid option.".to_string()),
                         ),
                         stages_to_skip: None,
-                    })
+                    });
                 }
             }
         }

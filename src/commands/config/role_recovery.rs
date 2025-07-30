@@ -22,13 +22,23 @@ impl ConfigStage for RoleRecovery {
         ctx: &CommandContext,
         cmd: &CommandInteraction,
     ) -> Result<Option<usize>, ConfigError> {
-        let role_recovery = sqlx::query!(
+        let role_recovery = if let Some(row) = sqlx::query!(
             "SELECT enabled FROM guild_role_recovery_config WHERE guild_id = $1",
             cmd.guild_id.unwrap().get() as i64
         )
-        .fetch_one(&handler.main_database)
+        .fetch_optional(&handler.main_database)
         .await?
-        .enabled;
+        {
+            row.enabled
+        } else {
+            sqlx::query!(
+                "INSERT INTO guild_role_recovery_config (guild_id) VALUES ($1)",
+                cmd.guild_id.unwrap().get() as i64,
+            )
+            .execute(&handler.main_database)
+            .await?;
+            false
+        };
 
         let help_text =
             r"> This will allow users to recover their roles if they leave and rejoin the server.";
@@ -105,7 +115,7 @@ impl ConfigStage for RoleRecovery {
                             Some("Please select a valid option.".to_string()),
                         ),
                         stages_to_skip: None,
-                    })
+                    });
                 }
             }
         }
