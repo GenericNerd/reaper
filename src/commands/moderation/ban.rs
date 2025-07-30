@@ -27,17 +27,29 @@ use crate::{
     },
 };
 
+pub struct BanParams {
+    pub guild_id: i64,
+    pub user_id: i64,
+    pub reason: String,
+    pub moderator_id: Option<i64>,
+    pub duration: Option<Duration>,
+    pub delete_messages: Option<Duration>,
+}
+
 impl Handler {
     pub async fn ban_user(
         &self,
         ctx: &CommandContext,
-        guild_id: i64,
-        user_id: i64,
-        reason: String,
-        moderator_id: Option<i64>,
-        duration: Option<Duration>,
+        params: BanParams,
     ) -> Result<ActionDatabaseInsert, ResponseError> {
         let start = Instant::now();
+
+        let guild_id = params.guild_id;
+        let user_id = params.user_id;
+        let reason = params.reason;
+        let moderator_id = params.moderator_id;
+        let duration = params.duration;
+        let delete_messages = params.delete_messages;
 
         let duration = duration.filter(|duration| !duration.permanent);
 
@@ -45,6 +57,13 @@ impl Handler {
             Some(mod_id) => mod_id,
             None => ctx.ctx.cache.current_user().id.get() as i64,
         };
+
+        let delete_message_days = delete_messages
+            .unwrap_or_default()
+            .days
+            .min(7)
+            .try_into()
+            .unwrap_or(7);
 
         debug!(
             "Gathered all required data to strike in {:?}",
@@ -141,7 +160,7 @@ impl Handler {
             .ban_user(
                 GuildId::new(guild_id as u64),
                 UserId::new(user_id as u64),
-                0,
+                delete_message_days,
                 Some(action.reason.as_str()),
             )
             .await
@@ -211,6 +230,21 @@ impl Command for BanCommand {
                 )
                 .required(false),
             )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "delete_messages",
+                    "The amount of time of messages to delete (max 7d, e.g. 2d)",
+                )
+                .add_string_choice("Delete 1 day", "1d")
+                .add_string_choice("Delete 2 days", "2d")
+                .add_string_choice("Delete 3 days", "3d")
+                .add_string_choice("Delete 4 days", "4d")
+                .add_string_choice("Delete 5 days", "5d")
+                .add_string_choice("Delete 6 days", "6d")
+                .add_string_choice("Delete 7 days", "7d")
+                .required(false),
+            )
     }
 
     async fn router(
@@ -256,6 +290,12 @@ impl Command for BanCommand {
             Some(duration) => duration,
             None => Duration::permanent(),
         };
+        let delete_messages = options
+            .get_string("delete_messages")
+            .into_owned()
+            .as_deref()
+            .map(Duration::new)
+            .unwrap_or_default();
 
         let target_user_highest_role = get_highest_role(ctx, &user).await;
         if ctx.highest_role <= target_user_highest_role {
@@ -282,11 +322,14 @@ impl Command for BanCommand {
         let action = handler
             .ban_user(
                 ctx,
-                ctx.guild.id.get() as i64,
-                user.id.get() as i64,
-                reason,
-                Some(cmd.user.id.get() as i64),
-                Some(duration),
+                BanParams {
+                    guild_id: ctx.guild.id.get() as i64,
+                    user_id: user.id.get() as i64,
+                    reason,
+                    moderator_id: Some(cmd.user.id.get() as i64),
+                    duration: Some(duration),
+                    delete_messages: Some(delete_messages),
+                },
             )
             .await?;
 

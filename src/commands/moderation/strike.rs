@@ -6,6 +6,7 @@ use std::time::Instant;
 use tracing::debug;
 
 use crate::{
+    commands::moderation::ban::BanParams,
     common::{
         duration::Duration,
         logging::{get_log_channel, LogType},
@@ -157,17 +158,20 @@ impl Handler {
                         if let Ok(escalation) = self
                             .ban_user(
                                 ctx,
-                                guild_id,
-                                user_id,
-                                format!(
-                                    "Strike escalation (reached {} strikes)",
-                                    escalation.strike_count
-                                ),
-                                None,
-                                escalation
-                                    .action_duration
-                                    .as_ref()
-                                    .map(|duration| Duration::new(duration)),
+                                BanParams {
+                                    guild_id,
+                                    user_id,
+                                    reason: format!(
+                                        "Strike escalation (reached {} strikes)",
+                                        escalation.strike_count
+                                    ),
+                                    moderator_id: None,
+                                    duration: escalation
+                                        .action_duration
+                                        .as_ref()
+                                        .map(|duration| Duration::new(duration)),
+                                    delete_messages: None,
+                                },
                             )
                             .await
                         {
@@ -282,7 +286,7 @@ impl Handler {
                 )
                 .await
                 .is_ok();
-        };
+        }
 
         debug!("Completed strike action in {:?}", start.elapsed());
 
