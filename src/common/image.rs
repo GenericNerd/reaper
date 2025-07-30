@@ -1,6 +1,5 @@
 use image::{load_from_memory, DynamicImage};
 use image_builder::{colors, FilterType, Image, Picture, Rect, Text};
-use lazy_static::lazy_static;
 use serenity::all::{Context, Member, User, UserId};
 
 use crate::models::{handler::Handler, response::ResponseError};
@@ -27,7 +26,7 @@ fn get_url_from_user(user: &User, size: Option<u64>) -> (String, String) {
                 4096
             } else if temp_size < 16 {
                 16
-            } else if (temp_size & (temp_size - 1)) == 0 {
+            } else if temp_size.is_power_of_two() {
                 temp_size
             } else {
                 1024
@@ -53,6 +52,13 @@ fn get_url_from_user(user: &User, size: Option<u64>) -> (String, String) {
 
 impl Handler {
     pub async fn generate_rank_image(&self, member: Member) -> Result<String, ResponseError> {
+        static JETBRAINS_REGULAR: std::sync::LazyLock<Vec<u8>> =
+            std::sync::LazyLock::new(|| std::fs::read("JetBrainsMono-Regular.ttf").unwrap());
+        static JETBRAINS_SEMIBOLD: std::sync::LazyLock<Vec<u8>> =
+            std::sync::LazyLock::new(|| std::fs::read("JetBrainsMono-SemiBold.ttf").unwrap());
+        static JETBRAINS_BOLD: std::sync::LazyLock<Vec<u8>> =
+            std::sync::LazyLock::new(|| std::fs::read("JetBrainsMono-Bold.ttf").unwrap());
+
         const IMAGE_WIDTH: u32 = 800;
         const IMAGE_HEIGHT: u32 = 200;
 
@@ -100,13 +106,7 @@ impl Handler {
         };
 
         let mut image = Image::new(IMAGE_WIDTH, IMAGE_HEIGHT, [44, 47, 52, 255]);
-        lazy_static! {
-            static ref JETBRAINS_REGULAR: Vec<u8> =
-                std::fs::read("JetBrainsMono-Regular.ttf").unwrap();
-            static ref JETBRAINS_SEMIBOLD: Vec<u8> =
-                std::fs::read("JetBrainsMono-SemiBold.ttf").unwrap();
-            static ref JETBRAINS_BOLD: Vec<u8> = std::fs::read("JetBrainsMono-Bold.ttf").unwrap();
-        };
+
         image.add_custom_font("JetBrains Regular", JETBRAINS_REGULAR.to_vec());
         image.add_custom_font("JetBrains SemiBold", JETBRAINS_SEMIBOLD.to_vec());
         image.add_custom_font("JetBrains Bold", JETBRAINS_BOLD.to_vec());
@@ -198,6 +198,13 @@ impl Handler {
         ctx: &Context,
         guild_id: i64,
     ) -> Result<String, ResponseError> {
+        static JETBRAINS_REGULAR: std::sync::LazyLock<Vec<u8>> =
+            std::sync::LazyLock::new(|| std::fs::read("JetBrainsMono-Regular.ttf").unwrap());
+        static JETBRAINS_SEMIBOLD: std::sync::LazyLock<Vec<u8>> =
+            std::sync::LazyLock::new(|| std::fs::read("JetBrainsMono-SemiBold.ttf").unwrap());
+        static JETBRAINS_BOLD: std::sync::LazyLock<Vec<u8>> =
+            std::sync::LazyLock::new(|| std::fs::read("JetBrainsMono-Bold.ttf").unwrap());
+
         #[derive(Clone)]
         struct User {
             name: String,
@@ -270,13 +277,6 @@ impl Handler {
             };
 
         let mut image = Image::new(IMAGE_WIDTH, image_height, [44, 47, 52, 255]);
-        lazy_static! {
-            static ref JETBRAINS_REGULAR: Vec<u8> =
-                std::fs::read("JetBrainsMono-Regular.ttf").unwrap();
-            static ref JETBRAINS_SEMIBOLD: Vec<u8> =
-                std::fs::read("JetBrainsMono-SemiBold.ttf").unwrap();
-            static ref JETBRAINS_BOLD: Vec<u8> = std::fs::read("JetBrainsMono-Bold.ttf").unwrap();
-        };
         image.add_custom_font("JetBrains Regular", JETBRAINS_REGULAR.to_vec());
         image.add_custom_font("JetBrains Bold", JETBRAINS_BOLD.to_vec());
         image.add_custom_font("JetBrains SemiBold", JETBRAINS_SEMIBOLD.to_vec());
