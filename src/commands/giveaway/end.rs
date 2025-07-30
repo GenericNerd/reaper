@@ -1,4 +1,4 @@
-use rand::prelude::SliceRandom;
+use rand::seq::IndexedRandom;
 use serenity::{
     all::{ChannelId, CommandInteraction, Message, MessageId},
     builder::{CreateEmbed, EditMessage},
@@ -74,10 +74,7 @@ pub async fn end_giveaway(
 
     let winners = if entries.len() > usize::try_from(giveaway.winners).unwrap() {
         entries
-            .choose_multiple(
-                &mut rand::thread_rng(),
-                usize::try_from(giveaway.winners).unwrap(),
-            )
+            .choose_multiple(&mut rand::rng(), usize::try_from(giveaway.winners).unwrap())
             .map(|entry| format!("<@{entry}>"))
             .collect::<Vec<_>>()
     } else {

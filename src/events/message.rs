@@ -160,7 +160,7 @@ impl Handler {
         .await
         {
             error!("Failed to create message: {:?}", err);
-        };
+        }
 
         if message_exists {
             return;
@@ -225,7 +225,7 @@ impl Handler {
             let min_xp = xp_configuration.min_xp_per_message.unwrap();
             let max_xp = xp_configuration.max_xp_per_message.unwrap();
 
-            rand::thread_rng().gen_range(min_xp..max_xp)
+            rand::rng().random_range(min_xp..max_xp)
         };
 
         let multiplier = calculate_multiplier(
