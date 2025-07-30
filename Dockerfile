@@ -1,4 +1,4 @@
-FROM lukemathwalker/cargo-chef:latest-rust-1.83.0 AS chef
+FROM lukemathwalker/cargo-chef:latest-rust-1.88.0 AS chef
 WORKDIR /usr/src/reaper
 
 FROM chef AS prepare

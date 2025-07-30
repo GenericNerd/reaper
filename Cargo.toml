@@ -1,31 +1,30 @@
 [package]
 name = "reaper"
 version = "1.2.3"
-edition = "2021"
+edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "time"] }
 serenity = { git = "https://github.com/serenity-rs/serenity.git", branch = "current", features = ["collector"] }
-tokio = { version = "1.38", features = ["full"] }
+tokio = { version = "1.47", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3" }
 serde = "1.0"
 serde_derive = "1.0"
 async-trait = "0.1"
-strum = { version = "0.26", features = ["derive"] }
+strum = { version = "0.27", features = ["derive"] }
 regex = "1.10"
-lazy_static = "1.5"
 objectid = { version = "0.2", features = ["serde"] }
 time = { version = "0.3", features = ["large-dates"] }
 inflections = "1.1"
-rand = "0.8"
-redis = { version = "0.27", features = ["tokio-comp"] }
-ordinal = "0.3"
+rand = "0.9"
+redis = { version = "0.32", features = ["tokio-comp"] }
+ordinal = "0.4"
 pretty-duration = "0.1"
 unic = "0.9.0"
 reqwest = { version = "0.12", features = [ "blocking" ]}
 image-builder = "1.0.2"
 image = "0.24.9"
-numfmt = "1.1.1"
+numfmt = "1.2"
