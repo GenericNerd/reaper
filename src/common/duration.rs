@@ -1,8 +1,7 @@
-use lazy_static::lazy_static;
 use regex::Regex;
 use tracing::debug;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Duration {
     pub years: i64,
     pub months: i64,
@@ -16,21 +15,11 @@ pub struct Duration {
 
 impl Duration {
     pub fn new(string: &str) -> Duration {
-        debug!("Parsing duration: {}", string);
-        let mut duration = Duration {
-            years: 0,
-            months: 0,
-            weeks: 0,
-            days: 0,
-            hours: 0,
-            minutes: 0,
-            seconds: 0,
-            permanent: false,
-        };
+        static DURATION_REGEX: std::sync::LazyLock<Regex> =
+            std::sync::LazyLock::new(|| Regex::new(r"(\d+)\S*(y|mo|w|d|h|m|s)").unwrap());
 
-        lazy_static! {
-            static ref DURATION_REGEX: Regex = Regex::new(r"(\d+)\S*(y|mo|w|d|h|m|s)").unwrap();
-        }
+        debug!("Parsing duration: {}", string);
+        let mut duration = Duration::default();
 
         for capture in DURATION_REGEX.captures_iter(&string.to_lowercase()) {
             let value = match capture.get(1) {
