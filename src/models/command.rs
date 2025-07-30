@@ -65,11 +65,7 @@ impl InteractionContext {
             .to_guild_cached(&ctx.cache)
             .map(|guild| PartialGuild::from(guild.clone()));
         if temp_guild.is_none() {
-            temp_guild = if let Ok(guild) = guild_id.to_partial_guild(&ctx.http).await {
-                Some(guild)
-            } else {
-                None
-            }
+            temp_guild = guild_id.to_partial_guild(&ctx.http).await.ok();
         }
 
         let guild = temp_guild.unwrap();
