@@ -1,4 +1,5 @@
 use serenity::all::{CommandInteraction, CommandOptionType, CreateCommand, CreateCommandOption};
+use tracing::error;
 
 use crate::models::{
     command::{Command, CommandContext},
@@ -207,7 +208,9 @@ impl Command for GlobalCommand {
                 "feature" => return feature::router(handler, ctx, cmd, option).await,
                 "guild" => return guild::router(handler, ctx, cmd, option).await,
                 "user" => return user::router(handler, ctx, cmd, option).await,
-                _ => continue,
+                _ => {
+                    error!("Invalid subcommand: {}", option.name);
+                }
             }
         }
 

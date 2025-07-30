@@ -367,7 +367,7 @@ async fn reset_level(
             "Failed to remove roles from user. Failed with error: {:?}",
             err
         );
-    };
+    }
 
     sqlx::query!(
         "UPDATE user_xp SET xp = 0 WHERE guild_id = $1 AND user_id = $2",
@@ -529,7 +529,9 @@ impl Command for LevelCommand {
                 "add" => return add_level(handler, ctx, cmd).await,
                 "reset" => return reset_level(handler, ctx, cmd).await,
                 "set" => return set_level(handler, ctx, cmd).await,
-                _ => continue,
+                _ => {
+                    error!("Invalid subcommand: {}", option.name);
+                }
             }
         }
 

@@ -132,7 +132,7 @@ pub async fn new_giveaway_entry_handler(handler: Handler, ctx: CommandContext, g
             Err(err) => {
                 error!("Could not check if user has already entered giveaway {}. Failed with error: {:?}", giveaway.id, err);
             }
-        };
+        }
 
         let entry_count = match sqlx::query!(
             "SELECT COUNT(*) FROM giveaway_entry WHERE id=$1",

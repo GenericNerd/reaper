@@ -198,7 +198,7 @@ impl Handler {
             {
                 action_insert.dm_notified.store(true, Ordering::Relaxed);
             }
-        };
+        }
 
         debug!("Completed mute action in {:?}", start.elapsed());
 

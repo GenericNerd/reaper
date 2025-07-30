@@ -76,7 +76,7 @@ impl Command for RemoveCommand {
                 "Could not remove action",
                 Some("The action could not be removed. Please try again later.".to_string()),
             ));
-        };
+        }
 
         let reply = ctx.reply(
             cmd,

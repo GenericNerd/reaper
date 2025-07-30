@@ -26,7 +26,7 @@ async fn kill(
     .is_some()
     {
         return Err(ResponseError::Execution("User is already killed", None));
-    };
+    }
 
     sqlx::query!(
         "INSERT INTO user_kills (user_id, killed_by) VALUES ($1, $2)",
@@ -63,7 +63,7 @@ async fn revive(
     .is_none()
     {
         return Err(ResponseError::Execution("User is already active", None));
-    };
+    }
 
     sqlx::query!(
         "DELETE FROM user_kills WHERE user_id = $1",

@@ -83,7 +83,7 @@ pub async fn delete(
             "Could not delete giveaway message",
             Some("Please notify the developer of this issue".to_string()),
         ));
-    };
+    }
 
     if let Err(err) = sqlx::query!("DELETE FROM giveaways WHERE id = $1", giveaway.id)
         .execute(&handler.main_database)

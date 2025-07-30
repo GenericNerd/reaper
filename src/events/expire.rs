@@ -109,7 +109,6 @@ pub async fn expire_actions(handler: Handler, ctx: Context) {
                 .await
             {
                 error!("Failed to expire action with ID {}: {}", action.id, err);
-                continue;
             }
         }
 

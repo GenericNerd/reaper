@@ -119,7 +119,7 @@ impl Command for DurationCommand {
                     "The action duration could not be updated. Please try again later.".to_string(),
                 ),
             ));
-        };
+        }
 
         let reply = ctx.reply(
             cmd,

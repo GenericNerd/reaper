@@ -126,7 +126,7 @@ impl Command for InfoCommand {
             .await
         {
             return Err(ResponseError::Serenity(err));
-        };
+        }
 
         Ok(())
     }

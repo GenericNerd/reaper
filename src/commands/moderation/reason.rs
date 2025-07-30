@@ -107,7 +107,7 @@ impl Command for ReasonCommand {
                 "Could not update action reason",
                 Some("The action reason could not be updated. Please try again later.".to_string()),
             ));
-        };
+        }
 
         let reply = ctx.reply(
             cmd,

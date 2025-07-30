@@ -2,6 +2,7 @@ use serenity::{
     all::{CommandInteraction, CommandOptionType},
     builder::{CreateCommand, CreateCommandOption},
 };
+use tracing::error;
 
 use crate::models::{
     command::{Command, CommandContext},
@@ -177,7 +178,9 @@ impl Command for GiveawayCommand {
                 "reroll" => return reroll::reroll(handler, ctx, cmd).await,
                 "end" => return end::end(handler, ctx, cmd).await,
                 "delete" => return delete::delete(handler, ctx, cmd).await,
-                _ => continue,
+                _ => {
+                    error!("Invalid subcommand: {}", option.name);
+                }
             }
         }
 

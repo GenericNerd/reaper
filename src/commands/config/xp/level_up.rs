@@ -414,10 +414,10 @@ impl ConfigStage for LevelUpMessage {
         }
 
         let help_text = format!(
-            r#"> The following placeholders can be placed in your message:
+            r"> The following placeholders can be placed in your message:
 > {} - This will become the user's name (e.g. {})
 > {} - This will mention the user (e.g. <@{}>)
-> {} - This will become the user's level (e.g. 100)"#,
+> {} - This will become the user's level (e.g. 100)",
             "{user.name}",
             cmd.user.name,
             "{user.mention}",
@@ -481,7 +481,7 @@ impl ConfigStage for LevelUpMessage {
                         if let ActionRowComponent::InputText(text) =
                             &interaction.data.components[0].components[0]
                         {
-                            let Ok(message) = text.value.as_ref().unwrap().parse::<String>() else {
+                            let Some(message) = text.value.as_ref() else {
                                 return Err(ConfigError {
                                     error: ResponseError::Execution(
                                         "Invalid message",

@@ -107,7 +107,7 @@ impl Handler {
                     );
                     continue;
                 }
-            };
+            }
 
             debug!(
                 "Checked whether message was already on the board in {:?}",
@@ -191,7 +191,7 @@ impl Handler {
                     );
                     continue;
                 }
-            };
+            }
 
             debug!("Got reaction count in {:?}", start.elapsed());
 

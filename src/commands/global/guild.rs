@@ -24,7 +24,7 @@ async fn kill(
     .is_some()
     {
         return Err(ResponseError::Execution("Guild is already killed", None));
-    };
+    }
 
     sqlx::query!(
         "INSERT INTO guild_kills (guild_id, killed_by) VALUES ($1, $2)",
@@ -61,7 +61,7 @@ async fn revive(
     .is_none()
     {
         return Err(ResponseError::Execution("Guild is already active", None));
-    };
+    }
 
     sqlx::query!("DELETE FROM guild_kills WHERE guild_id = $1", guild)
         .execute(&handler.main_database)

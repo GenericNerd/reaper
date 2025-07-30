@@ -77,7 +77,7 @@ impl Command for RankCommand {
                 "Failed to remove image file from disk",
                 Some("Failed to remove image file from disk".to_string()),
             ));
-        };
+        }
 
         Ok(())
     }

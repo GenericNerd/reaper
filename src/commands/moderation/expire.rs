@@ -76,7 +76,7 @@ impl Command for ExpireCommand {
                 "Could not expire action",
                 Some("The action could not be expired. Please try again later.".to_string()),
             ));
-        };
+        }
 
         let reply = ctx.reply(
             cmd,

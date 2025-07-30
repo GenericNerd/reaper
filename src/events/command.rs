@@ -126,7 +126,7 @@ impl Handler {
                 error!("Failed to reply to command: {:?}", err);
             }
             return;
-        };
+        }
 
         let mut temp_guild = guild_id
             .to_guild_cached(&ctx.cache)
@@ -253,7 +253,7 @@ impl Handler {
                             start.elapsed(),
                         );
                         return;
-                    };
+                    }
                     command_context
                         .has_responsed
                         .store(true, std::sync::atomic::Ordering::Relaxed);

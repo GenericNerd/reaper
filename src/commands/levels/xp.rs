@@ -226,7 +226,7 @@ async fn reset_xp(
             "Failed to remove roles from user. Failed with error: {:?}",
             err
         );
-    };
+    }
 
     sqlx::query!(
         "UPDATE user_xp SET xp = 0 WHERE guild_id = $1 AND user_id = $2",
@@ -523,7 +523,9 @@ impl Command for XPCommand {
                 "add" => return add_xp(handler, ctx, cmd).await,
                 "reset" => return reset_xp(handler, ctx, cmd).await,
                 "set" => return set_xp(handler, ctx, cmd).await,
-                _ => continue,
+                _ => {
+                    error!("Invalid subcommand: {}", option.name);
+                }
             }
         }
 

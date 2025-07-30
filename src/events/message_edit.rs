@@ -135,7 +135,7 @@ impl Handler {
             .await
         {
             error!("Failed to update message: {:?}", err);
-        };
+        }
 
         if let Err(err) = query.release(&self.redis_database).await {
             error!("Failed to release message query: {:?}", err);

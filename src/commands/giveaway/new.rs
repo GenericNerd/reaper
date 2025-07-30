@@ -152,7 +152,7 @@ pub async fn new(
     {
         error!("Failed to insert giveaway into database: {:?}", err);
         error!("Giveaway {:?} will not persist on restart", giveaway.id);
-    };
+    }
 
     tokio::spawn(new_giveaway_entry_handler(
         handler.clone(),

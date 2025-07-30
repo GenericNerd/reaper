@@ -54,7 +54,7 @@ impl Command for LeaderboardCommand {
                 "Failed to remove image file from disk",
                 Some("Failed to remove image file from disk".to_string()),
             ));
-        };
+        }
 
         Ok(())
     }

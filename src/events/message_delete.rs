@@ -52,7 +52,7 @@ impl Handler {
             Err(err) => {
                 error!("Failed to get audit log: {:?}", err);
             }
-        };
+        }
 
         let author = match ctx.http.get_user(UserId::new(message.user_id as u64)).await {
             Ok(author) => author,

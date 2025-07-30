@@ -87,7 +87,7 @@ impl Command for UnbanCommand {
                 "Could not unban user",
                 Some("The user could not be unbanned. This could be because no ban exists. Please double check before trying again".to_string()),
             ));
-        };
+        }
 
         if let Err(err) = sqlx::query!("UPDATE actions SET active=false WHERE user_id = $1 AND action_type = 'ban' AND active = true", user.id.get() as i64).execute(&handler.main_database).await {
             error!("Could not expire active bans for user {} in guild {}. Failed with error: {:?}", user.id.get(), cmd.guild_id.unwrap().get(), err);

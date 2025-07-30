@@ -2,6 +2,7 @@ use serenity::{
     all::{CommandInteraction, CommandOptionType},
     builder::{CreateCommand, CreateCommandOption},
 };
+use tracing::error;
 
 use crate::models::{
     command::{Command, CommandContext},
@@ -74,7 +75,9 @@ impl Command for PermissionsCommand {
             match option.name.as_str() {
                 "user" => return user::user(handler, ctx, cmd).await,
                 "role" => return role::role(handler, ctx, cmd).await,
-                _ => continue,
+                _ => {
+                    error!("Invalid subcommand: {}", option.name);
+                }
             }
         }
 
