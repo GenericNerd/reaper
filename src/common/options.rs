@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 
 use serenity::all::{ResolvedOption, ResolvedValue, Role, User};
+use tracing::error;
 
 #[derive(Debug, Clone)]
 pub struct Options<'a> {
@@ -23,7 +24,9 @@ impl Options<'_> {
                         return Cow::Owned(Some(user.to_owned().clone()));
                     }
                 }
-                _ => continue,
+                _ => {
+                    error!("Invalid option: {}", option.name);
+                }
             }
         }
         Cow::Owned(None)
@@ -44,7 +47,9 @@ impl Options<'_> {
                         return Cow::Owned(Some(role.to_owned().clone()));
                     }
                 }
-                _ => continue,
+                _ => {
+                    error!("Invalid option: {}", option.name);
+                }
             }
         }
         Cow::Owned(None)
@@ -65,7 +70,9 @@ impl Options<'_> {
                         return Cow::Owned(Some(string.to_owned().to_string()));
                     }
                 }
-                _ => continue,
+                _ => {
+                    error!("Invalid option: {}", option.name);
+                }
             }
         }
         Cow::Owned(None)
@@ -86,7 +93,9 @@ impl Options<'_> {
                         return Some(boolean.to_owned());
                     }
                 }
-                _ => continue,
+                _ => {
+                    error!("Invalid option: {}", option.name);
+                }
             }
         }
         None
@@ -107,7 +116,9 @@ impl Options<'_> {
                         return Some(integer.to_owned());
                     }
                 }
-                _ => continue,
+                _ => {
+                    error!("Invalid option: {}", option.name);
+                }
             }
         }
         None
