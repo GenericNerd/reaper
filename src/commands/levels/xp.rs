@@ -6,7 +6,7 @@ use tracing::error;
 
 use crate::{
     common::{
-        logging::{get_log_channel, LogType},
+        logging::{LogType, get_log_channel},
         options::Options,
     },
     models::{
@@ -153,7 +153,7 @@ async fn add_xp(
                 "Failed to send XP added log message. Failed with error: {:?}",
                 err
             );
-        };
+        }
     }
 
     ctx.reply(
@@ -282,7 +282,7 @@ async fn reset_xp(
                 "Failed to send XP reset log message. Failed with error: {:?}",
                 err
             );
-        };
+        }
     }
 
     ctx.reply(
@@ -429,7 +429,7 @@ async fn set_xp(
                 "Failed to send XP set log message. Failed with error: {:?}",
                 err
             );
-        };
+        }
     }
 
     ctx.reply(
@@ -514,7 +514,10 @@ impl Command for XPCommand {
         if !ctx.user_permissions.contains(&Permission::XPEdit) {
             return Err(ResponseError::Execution(
                 "You do not have permission to do this!",
-                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::XPEdit)),
+                Some(format!(
+                    "You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.",
+                    Permission::XPEdit
+                )),
             ));
         }
 

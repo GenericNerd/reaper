@@ -59,7 +59,7 @@ pub async fn expire_actions(handler: Handler, ctx: Context) {
                     if config.mute_role.is_some() {
                         guild_configurations.insert(*guild_id, config.mute_role.unwrap());
                     }
-                };
+                }
             }
         }
 

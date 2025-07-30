@@ -1,16 +1,16 @@
 use serenity::{
+    Error,
     all::{
         ChannelId, CommandInteraction, CommandOptionType, CreateCommand, CreateCommandOption,
         CreateEmbed, CreateEmbedFooter, CreateMessage, GetMessages,
     },
     model::error::Error as ModelError,
-    Error,
 };
 use tracing::error;
 
 use crate::{
     common::{
-        logging::{get_log_channel, LogType},
+        logging::{LogType, get_log_channel},
         options::Options,
     },
     models::{
@@ -62,7 +62,10 @@ impl Command for PurgeCommand {
         if !ctx.user_permissions.contains(&Permission::ModerationPurge) {
             return Err(ResponseError::Execution(
                 "You do not have permission to do this!",
-                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationPurge)),
+                Some(format!(
+                    "You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.",
+                    Permission::ModerationPurge
+                )),
             ));
         }
 
@@ -149,7 +152,7 @@ impl Command for PurgeCommand {
                         error!("Error deleting message: {:?}", err);
                         return Err(ResponseError::Serenity(err));
                     }
-                };
+                }
             } else {
                 for message in &messages_to_delete {
                     MessageQuery {
@@ -176,7 +179,7 @@ impl Command for PurgeCommand {
                             return Err(ResponseError::Serenity(err));
                         }
                     }
-                };
+                }
             }
 
             if capped_messages {

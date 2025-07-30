@@ -12,7 +12,7 @@ use tracing::{debug, error};
 use crate::{
     common::{
         duration::Duration,
-        logging::{get_log_channel, LogType},
+        logging::{LogType, get_log_channel},
         options::Options,
     },
     database::postgres::guild::get_moderation_config,
@@ -149,7 +149,7 @@ impl Handler {
                 {
                     action_insert.dm_notified.store(true, Ordering::Relaxed);
                 }
-            };
+            }
         }
 
         debug!("Attempted to send a DM in {:?}", start.elapsed());
@@ -258,7 +258,10 @@ impl Command for BanCommand {
         if !ctx.user_permissions.contains(&Permission::ModerationStrike) {
             return Err(ResponseError::Execution(
                 "You do not have permission to do this!",
-                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationBan)),
+                Some(format!(
+                    "You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.",
+                    Permission::ModerationBan
+                )),
             ));
         }
 

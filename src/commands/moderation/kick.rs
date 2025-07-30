@@ -10,7 +10,7 @@ use tracing::{debug, error};
 
 use crate::{
     common::{
-        logging::{get_log_channel, LogType},
+        logging::{LogType, get_log_channel},
         options::Options,
     },
     database::postgres::guild::get_moderation_config,
@@ -115,7 +115,7 @@ impl Handler {
                 {
                     action_insert.dm_notified.store(true, Ordering::Relaxed);
                 }
-            };
+            }
         }
 
         debug!("Attempted to send a DM in {:?}", start.elapsed());
@@ -203,7 +203,10 @@ impl Command for KickCommand {
         if !ctx.user_permissions.contains(&Permission::ModerationKick) {
             return Err(ResponseError::Execution(
                 "You do not have permission to do this!",
-                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationKick)),
+                Some(format!(
+                    "You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.",
+                    Permission::ModerationKick
+                )),
             ));
         }
 

@@ -9,7 +9,7 @@ use crate::{
     commands::moderation::ban::BanParams,
     common::{
         duration::Duration,
-        logging::{get_log_channel, LogType},
+        logging::{LogType, get_log_channel},
         options::Options,
     },
     database::postgres::{actions::get_active_strikes, guild::get_moderation_config},
@@ -108,7 +108,7 @@ impl Handler {
                         return Err(ResponseError::Execution(
                             "Strike escalation action type is strike!",
                             Some("This should not happen, please contact a developer.".to_string()),
-                        ))
+                        ));
                     }
                     ActionType::Kick => {
                         if let Ok(escalation) = self
@@ -125,7 +125,7 @@ impl Handler {
                             .await
                         {
                             strike_action.escalation = Some(escalation.action);
-                        };
+                        }
                     }
                     ActionType::Mute => {
                         let Some(duration) = &escalation.action_duration else {
@@ -152,7 +152,7 @@ impl Handler {
                             .await
                         {
                             strike_action.escalation = Some(escalation.action);
-                        };
+                        }
                     }
                     ActionType::Ban => {
                         if let Ok(escalation) = self
@@ -176,7 +176,7 @@ impl Handler {
                             .await
                         {
                             strike_action.escalation = Some(escalation.action);
-                        };
+                        }
                     }
                 }
             }
@@ -339,7 +339,10 @@ impl Command for StrikeCommand {
         if !ctx.user_permissions.contains(&Permission::ModerationStrike) {
             return Err(ResponseError::Execution(
                 "You do not have permission to do this!",
-                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ModerationStrike)),
+                Some(format!(
+                    "You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.",
+                    Permission::ModerationStrike
+                )),
             ));
         }
 

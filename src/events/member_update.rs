@@ -71,7 +71,7 @@ impl Handler {
                         "Could not insert role into role recovery. Failed with error: {:?}",
                         err
                     );
-                };
+                }
             }
             for role in roles_to_remove {
                 let role_id = role.get() as i64;

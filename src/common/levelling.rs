@@ -159,14 +159,14 @@ impl Handler {
         if level_up_configuration.dm_message {
             if let Err(err) = member.user.dm(&ctx.http, level_up_message).await {
                 error!("Failed to send level up message to user: {:?}", err);
-            };
+            }
         } else if let Some(channel) = level_up_configuration.channel {
             if let Err(err) = ChannelId::new(channel as u64)
                 .send_message(&ctx.http, level_up_message)
                 .await
             {
                 error!("Failed to send level up message to channel: {:?}", err);
-            };
+            }
         } else if let Err(err) = summoning_channel
             .send_message(&ctx.http, level_up_message)
             .await

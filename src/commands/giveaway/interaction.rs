@@ -130,7 +130,10 @@ pub async fn new_giveaway_entry_handler(handler: Handler, ctx: CommandContext, g
                 continue;
             }
             Err(err) => {
-                error!("Could not check if user has already entered giveaway {}. Failed with error: {:?}", giveaway.id, err);
+                error!(
+                    "Could not check if user has already entered giveaway {}. Failed with error: {:?}",
+                    giveaway.id, err
+                );
             }
         }
 
@@ -222,11 +225,11 @@ pub async fn new_giveaway_entry_handler(handler: Handler, ctx: CommandContext, g
                 &ctx.ctx.http,
                 EditMessage::new()
                     .embed(generate_embed(&giveaway, entry_count))
-                    .components(vec![CreateActionRow::Buttons(vec![CreateButton::new(
-                        "enter",
-                    )
-                    .label("Enter")
-                    .style(ButtonStyle::Primary)])]),
+                    .components(vec![CreateActionRow::Buttons(vec![
+                        CreateButton::new("enter")
+                            .label("Enter")
+                            .style(ButtonStyle::Primary),
+                    ])]),
             )
             .await
         {
@@ -252,5 +255,5 @@ pub async fn new_giveaway_entry_handler(handler: Handler, ctx: CommandContext, g
             "Could not end giveaway {}. Failed with error: {:?}",
             giveaway.id, err
         );
-    };
+    }
 }
