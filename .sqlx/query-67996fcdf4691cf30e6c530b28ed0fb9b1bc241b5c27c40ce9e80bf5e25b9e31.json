@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO guild_role_recovery_config (guild_id) VALUES ($1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "67996fcdf4691cf30e6c530b28ed0fb9b1bc241b5c27c40ce9e80bf5e25b9e31"
+}
