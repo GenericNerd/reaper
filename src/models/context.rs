@@ -7,7 +7,7 @@ use tracing::error;
 use serenity::all::{
     CommandInteraction, ComponentInteraction, Context as SerenityContext, CreateEmbed,
     CreateEmbedFooter, CreateInteractionResponse, CreateInteractionResponseMessage,
-    EditAttachments, EditInteractionResponse, Message,
+    EditAttachments, EditInteractionResponse, Message, PartialGuild,
 };
 
 use crate::models::{
@@ -25,6 +25,11 @@ pub trait ContextReply<T> {
     ) -> Result<Message, ResponseError>;
 }
 
+pub trait ContextComponentReplies<T> {
+    async fn acknowledge(&self, interaction: &T) -> Result<(), ResponseError>;
+    async fn edit(&self, interaction: &T, response: Response) -> Result<Message, ResponseError>;
+}
+
 #[derive(Debug, Clone)]
 pub struct UnpopulatedContext<'a> {
     pub ctx: &'a SerenityContext,
@@ -36,6 +41,7 @@ pub struct PopulatedContext<'a> {
     pub has_responded: Arc<AtomicBool>,
     pub user_permissions: Vec<Permission>,
     pub highest_role: u16,
+    pub partial_guild: PartialGuild,
     pub guild: Guild,
 }
 
@@ -47,40 +53,32 @@ pub enum Context<'a> {
 
 fn error_message(error: ResponseError) -> CreateEmbed {
     match error {
-        ResponseError::Execution(title, description) => {
-            return CreateEmbed::new()
-                .title(title)
-                .description(description.unwrap_or(String::new()))
-                .color(0xff0000);
-        }
-        ResponseError::Sqlx(err) => {
-            return CreateEmbed::new()
-                .title("A database error occured while executing the command")
-                .description(format!("```{err:?}```"))
-                .footer(CreateEmbedFooter::new(
-                    "Please report this issue to developers",
-                ))
-                .color(0xff0000);
-        }
-        ResponseError::Serenity(err) => {
-            return CreateEmbed::new()
-                .title("A Discord error occured while executing the command")
-                .description(format!("```{err:?}```"))
-                .footer(CreateEmbedFooter::new(
-                    "Please report this issue to developers if this persists",
-                ))
-                .color(0xff0000);
-        }
-        ResponseError::Redis(err) => {
-            return CreateEmbed::new()
-                .title("A Redis error occured while executing the command")
-                .description(format!("```{err:?}```"))
-                .footer(CreateEmbedFooter::new(
-                    "Please report this issue to developers",
-                ))
-                .color(0xff0000);
-        }
-    };
+        ResponseError::Execution(title, description) => CreateEmbed::new()
+            .title(title)
+            .description(description.unwrap_or(String::new()))
+            .color(0xff0000),
+        ResponseError::Sqlx(err) => CreateEmbed::new()
+            .title("A database error occured while executing the command")
+            .description(format!("```{err:?}```"))
+            .footer(CreateEmbedFooter::new(
+                "Please report this issue to developers",
+            ))
+            .color(0xff0000),
+        ResponseError::Serenity(err) => CreateEmbed::new()
+            .title("A Discord error occured while executing the command")
+            .description(format!("```{err:?}```"))
+            .footer(CreateEmbedFooter::new(
+                "Please report this issue to developers if this persists",
+            ))
+            .color(0xff0000),
+        ResponseError::Redis(err) => CreateEmbed::new()
+            .title("A Redis error occured while executing the command")
+            .description(format!("```{err:?}```"))
+            .footer(CreateEmbedFooter::new(
+                "Please report this issue to developers",
+            ))
+            .color(0xff0000),
+    }
 }
 
 impl ContextReply<CommandInteraction> for Context<'_> {
@@ -247,7 +245,7 @@ impl ContextReply<ComponentInteraction> for Context<'_> {
         reply = reply.ephemeral(response.ephemeral);
 
         match interaction
-            .create_response(&ctx.http, CreateInteractionResponse::UpdateMessage(reply))
+            .create_response(&ctx.http, CreateInteractionResponse::Message(reply))
             .await
         {
             Ok(()) => {
@@ -284,5 +282,30 @@ impl ContextReply<ComponentInteraction> for Context<'_> {
                 .components(vec![]),
         )
         .await
+    }
+}
+
+impl ContextComponentReplies<ComponentInteraction> for Context<'_> {
+    async fn acknowledge(&self, interaction: &ComponentInteraction) -> Result<(), ResponseError> {
+        let ctx = match self {
+            Context::Populated(ctx) => {
+                ctx.has_responded.store(true, Ordering::Relaxed);
+                ctx.ctx
+            }
+            Context::Unpopulated(ctx) => ctx.ctx,
+        };
+
+        interaction
+            .create_response(&ctx.http, CreateInteractionResponse::Acknowledge)
+            .await
+            .map_err(ResponseError::Serenity)
+    }
+
+    async fn edit(
+        &self,
+        _interaction: &ComponentInteraction,
+        _response: Response,
+    ) -> Result<Message, ResponseError> {
+        todo!()
     }
 }

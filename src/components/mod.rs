@@ -1,18 +1,28 @@
 use std::collections::HashMap;
 
-use serenity::{all::ComponentInteraction, async_trait};
+use async_trait::async_trait;
+use serenity::all::ComponentInteraction;
 
-use crate::models::{context::Context, permissions::Permission, response::ResponseResult};
+use crate::models::{
+    context::Context, interactions::Interaction, permissions::Permission, response::ResponseResult,
+};
+
+mod config;
 
 #[async_trait]
 pub trait Component: Send + Sync {
     fn name(&self) -> &'static str;
     fn required_permission(&self) -> Option<Permission>;
-    async fn router(&self, ctx: &Context<'_>, component: &ComponentInteraction) -> ResponseResult;
+    async fn router(
+        &self,
+        ctx: &Context<'_>,
+        component: &ComponentInteraction,
+        interaction: &Interaction,
+    ) -> ResponseResult;
 }
 
 fn get_components_vec() -> Vec<Box<dyn Component>> {
-    vec![]
+    vec![Box::new(config::Config::new())]
 }
 
 pub fn get_components_available() -> HashMap<&'static str, Box<dyn Component>> {

@@ -30,6 +30,95 @@ use crate::{
 };
 
 impl EventRouter {
+    // Helper to fetch a PartialGuild from cache or API
+    async fn fetch_partial_guild(
+        &self,
+        ctx: &SerenityContext,
+        guild: Guild,
+    ) -> Result<PartialGuild, ResponseError> {
+        let mut partial_guild = None;
+        debug!(
+            "Attempting cache of {}'s partial guild from cache",
+            guild.as_u64()
+        );
+        let cached_guild = guild
+            .as_serenity_id()
+            .to_guild_cached(&ctx.cache)
+            .map(|guild| PartialGuild::from(guild.clone()));
+
+        if let Some(cached_partial_guild) = cached_guild {
+            debug!(
+                "Successfully cached {}'s partial guild from cache",
+                guild.as_u64()
+            );
+            partial_guild = Some(cached_partial_guild);
+        } else if let Ok(fetched_guild) = guild.as_serenity_id().to_partial_guild(ctx).await {
+            debug!(
+                "Local cache failed, obtaining {}'s partial guild via API",
+                guild.as_u64()
+            );
+            partial_guild = Some(fetched_guild);
+        }
+
+        partial_guild.ok_or_else(|| ResponseError::Execution(
+            "Failed to fetch guild".to_string(),
+            Some("Please reach out to the [support server](https://discord.gg/jhD3Xc5cm6) for more information.".to_string()),
+        ))
+    }
+
+    // Helper to compute permissions and highest role for a user in a guild
+    async fn compute_permissions_and_rank(
+        &self,
+        partial_guild: &PartialGuild,
+        guild: Guild,
+        user: User,
+        role_ids: &[serenity::all::RoleId],
+    ) -> (Vec<Permission>, u16) {
+        debug!("Obtaining information required to populate context");
+        let mut highest_role = 0;
+        let user_permissions: Vec<Permission> = if partial_guild.owner_id == user.as_serenity_id() {
+            highest_role = u16::MAX;
+            enum_iterator::all::<Permission>().collect::<Vec<_>>()
+        } else {
+            let mut user_permissions: Vec<Permission> = vec![];
+            for user_permission in Permission::get_user(guild, user).await {
+                if !user_permissions.contains(&user_permission) {
+                    user_permissions.push(user_permission);
+                }
+            }
+            for role in role_ids.iter().copied() {
+                if let Some(role) = partial_guild.roles.get(&role) {
+                    if role.position > highest_role {
+                        highest_role = role.position;
+                    }
+
+                    if role.permissions.contains(Permissions::ADMINISTRATOR) {
+                        highest_role = u16::MAX - 1;
+                        user_permissions = enum_iterator::all::<Permission>().collect::<Vec<_>>();
+                        break;
+                    }
+                }
+
+                let role = Role::from(role);
+
+                for role_permission in Permission::get_role(guild, role).await {
+                    if !user_permissions.contains(&role_permission) {
+                        user_permissions.push(role_permission);
+                    }
+                }
+            }
+            let everyone_role = Role::from(guild.as_u64());
+            let everyone_role = Permission::get_role(guild, everyone_role).await;
+            for role_permission in everyone_role {
+                if !user_permissions.contains(&role_permission) {
+                    user_permissions.push(role_permission);
+                }
+            }
+            user_permissions
+        };
+
+        (user_permissions, highest_role)
+    }
     #[tracing::instrument(skip(ctx, command), fields(command_name = command.data.name))]
     async fn on_command(&self, ctx: SerenityContext, command: CommandInteraction) {
         let timing = histogram!("bot.timing.on_command", "command" => command.data.name.clone());
@@ -38,7 +127,7 @@ impl EventRouter {
         counter!("bot.command_count").increment(1);
 
         // Check if all commands are disabled
-        let commands_active =
+        let are_commands_active =
             match sqlx::query!("SELECT active FROM global_kills WHERE feature = 'commands'")
                 .fetch_one(Bot::global().postgres())
                 .await
@@ -54,7 +143,7 @@ impl EventRouter {
                 }
             };
 
-        if command.data.name != "global" && !commands_active {
+        if command.data.name != "global" && !are_commands_active {
             info!("Commands are disabled, not responding to command");
             let _res = context.error_message(&command, ResponseError::Execution(
                 "Commands are currently disabled".to_string(),
@@ -65,7 +154,7 @@ impl EventRouter {
         }
 
         // Check if this specific command is disabled
-        let command_active = match sqlx::query!(
+        let is_command_active = match sqlx::query!(
             "SELECT active FROM global_kills WHERE feature = $1",
             format!("commands.{}", command.data.name)
         )
@@ -83,7 +172,7 @@ impl EventRouter {
             }
         };
 
-        if command.data.name != "global" && !command_active {
+        if command.data.name != "global" && !is_command_active {
             info!(
                 "{} is disabled, not responding to command",
                 command.data.name
@@ -95,7 +184,7 @@ impl EventRouter {
                     ResponseError::Execution(
                         format!("{command_name} is currently disabled"),
                         Some("Please reach out to the [support server](https://discord.gg/jhD3Xc5cm6) for more information.".to_string()),
-                    ),
+                    )
                 )
                 .await;
             timing.record(start.elapsed());
@@ -143,14 +232,11 @@ impl EventRouter {
                 return;
             }
 
-            let executing_command = match Bot::global().commands().get(&command.data.name.as_str())
-            {
-                Some(cmd) => cmd,
-                None => {
-                    let _res = context.error_message(&command, ResponseError::Execution("Command not found".to_string(), Some("Please reach out to the [support server](https://discord.gg/jhD3Xc5cm6) for more information.".to_string()))).await;
-                    timing.record(start.elapsed());
-                    return;
-                }
+            let Some(executing_command) = Bot::global().commands().get(&command.data.name.as_str())
+            else {
+                let _res = context.error_message(&command, ResponseError::Execution("Command not found".to_string(), Some("Please reach out to the [support server](https://discord.gg/jhD3Xc5cm6) for more information.".to_string()))).await;
+                timing.record(start.elapsed());
+                return;
             };
 
             let _res = executing_command.router(&context, &command).await;
@@ -182,102 +268,42 @@ impl EventRouter {
             return;
         }
 
-        let mut partial_guild = None;
-        debug!(
-            "Attempting cache of {}'s partial guild from cache",
-            guild.as_u64()
-        );
-        let cached_guild = guild
-            .as_serenity_id()
-            .to_guild_cached(&ctx.cache)
-            .map(|guild| PartialGuild::from(guild.clone()));
-
-        if let Some(cached_partial_guild) = cached_guild {
-            debug!(
-                "Successfully cached {}'s partial guild from cache",
-                guild.as_u64()
-            );
-            partial_guild = Some(cached_partial_guild);
-        } else if let Ok(fetched_guild) = guild.as_serenity_id().to_partial_guild(&ctx).await {
-            debug!(
-                "Local cache failed, obtaining {}'s partial guild via API",
-                guild.as_u64()
-            );
-            partial_guild = Some(fetched_guild);
-        }
-
-        let Some(partial_guild) = partial_guild else {
-            error!("Failed to fetch guild");
-            let _res = context
-                .error_message(&command, ResponseError::Execution(
-                    "Failed to fetch guild".to_string(),
-                    Some("Please reach out to the [support server](https://discord.gg/jhD3Xc5cm6) for more information.".to_string()),
-                ))
-                .await;
-            timing.record(start.elapsed());
-            return;
+        let partial_guild = match self.fetch_partial_guild(&ctx, guild).await {
+            Ok(pg) => pg,
+            Err(err) => {
+                error!("Failed to fetch guild");
+                let _res = context.error_message(&command, err).await;
+                timing.record(start.elapsed());
+                return;
+            }
         };
 
-        debug!("Obtaining information required to populate context");
-        let mut highest_role = 0;
-        let user_permissions: Vec<Permission> = if partial_guild.owner_id == user.as_serenity_id() {
-            highest_role = u16::MAX;
-            enum_iterator::all::<Permission>().collect::<Vec<_>>()
-        } else {
-            let mut user_permissions: Vec<Permission> = vec![];
-            for user_permission in Permission::get_user(guild, user).await {
-                if !user_permissions.contains(&user_permission) {
-                    user_permissions.push(user_permission);
-                }
-            }
-            for role in command.member.clone().unwrap().roles {
-                if let Some(role) = partial_guild.roles.get(&role) {
-                    if role.position > highest_role {
-                        highest_role = role.position;
-                    }
-
-                    if role.permissions.contains(Permissions::ADMINISTRATOR) {
-                        highest_role = u16::MAX - 1;
-                        user_permissions = enum_iterator::all::<Permission>().collect::<Vec<_>>();
-                        break;
-                    }
-                }
-
-                let role = Role::from(role);
-
-                for role_permission in Permission::get_role(guild, role).await {
-                    if !user_permissions.contains(&role_permission) {
-                        user_permissions.push(role_permission);
-                    }
-                }
-            }
-            let everyone_role = Role::from(guild.as_u64());
-            let everyone_role = Permission::get_role(guild, everyone_role).await;
-            for role_permission in everyone_role {
-                if !user_permissions.contains(&role_permission) {
-                    user_permissions.push(role_permission);
-                }
-            }
-            user_permissions
-        };
+        let (user_permissions, highest_role) = self
+            .compute_permissions_and_rank(
+                &partial_guild,
+                guild,
+                user,
+                &command.member.clone().unwrap().roles,
+            )
+            .await;
 
         let context = Context::Populated(PopulatedContext {
             ctx: &ctx,
             has_responded: Arc::new(AtomicBool::new(false)),
             user_permissions,
             highest_role,
+            partial_guild,
             guild,
         });
         debug!("Generated context in {:?}", start.elapsed());
 
-        let executing_command = match Bot::global().commands().get(&command.data.name.as_str()) {
-            Some(cmd) => cmd,
-            None => {
-                let _res = context.error_message(&command, ResponseError::Execution("Command not found".to_string(), Some("Please reach out to the [support server](https://discord.gg/jhD3Xc5cm6) for more information.".to_string()))).await;
-                timing.record(start.elapsed());
-                return;
-            }
+        let Some(executing_command) = Bot::global().commands().get(&command.data.name.as_str())
+        else {
+            let _res = context.error_message(&command, ResponseError::Execution("Command not found".to_string(), Some("Please reach out to the [support server](https://discord.gg/jhD3Xc5cm6) for more information.".to_string()))).await;
+            timing.record(start.elapsed());
+            return;
         };
+        debug!("Executing command {}", executing_command.name());
 
         if executing_command.name() != "privacy" {
             if let Err(err) = command
@@ -300,6 +326,7 @@ impl EventRouter {
         }
 
         if let Some(required_permission) = executing_command.required_permission() {
+            debug!("Verifying whether user has permission {required_permission}");
             let user_permissions = match &context {
                 Context::Populated(ctx) => &ctx.user_permissions,
                 Context::Unpopulated(_) => return,
@@ -313,7 +340,7 @@ impl EventRouter {
         }
 
         let res = match executing_command.router(&context, &command).await {
-            Ok(_) => Ok(()),
+            Ok(()) => Ok(()),
             Err(err) => {
                 let _res = context.error_message(&command, err).await;
                 Err(())
@@ -358,20 +385,13 @@ impl EventRouter {
         let Some(interaction) = Bot::global().interaction_state().get(interaction_id).await else {
             return;
         };
-        // TODO: Not use unwrap, it's ugly
-        let interaction_name = interaction
-            .data
-            .get("interaction")
-            .unwrap()
-            .as_str()
-            .unwrap();
 
-        if interaction_name != "global" && !components_active {
+        if interaction.interaction != "global" && !components_active {
             info!(
                 "{} is disabled, not responding to component",
-                interaction_name
+                interaction.interaction
             );
-            let component_name = interaction_name.to_title_case();
+            let component_name = interaction.interaction.to_title_case();
             let _res = context
                 .error_message(
                     &component,
@@ -447,117 +467,47 @@ impl EventRouter {
             return;
         }
 
-        let mut partial_guild = None;
-        debug!(
-            "Attempting cache of {}'s partial guild from cache",
-            guild.as_u64()
-        );
-        let cached_guild = guild
-            .as_serenity_id()
-            .to_guild_cached(&ctx.cache)
-            .map(|guild| PartialGuild::from(guild.clone()));
-
-        if let Some(cached_partial_guild) = cached_guild {
-            debug!(
-                "Successfully cached {}'s partial guild from cache",
-                guild.as_u64()
-            );
-            partial_guild = Some(cached_partial_guild);
-        } else if let Ok(fetched_guild) = guild.as_serenity_id().to_partial_guild(&ctx).await {
-            debug!(
-                "Local cache failed, obtaining {}'s partial guild via API",
-                guild.as_u64()
-            );
-            partial_guild = Some(fetched_guild);
-        }
-
-        let Some(partial_guild) = partial_guild else {
-            error!("Failed to fetch guild");
-            let _res = context
-                .error_message(&component, ResponseError::Execution(
-                    "Failed to fetch guild".to_string(),
-                    Some("Please reach out to the [support server](https://discord.gg/jhD3Xc5cm6) for more information.".to_string()),
-                ))
-                .await;
-            timing.record(start.elapsed());
-            return;
+        let partial_guild = match self.fetch_partial_guild(&ctx, guild).await {
+            Ok(pg) => pg,
+            Err(err) => {
+                error!("Failed to fetch guild");
+                let _res = context.error_message(&component, err).await;
+                timing.record(start.elapsed());
+                return;
+            }
         };
 
-        debug!("Obtaining information required to populate context");
-        let mut highest_role = 0;
-        let user_permissions: Vec<Permission> = if partial_guild.owner_id == user.as_serenity_id() {
-            highest_role = u16::MAX;
-            enum_iterator::all::<Permission>().collect::<Vec<_>>()
-        } else {
-            let mut user_permissions: Vec<Permission> = vec![];
-            for user_permission in Permission::get_user(guild, user).await {
-                if !user_permissions.contains(&user_permission) {
-                    user_permissions.push(user_permission);
-                }
-            }
-            for role in component.member.clone().unwrap().roles {
-                if let Some(role) = partial_guild.roles.get(&role) {
-                    if role.position > highest_role {
-                        highest_role = role.position;
-                    }
-
-                    if role.permissions.contains(Permissions::ADMINISTRATOR) {
-                        highest_role = u16::MAX - 1;
-                        user_permissions = enum_iterator::all::<Permission>().collect::<Vec<_>>();
-                        break;
-                    }
-                }
-
-                let role = Role::from(role);
-
-                for role_permission in Permission::get_role(guild, role).await {
-                    if !user_permissions.contains(&role_permission) {
-                        user_permissions.push(role_permission);
-                    }
-                }
-            }
-            let everyone_role = Role::from(guild.as_u64());
-            let everyone_role = Permission::get_role(guild, everyone_role).await;
-            for role_permission in everyone_role {
-                if !user_permissions.contains(&role_permission) {
-                    user_permissions.push(role_permission);
-                }
-            }
-            user_permissions
-        };
+        let (user_permissions, highest_role) = self
+            .compute_permissions_and_rank(
+                &partial_guild,
+                guild,
+                user,
+                &component.member.clone().unwrap().roles,
+            )
+            .await;
 
         let context = Context::Populated(PopulatedContext {
             ctx: &ctx,
             has_responded: Arc::new(AtomicBool::new(false)),
             user_permissions,
             highest_role,
+            partial_guild,
             guild,
         });
         debug!("Generated context in {:?}", start.elapsed());
 
-        info!("Executing component {}", interaction_name);
-        let executing_component = match Bot::global().components().get(&interaction_name) {
-            Some(component) => component,
-            None => {
-                let _res = context.error_message(&component, ResponseError::Execution("Component not found".to_string(), Some("Please reach out to the [support server](https://discord.gg/jhD3Xc5cm6) for more information.".to_string()))).await;
-                timing.record(start.elapsed());
-                return;
-            }
-        };
-
-        if let Err(err) = component
-            .create_response(&ctx.http, CreateInteractionResponse::Acknowledge)
-            .await
-        {
-            error!("Failed to acknowledge component: {err}");
-            let _res = context
-                .error_message(&component, ResponseError::Serenity(err))
-                .await;
+        let Some(executing_component) = Bot::global()
+            .components()
+            .get(&interaction.interaction.as_str())
+        else {
+            let _res = context.error_message(&component, ResponseError::Execution("Component not found".to_string(), Some("Please reach out to the [support server](https://discord.gg/jhD3Xc5cm6) for more information.".to_string()))).await;
             timing.record(start.elapsed());
             return;
-        }
+        };
+        debug!("Executing component {}", interaction.interaction);
 
         if let Some(required_permission) = executing_component.required_permission() {
+            debug!("Verifying whether user has permission {required_permission}");
             let user_permissions = match &context {
                 Context::Populated(ctx) => &ctx.user_permissions,
                 Context::Unpopulated(_) => return,
@@ -570,8 +520,11 @@ impl EventRouter {
             }
         }
 
-        let res = match executing_component.router(&context, &component).await {
-            Ok(_) => Ok(()),
+        let res = match executing_component
+            .router(&context, &component, &interaction)
+            .await
+        {
+            Ok(()) => Ok(()),
             Err(err) => {
                 let _res = context.error_message(&component, err).await;
                 Err(())
@@ -592,7 +545,7 @@ impl EventRouter {
             Interaction::Command(command) => self.on_command(ctx, command).await,
             Interaction::Component(component) => self.on_component(ctx, component).await,
             // Interaction::Modal(modal) => self.on_modal(ctx, modal).await
-            _ => todo!(),
+            _ => {}
         }
     }
 }

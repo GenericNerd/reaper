@@ -22,7 +22,7 @@ impl EventRouter {
                 guild_id = guild.as_u64(),
                 "Failed to insert moderation configuration: {}", err
             );
-        };
+        }
 
         if let Err(err) = sqlx::query!(
             "INSERT INTO logging_configuration (guild_id) VALUES ($1)",

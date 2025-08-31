@@ -1,4 +1,5 @@
 #![deny(clippy::all)]
+#![warn(clippy::pedantic)]
 use std::{net::SocketAddr, sync::Arc};
 
 use metrics_exporter_prometheus::PrometheusBuilder;

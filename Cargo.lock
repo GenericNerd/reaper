@@ -1934,6 +1934,7 @@ dependencies = [
  "metrics",
  "metrics-exporter-prometheus",
  "redis",
+ "regex",
  "serde",
  "serde_json",
  "serenity",

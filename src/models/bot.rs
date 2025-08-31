@@ -94,8 +94,8 @@ impl Bot {
         &self.start_time
     }
 
-    pub fn global_kill_guild(&self) -> &Option<Guild> {
-        &self.global_kill_guild
+    pub fn global_kill_guild(&self) -> Option<&Guild> {
+        self.global_kill_guild.as_ref()
     }
 
     pub fn interaction_state(&self) -> &InteractionState {

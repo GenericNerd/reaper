@@ -84,7 +84,7 @@ impl Command for InfoCommand {
                             format!(
                                 "Shard ID {}\nLatency: {}",
                                 populated_ctx.ctx.shard_id,
-                                shard_latency.map(|latency| latency.human(humanize_duration::Truncate::Millis).to_string()).unwrap_or("Pending".to_string())
+                                shard_latency.map_or("Pending".to_string(),|latency| latency.human(humanize_duration::Truncate::Millis).to_string())
                             ),
                             true,
                         ),

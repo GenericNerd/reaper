@@ -23,7 +23,7 @@ impl EventRouter {
                 guild_id = guild.as_u64(),
                 "Failed to delete moderation configuration: {err}"
             );
-        };
+        }
 
         if let Err(err) = sqlx::query!(
             "DELETE FROM logging_configuration WHERE guild_id = $1",
@@ -48,7 +48,7 @@ impl EventRouter {
             error!(
                 guild_id = guild.as_u64(),
                 "Failed to delete guild role recovery configuration: {err}"
-            )
+            );
         }
         histogram.record(start.elapsed());
     }

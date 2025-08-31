@@ -47,16 +47,21 @@ impl Command for ConfigCommand {
 
     async fn router(&self, ctx: &Context<'_>, cmd: &CommandInteraction) -> ResponseResult {
         let user = User::from(cmd.user.id);
+        // TODO: Read command option, add field to data to determine whether to run whole config or just a specific category
         let interaction_builders = vec![
             InteractionBuilder::new(
+                "config".to_string(),
                 "Yes".to_string(),
                 user,
-                serde_json::json!({"interaction": "config", "category": "moderation", "step": "mute_role"}),
+                serde_json::json!({"category": "moderation", "step": "mute_role"}),
+                Some(InteractionBuilder::one_hour_expiry()),
             ),
             InteractionBuilder::new(
+                "config".to_string(),
                 "No".to_string(),
                 user,
-                serde_json::json!({"interaction": "config", "category": "logging", "step": "enter"}),
+                serde_json::json!({"category": "logging", "step": "enter"}),
+                Some(InteractionBuilder::one_hour_expiry()),
             ),
         ];
         let interactions = Bot::global()

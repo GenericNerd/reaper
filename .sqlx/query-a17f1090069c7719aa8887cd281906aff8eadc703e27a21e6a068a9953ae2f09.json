@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, action, user_id, data, expires_at FROM interaction_states WHERE id = $1",
+  "query": "SELECT id, interaction, action, user_id, data, expires_at FROM interaction_states WHERE id = $1",
   "describe": {
     "columns": [
       {
@@ -10,21 +10,26 @@
       },
       {
         "ordinal": 1,
-        "name": "action",
+        "name": "interaction",
         "type_info": "Text"
       },
       {
         "ordinal": 2,
+        "name": "action",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
         "name": "user_id",
         "type_info": "Int8"
       },
       {
-        "ordinal": 3,
+        "ordinal": 4,
         "name": "data",
         "type_info": "Jsonb"
       },
       {
-        "ordinal": 4,
+        "ordinal": 5,
         "name": "expires_at",
         "type_info": "Timestamp"
       }
@@ -39,8 +44,9 @@
       false,
       false,
       false,
-      false
+      false,
+      true
     ]
   },
-  "hash": "b699f20dc07dbcebec7dae228577ae48f686580170afadc8aaea2027c466cf6c"
+  "hash": "a17f1090069c7719aa8887cd281906aff8eadc703e27a21e6a068a9953ae2f09"
 }
