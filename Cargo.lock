@@ -568,26 +568,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "enum-iterator"
-version = "2.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c280b9e6b3ae19e152d8e31cf47f18389781e119d4013a2a2bb0180e5facc635"
-dependencies = [
- "enum-iterator-derive",
-]
-
-[[package]]
-name = "enum-iterator-derive"
-version = "1.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1ab991c1362ac86c61ab6f556cff143daa22e5a15e4e189df818b2fd19fe65b"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.104",
-]
-
-[[package]]
 name = "equivalent"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1667,6 +1647,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ordinal"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04f7ff16c3a0599da7939ad0ae9300414ca1115a7f552574bb269638a1e0576d"
+
+[[package]]
 name = "overload"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1928,17 +1914,18 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "dashmap 6.1.0",
- "enum-iterator",
  "humanize-duration",
  "inflections",
  "metrics",
  "metrics-exporter-prometheus",
+ "ordinal",
  "redis",
  "regex",
  "serde",
  "serde_json",
  "serenity",
  "sqlx",
+ "strum",
  "time",
  "tokio",
  "tracing",
@@ -2767,6 +2754,27 @@ dependencies = [
  "unicode-bidi",
  "unicode-normalization",
  "unicode-properties",
+]
+
+[[package]]
+name = "strum"
+version = "0.27.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af23d6f6c1a224baef9d3f61e287d2761385a5b88fdab4eb4c6f11aeb54c4bcf"
+dependencies = [
+ "strum_macros",
+]
+
+[[package]]
+name = "strum_macros"
+version = "0.27.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7695ce3845ea4b33927c055a39dc438a45b059f7c1b3d91d38d10355fb8cbca7"
+dependencies = [
+ "heck",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.104",
 ]
 
 [[package]]

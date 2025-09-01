@@ -13,6 +13,7 @@ use serenity::all::{
     CreateInteractionResponse, CreateInteractionResponseMessage, Interaction, PartialGuild,
     Permissions,
 };
+use strum::IntoEnumIterator;
 use tracing::{debug, error, info};
 use uuid::Uuid;
 
@@ -78,7 +79,7 @@ impl EventRouter {
         let mut highest_role = 0;
         let user_permissions: Vec<Permission> = if partial_guild.owner_id == user.as_serenity_id() {
             highest_role = u16::MAX;
-            enum_iterator::all::<Permission>().collect::<Vec<_>>()
+            Permission::iter().collect::<Vec<_>>()
         } else {
             let mut user_permissions: Vec<Permission> = vec![];
             for user_permission in Permission::get_user(guild, user).await {
@@ -94,7 +95,7 @@ impl EventRouter {
 
                     if role.permissions.contains(Permissions::ADMINISTRATOR) {
                         highest_role = u16::MAX - 1;
-                        user_permissions = enum_iterator::all::<Permission>().collect::<Vec<_>>();
+                        user_permissions = Permission::iter().collect::<Vec<_>>();
                         break;
                     }
                 }
@@ -287,14 +288,14 @@ impl EventRouter {
             )
             .await;
 
-        let context = Context::Populated(PopulatedContext {
+        let context = Context::Populated(Box::new(PopulatedContext {
             ctx: &ctx,
             has_responded: Arc::new(AtomicBool::new(false)),
             user_permissions,
             highest_role,
             partial_guild,
             guild,
-        });
+        }));
         debug!("Generated context in {:?}", start.elapsed());
 
         let Some(executing_command) = Bot::global().commands().get(&command.data.name.as_str())
@@ -386,12 +387,12 @@ impl EventRouter {
             return;
         };
 
-        if interaction.interaction != "global" && !components_active {
+        if interaction.route != "global" && !components_active {
             info!(
                 "{} is disabled, not responding to component",
-                interaction.interaction
+                interaction.route
             );
-            let component_name = interaction.interaction.to_title_case();
+            let component_name = interaction.route.to_title_case();
             let _res = context
                 .error_message(
                     &component,
@@ -486,25 +487,23 @@ impl EventRouter {
             )
             .await;
 
-        let context = Context::Populated(PopulatedContext {
+        let context = Context::Populated(Box::new(PopulatedContext {
             ctx: &ctx,
             has_responded: Arc::new(AtomicBool::new(false)),
             user_permissions,
             highest_role,
             partial_guild,
             guild,
-        });
+        }));
         debug!("Generated context in {:?}", start.elapsed());
 
-        let Some(executing_component) = Bot::global()
-            .components()
-            .get(&interaction.interaction.as_str())
+        let Some(executing_component) = Bot::global().components().get(&interaction.route.as_str())
         else {
             let _res = context.error_message(&component, ResponseError::Execution("Component not found".to_string(), Some("Please reach out to the [support server](https://discord.gg/jhD3Xc5cm6) for more information.".to_string()))).await;
             timing.record(start.elapsed());
             return;
         };
-        debug!("Executing component {}", interaction.interaction);
+        debug!("Executing component {}", interaction.route);
 
         if let Some(required_permission) = executing_component.required_permission() {
             debug!("Verifying whether user has permission {required_permission}");

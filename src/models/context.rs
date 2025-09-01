@@ -6,7 +6,7 @@ use tracing::error;
 
 use serenity::all::{
     CommandInteraction, ComponentInteraction, Context as SerenityContext, CreateEmbed,
-    CreateEmbedFooter, CreateInteractionResponse, CreateInteractionResponseMessage,
+    CreateEmbedFooter, CreateInteractionResponse, CreateInteractionResponseMessage, CreateModal,
     EditAttachments, EditInteractionResponse, Message, PartialGuild,
 };
 
@@ -23,11 +23,15 @@ pub trait ContextReply<T> {
         interaction: &T,
         error: ResponseError,
     ) -> Result<Message, ResponseError>;
+    async fn error_message_ref(
+        &self,
+        interaction: &T,
+        error: &ResponseError,
+    ) -> Result<Message, ResponseError>;
 }
 
 pub trait ContextComponentReplies<T> {
-    async fn acknowledge(&self, interaction: &T) -> Result<(), ResponseError>;
-    async fn edit(&self, interaction: &T, response: Response) -> Result<Message, ResponseError>;
+    async fn modal(&self, interaction: &T, modal: CreateModal) -> Result<(), ResponseError>;
 }
 
 #[derive(Debug, Clone)]
@@ -48,14 +52,14 @@ pub struct PopulatedContext<'a> {
 #[derive(Debug, Clone)]
 pub enum Context<'a> {
     Unpopulated(UnpopulatedContext<'a>),
-    Populated(PopulatedContext<'a>),
+    Populated(Box<PopulatedContext<'a>>),
 }
 
-fn error_message(error: ResponseError) -> CreateEmbed {
+fn error_message(error: &ResponseError) -> CreateEmbed {
     match error {
         ResponseError::Execution(title, description) => CreateEmbed::new()
             .title(title)
-            .description(description.unwrap_or(String::new()))
+            .description(description.clone().unwrap_or(String::new()))
             .color(0xff0000),
         ResponseError::Sqlx(err) => CreateEmbed::new()
             .title("A database error occured while executing the command")
@@ -170,6 +174,23 @@ impl ContextReply<CommandInteraction> for Context<'_> {
         interaction: &CommandInteraction,
         error: ResponseError,
     ) -> Result<Message, ResponseError> {
+        let embed = error_message(&error);
+
+        self.reply(
+            interaction,
+            Response::new()
+                .embed(embed)
+                .ephemeral(true)
+                .components(vec![]),
+        )
+        .await
+    }
+
+    async fn error_message_ref(
+        &self,
+        interaction: &CommandInteraction,
+        error: &ResponseError,
+    ) -> Result<Message, ResponseError> {
         let embed = error_message(error);
 
         self.reply(
@@ -245,7 +266,7 @@ impl ContextReply<ComponentInteraction> for Context<'_> {
         reply = reply.ephemeral(response.ephemeral);
 
         match interaction
-            .create_response(&ctx.http, CreateInteractionResponse::Message(reply))
+            .create_response(&ctx.http, CreateInteractionResponse::UpdateMessage(reply))
             .await
         {
             Ok(()) => {
@@ -272,6 +293,23 @@ impl ContextReply<ComponentInteraction> for Context<'_> {
         interaction: &ComponentInteraction,
         error: ResponseError,
     ) -> Result<Message, ResponseError> {
+        let embed = error_message(&error);
+
+        self.reply(
+            interaction,
+            Response::new()
+                .embed(embed)
+                .ephemeral(true)
+                .components(vec![]),
+        )
+        .await
+    }
+
+    async fn error_message_ref(
+            &self,
+            interaction: &ComponentInteraction,
+            error: &ResponseError,
+        ) -> Result<Message, ResponseError> {
         let embed = error_message(error);
 
         self.reply(
@@ -286,7 +324,11 @@ impl ContextReply<ComponentInteraction> for Context<'_> {
 }
 
 impl ContextComponentReplies<ComponentInteraction> for Context<'_> {
-    async fn acknowledge(&self, interaction: &ComponentInteraction) -> Result<(), ResponseError> {
+    async fn modal(
+        &self,
+        interaction: &ComponentInteraction,
+        modal: CreateModal,
+    ) -> Result<(), ResponseError> {
         let ctx = match self {
             Context::Populated(ctx) => {
                 ctx.has_responded.store(true, Ordering::Relaxed);
@@ -296,16 +338,8 @@ impl ContextComponentReplies<ComponentInteraction> for Context<'_> {
         };
 
         interaction
-            .create_response(&ctx.http, CreateInteractionResponse::Acknowledge)
+            .create_response(&ctx.http, CreateInteractionResponse::Modal(modal))
             .await
             .map_err(ResponseError::Serenity)
-    }
-
-    async fn edit(
-        &self,
-        _interaction: &ComponentInteraction,
-        _response: Response,
-    ) -> Result<Message, ResponseError> {
-        todo!()
     }
 }

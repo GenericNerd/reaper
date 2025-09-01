@@ -3,41 +3,45 @@
 use std::sync::Arc;
 
 use dashmap::DashMap;
+use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
+use strum::Display;
 
 use crate::models::user::User;
 
-#[derive(Debug, Clone)]
+pub mod config;
+
+#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum InteractionKind {
+    Config { category: config::ConfigInteraction },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Interaction {
     pub id: uuid::Uuid,
-    pub interaction: String,
-    pub action: String,
+    pub route: String,
+    pub kind: InteractionKind,
     pub user_id: User,
-    pub data: serde_json::Value,
     pub expires_at: Option<time::OffsetDateTime>,
 }
 
 pub struct InteractionBuilder {
-    pub interaction: String,
-    pub action: String,
+    pub kind: InteractionKind,
     pub user_id: User,
-    pub data: serde_json::Value,
     pub expires_at: Option<time::OffsetDateTime>,
 }
 
 impl InteractionBuilder {
     pub fn new(
-        interaction: String,
-        action: String,
+        kind: InteractionKind,
         user_id: User,
-        data: serde_json::Value,
         expires_at: Option<time::OffsetDateTime>,
     ) -> Self {
         Self {
-            interaction,
-            action,
+            kind,
             user_id,
-            data,
             expires_at,
         }
     }
@@ -45,10 +49,9 @@ impl InteractionBuilder {
     pub fn build(&self) -> Interaction {
         Interaction {
             id: uuid::Uuid::new_v4(),
-            interaction: self.interaction.clone(),
-            action: self.action.clone(),
+            route: self.kind.to_string(),
+            kind: self.kind.clone(),
             user_id: self.user_id,
-            data: self.data.clone(),
             expires_at: self.expires_at,
         }
     }
@@ -80,20 +83,34 @@ impl InteractionState {
         interactions: Vec<Interaction>,
     ) -> Result<Vec<uuid::Uuid>, sqlx::Error> {
         let mut query_builder = sqlx::QueryBuilder::new(
-            "INSERT INTO interaction_states (id, interaction, action, user_id, data, expires_at) ",
+            "INSERT INTO interaction_states (id, interaction_route, user_id, data, expires_at) ",
         );
 
-        query_builder.push_values(interactions.iter(), |mut b, interaction| {
-            b.push_bind(interaction.id)
-                .push_bind(interaction.interaction.clone())
-                .push_bind(interaction.action.clone())
-                .push_bind(interaction.user_id.as_i64())
-                .push_bind(interaction.data.clone());
-            if let Some(expires_at) = interaction.expires_at {
-                b.push_bind(offset_to_primative_datetime(expires_at));
-            } else {
-                b.push_bind(None::<time::PrimitiveDateTime>);
-            }
+        let interaction_db_objs = interactions
+            .iter()
+            .map(|interaction| {
+                let Ok(data) = serde_json::to_value(&interaction.kind) else {
+                    return Err(sqlx::Error::from(std::io::Error::other(
+                        "Failed to serialize interaction kind",
+                    )));
+                };
+
+                Ok((
+                    interaction.id,
+                    interaction.kind.to_string(),
+                    interaction.user_id.as_i64(),
+                    data,
+                    interaction.expires_at.map(offset_to_primative_datetime),
+                ))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        query_builder.push_values(interaction_db_objs, |mut b, interaction| {
+            b.push_bind(interaction.0)
+                .push_bind(interaction.1)
+                .push_bind(interaction.2)
+                .push_bind(interaction.3)
+                .push_bind(interaction.4);
         });
 
         query_builder
@@ -115,8 +132,7 @@ impl InteractionState {
         #[derive(sqlx::FromRow)]
         struct InteractionRow {
             id: uuid::Uuid,
-            interaction: String,
-            action: String,
+            interaction_route: String,
             user_id: i64,
             data: serde_json::Value,
             expires_at: Option<time::PrimitiveDateTime>,
@@ -128,19 +144,22 @@ impl InteractionState {
 
         let row = sqlx::query_as!(
             InteractionRow,
-            "SELECT id, interaction, action, user_id, data, expires_at FROM interaction_states WHERE id = $1",
+            "SELECT id, interaction_route, user_id, data, expires_at FROM interaction_states WHERE id = $1",
             id
         )
         .fetch_optional(self.database.as_ref())
         .await
         .ok()??;
 
+        let Ok(kind) = serde_json::from_value(row.data) else {
+            return None;
+        };
+
         let interaction = Interaction {
             id: row.id,
-            interaction: row.interaction,
-            action: row.action,
+            route: row.interaction_route,
+            kind,
             user_id: User::from(row.user_id as u64),
-            data: row.data,
             expires_at: row
                 .expires_at
                 .map(|dt| dt.assume_offset(time::UtcOffset::UTC)),

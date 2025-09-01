@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT strike_count, action_type, action_duration FROM strike_escalations WHERE guild_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "strike_count",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "action_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "action_duration",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "99cc14c2f3c6840d896e33498a0d69716db47f1dbbb65992a571077e4929ea7e"
+}

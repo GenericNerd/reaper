@@ -11,10 +11,7 @@ use crate::{
     commands::{Command, get_commands_available},
     components::{Component, get_components_available},
     events::EventRouter,
-    models::{
-        guild::Guild,
-        interactions::{Interaction, InteractionBuilder, InteractionState},
-    },
+    models::{guild::Guild, interactions::InteractionState},
 };
 
 static BOT_INSTANCE: OnceCell<Arc<Bot>> = OnceCell::const_new();
@@ -100,21 +97,5 @@ impl Bot {
 
     pub fn interaction_state(&self) -> &InteractionState {
         &self.interaction_state
-    }
-
-    pub async fn register_interactions(
-        &self,
-        interactions: Vec<InteractionBuilder>,
-    ) -> Result<Vec<Interaction>, sqlx::Error> {
-        let interaction_values = interactions
-            .into_iter()
-            .map(|obj| obj.build())
-            .collect::<Vec<Interaction>>();
-
-        self.interaction_state
-            .register(interaction_values.clone())
-            .await?;
-
-        Ok(interaction_values)
     }
 }

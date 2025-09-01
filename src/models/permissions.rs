@@ -1,11 +1,11 @@
 use std::fmt::{self, Display, Formatter};
 
-use enum_iterator::Sequence;
+use strum::EnumIter;
 use tracing::{debug, error};
 
 use crate::models::{bot::Bot, guild::Guild, role::Role, user::User};
 
-#[derive(Debug, Copy, Clone, PartialEq, Sequence)]
+#[derive(Debug, Copy, Clone, PartialEq, EnumIter)]
 pub enum Permission {
     PermissionsView,
     PermissionsEdit,

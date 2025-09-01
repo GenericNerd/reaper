@@ -1,9 +1,29 @@
+use serde::{Deserialize, Serialize};
 use serenity::model::id::UserId as SerenityUserId;
 
 #[derive(Clone, Copy, Debug)]
 pub struct User {
     raw: u64,
     serenity_id: SerenityUserId,
+}
+
+impl Serialize for User {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.raw.serialize(serializer)
+    }
+}
+
+impl<'a> Deserialize<'a> for User {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'a>,
+    {
+        let raw = u64::deserialize(deserializer)?;
+        Ok(User::from(raw))
+    }
 }
 
 impl From<u64> for User {

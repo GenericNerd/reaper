@@ -1,5 +1,10 @@
 #![deny(clippy::all)]
 #![warn(clippy::pedantic)]
+#![allow(
+    clippy::cast_possible_wrap,
+    clippy::cast_sign_loss,
+    clippy::cast_precision_loss
+)]
 use std::{net::SocketAddr, sync::Arc};
 
 use metrics_exporter_prometheus::PrometheusBuilder;

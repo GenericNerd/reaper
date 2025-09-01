@@ -8,7 +8,10 @@ use crate::{
     models::{
         bot::Bot,
         context::{Context, ContextReply},
-        interactions::InteractionBuilder,
+        interactions::{
+            InteractionBuilder, InteractionKind,
+            config::{ConfigInteraction, LoggingStage, ModerationStage},
+        },
         permissions::Permission,
         response::{Response, ResponseResult},
         user::User,
@@ -48,24 +51,32 @@ impl Command for ConfigCommand {
     async fn router(&self, ctx: &Context<'_>, cmd: &CommandInteraction) -> ResponseResult {
         let user = User::from(cmd.user.id);
         // TODO: Read command option, add field to data to determine whether to run whole config or just a specific category
-        let interaction_builders = vec![
+        let interactions = [
             InteractionBuilder::new(
-                "config".to_string(),
-                "Yes".to_string(),
+                InteractionKind::Config {
+                    category: ConfigInteraction::Moderation {
+                        stage: ModerationStage::MuteRole,
+                    },
+                },
                 user,
-                serde_json::json!({"category": "moderation", "step": "mute_role"}),
                 Some(InteractionBuilder::one_hour_expiry()),
-            ),
+            )
+            .build(),
             InteractionBuilder::new(
-                "config".to_string(),
-                "No".to_string(),
+                InteractionKind::Config {
+                    category: ConfigInteraction::Logging {
+                        stage: LoggingStage::Enter,
+                    },
+                },
                 user,
-                serde_json::json!({"category": "logging", "step": "enter"}),
                 Some(InteractionBuilder::one_hour_expiry()),
-            ),
+            )
+            .build(),
         ];
-        let interactions = Bot::global()
-            .register_interactions(interaction_builders)
+
+        Bot::global()
+            .interaction_state()
+            .register(interactions.to_vec())
             .await?;
 
         ctx.reply(
@@ -77,20 +88,14 @@ impl Command for ConfigCommand {
                         .description("Would you like to configure moderation?")
                         .color(0x5539CC),
                 )
-                .components(vec![CreateActionRow::Buttons(
-                    interactions
-                        .into_iter()
-                        .map(|interaction| {
-                            CreateButton::new(interaction.id.to_string())
-                                .style(match interaction.action.as_str() {
-                                    "Yes" => ButtonStyle::Success,
-                                    "No" => ButtonStyle::Secondary,
-                                    _ => panic!("Invalid interaction action"),
-                                })
-                                .label(interaction.action)
-                        })
-                        .collect(),
-                )]),
+                .components(vec![CreateActionRow::Buttons(vec![
+                    CreateButton::new(interactions[0].id.to_string())
+                        .style(ButtonStyle::Success)
+                        .label("Yes"),
+                    CreateButton::new(interactions[1].id.to_string())
+                        .style(ButtonStyle::Secondary)
+                        .label("No"),
+                ])]),
         )
         .await
         .map(|_| ())

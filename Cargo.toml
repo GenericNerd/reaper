@@ -14,7 +14,6 @@ serenity = { version = "0.12", features = ["collector"] }
 sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "time", "uuid"] }
 time = { version = "0.3", features = ["large-dates"] }
 redis = { version = "0.32", features = ["tokio-comp"] }
-enum-iterator = { version = "2.1" }
 inflections = { version = "1.1" }
 async-trait = { version = "0.1" }
 humanize-duration = { version = "0.0.7" }
@@ -23,3 +22,5 @@ serde_json = { version = "1.0" }
 uuid = { version = "1.18", features = ["v4", "serde"] }
 dashmap = { version = "6.1" }
 regex = { version = "1.11" }
+strum = { version = "0.27", features = ["derive"] }
+ordinal = { version = "0.4" }
