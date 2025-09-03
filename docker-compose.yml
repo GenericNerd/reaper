@@ -18,6 +18,7 @@ services:
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - REDIS_HOST
       - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - OFFICIAL=${OFFICIAL}
     ports:
       - "9000:9000"
     depends_on:

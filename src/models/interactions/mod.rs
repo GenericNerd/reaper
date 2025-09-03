@@ -1,11 +1,11 @@
-// TODO: Write logging
-
 use std::sync::Arc;
 
 use dashmap::DashMap;
+use metrics::{counter, histogram};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use strum::Display;
+use tracing::{debug, warn};
 
 use crate::models::user::User;
 
@@ -61,12 +61,13 @@ impl InteractionBuilder {
     }
 }
 
+#[derive(Debug)]
 pub struct InteractionState {
     cache: DashMap<uuid::Uuid, Interaction>,
     database: Arc<PgPool>,
 }
 
-fn offset_to_primative_datetime(offset: time::OffsetDateTime) -> time::PrimitiveDateTime {
+fn offset_to_primitive_datetime(offset: time::OffsetDateTime) -> time::PrimitiveDateTime {
     time::PrimitiveDateTime::new(offset.date(), offset.time())
 }
 
@@ -78,10 +79,14 @@ impl InteractionState {
         }
     }
 
+    #[tracing::instrument]
     pub async fn register(
         &self,
         interactions: Vec<Interaction>,
     ) -> Result<Vec<uuid::Uuid>, sqlx::Error> {
+        debug!("Registering {} interactions", interactions.len());
+        counter!("bot.interaction.register_count").increment(interactions.len() as u64);
+
         let mut query_builder = sqlx::QueryBuilder::new(
             "INSERT INTO interaction_states (id, interaction_route, user_id, data, expires_at) ",
         );
@@ -100,7 +105,7 @@ impl InteractionState {
                     interaction.kind.to_string(),
                     interaction.user_id.as_i64(),
                     data,
-                    interaction.expires_at.map(offset_to_primative_datetime),
+                    interaction.expires_at.map(offset_to_primitive_datetime),
                 ))
             })
             .collect::<Result<Vec<_>, _>>()?;
@@ -118,6 +123,7 @@ impl InteractionState {
             .execute(self.database.as_ref())
             .await?;
 
+        debug!("Activating interactions in local cache");
         for interaction in &interactions {
             self.cache.insert(interaction.id, interaction.clone());
         }
@@ -128,6 +134,7 @@ impl InteractionState {
             .collect())
     }
 
+    #[tracing::instrument]
     pub async fn get(&self, id: uuid::Uuid) -> Option<Interaction> {
         #[derive(sqlx::FromRow)]
         struct InteractionRow {
@@ -138,7 +145,12 @@ impl InteractionState {
             expires_at: Option<time::PrimitiveDateTime>,
         }
 
+        let timing = histogram!("bot.interaction.get_duration");
+        let start = std::time::Instant::now();
+
         if let Some(interaction) = self.cache.get(&id) {
+            debug!("Interaction was obtained using local cache");
+            timing.record(start.elapsed());
             return Some(interaction.clone());
         }
 
@@ -152,6 +164,8 @@ impl InteractionState {
         .ok()??;
 
         let Ok(kind) = serde_json::from_value(row.data) else {
+            counter!("bot.interaction.malformed", "id" => id.to_string()).increment(1);
+            warn!("Interaction {id} was malformed");
             return None;
         };
 
@@ -167,6 +181,7 @@ impl InteractionState {
 
         self.cache.insert(interaction.id, interaction.clone());
 
+        timing.record(start.elapsed());
         Some(interaction)
     }
 
@@ -178,7 +193,7 @@ impl InteractionState {
 
         sqlx::query!(
             "DELETE FROM interaction_states WHERE expires_at < $1",
-            offset_to_primative_datetime(now)
+            offset_to_primitive_datetime(now)
         )
         .execute(self.database.as_ref())
         .await

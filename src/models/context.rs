@@ -13,7 +13,7 @@ use serenity::all::{
 use crate::models::{
     guild::Guild,
     permissions::Permission,
-    response::{Response, ResponseError},
+    response::{ExecutionError, InternalError, ReaperError, Response, ResponseError},
 };
 
 pub trait ContextReply<T> {
@@ -55,28 +55,39 @@ pub enum Context<'a> {
     Populated(Box<PopulatedContext<'a>>),
 }
 
+impl Context<'_> {
+    pub fn get_populated_context(&self) -> Result<&PopulatedContext<'_>, ResponseError> {
+        if let Self::Populated(context) = self {
+            return Ok(context);
+        }
+        Err(ResponseError::Execution(ExecutionError::Internal(
+            InternalError::FailedToObtainContext,
+        )))
+    }
+}
+
 fn error_message(error: &ResponseError) -> CreateEmbed {
     match error {
-        ResponseError::Execution(title, description) => CreateEmbed::new()
-            .title(title)
-            .description(description.clone().unwrap_or(String::new()))
+        ResponseError::Execution(err) => CreateEmbed::new()
+            .title(err.title())
+            .description(err.description().clone().unwrap_or(String::new()))
             .color(0xff0000),
         ResponseError::Sqlx(err) => CreateEmbed::new()
-            .title("A database error occured while executing the command")
+            .title("A database error occurred while executing the command")
             .description(format!("```{err:?}```"))
             .footer(CreateEmbedFooter::new(
                 "Please report this issue to developers",
             ))
             .color(0xff0000),
         ResponseError::Serenity(err) => CreateEmbed::new()
-            .title("A Discord error occured while executing the command")
+            .title("A Discord error occurred while executing the command")
             .description(format!("```{err:?}```"))
             .footer(CreateEmbedFooter::new(
                 "Please report this issue to developers if this persists",
             ))
             .color(0xff0000),
         ResponseError::Redis(err) => CreateEmbed::new()
-            .title("A Redis error occured while executing the command")
+            .title("A Redis error occurred while executing the command")
             .description(format!("```{err:?}```"))
             .footer(CreateEmbedFooter::new(
                 "Please report this issue to developers",
@@ -123,7 +134,7 @@ impl ContextReply<CommandInteraction> for Context<'_> {
                 Ok(msg) => Ok(msg),
                 Err(err) => {
                     error!("Attempted to edit a response to a command, failed with error: {err}");
-                    Err(ResponseError::Execution("ok".to_string(), None))
+                    Err(ResponseError::Serenity(err))
                 }
             };
         }
@@ -242,7 +253,7 @@ impl ContextReply<ComponentInteraction> for Context<'_> {
                 Ok(msg) => Ok(msg),
                 Err(err) => {
                     error!("Attempted to edit a response to a command, failed with error: {err}");
-                    Err(ResponseError::Execution("ok".to_string(), None))
+                    Err(ResponseError::Serenity(err))
                 }
             };
         }
@@ -306,10 +317,10 @@ impl ContextReply<ComponentInteraction> for Context<'_> {
     }
 
     async fn error_message_ref(
-            &self,
-            interaction: &ComponentInteraction,
-            error: &ResponseError,
-        ) -> Result<Message, ResponseError> {
+        &self,
+        interaction: &ComponentInteraction,
+        error: &ResponseError,
+    ) -> Result<Message, ResponseError> {
         let embed = error_message(error);
 
         self.reply(

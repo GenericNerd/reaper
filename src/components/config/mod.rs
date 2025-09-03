@@ -12,7 +12,7 @@ use crate::{
             Interaction, InteractionBuilder, InteractionKind, config::ConfigInteraction,
         },
         permissions::Permission,
-        response::{ResponseError, ResponseResult},
+        response::{ExecutionError, InternalError, ResponseError, ResponseResult},
         user::User,
     },
 };
@@ -100,10 +100,9 @@ impl Component for Config {
         // TODO: Remove once more interactions are added
         #[allow(irrefutable_let_patterns)]
         let InteractionKind::Config { category } = &interaction.kind else {
-            return Err(ResponseError::Execution(
-                "Invalid interaction kind".to_string(),
-                Some("Please notify the developers regarding this issue".to_string()),
-            ));
+            return Err(ResponseError::Execution(ExecutionError::Internal(
+                InternalError::InvalidInteractionType,
+            )));
         };
         let stage = match &category {
             ConfigInteraction::Moderation { stage } => stage.to_string(),
@@ -121,15 +120,14 @@ impl Component for Config {
             let handler = self
                 .handlers
                 .get(&current_key)
-                .ok_or(ResponseError::Execution(
-                    "Invalid step".to_string(),
-                    Some("Please notify the developers regarding this issue".to_string()),
-                ))?;
+                .ok_or(ResponseError::Execution(ExecutionError::Internal(
+                    InternalError::InvalidConfigurationStep,
+                )))?;
 
             match handler.router(ctx, component, category).await {
                 Ok(res) => return Ok(res),
                 Err(err) => {
-                    if let ResponseError::Execution(_, _) = err {
+                    if let ResponseError::Execution(_) = err {
                         ctx.error_message_ref(component, &err).await?;
                         tokio::time::sleep(std::time::Duration::from_secs(5)).await;
                         if let Some((next_cat, next_stage)) = handler.on_error_go_to_stage() {

@@ -10,7 +10,7 @@ use crate::{
         bot::Bot,
         context::{Context, ContextReply},
         permissions::Permission,
-        response::{Response, ResponseError, ResponseResult},
+        response::{ExecutionError, InternalError, Response, ResponseError, ResponseResult},
     },
 };
 
@@ -31,16 +31,16 @@ impl Command for InfoCommand {
     }
 
     async fn router(&self, ctx: &Context<'_>, cmd: &CommandInteraction) -> ResponseResult {
-        let Context::Populated(populated_ctx) = ctx else {
-            return Err(ResponseError::Execution("Failed to obtain context".to_string(), Some("An internal part of Reaper failed to provide adequate context. Please report this to the support server.".to_string())));
-        };
+        let context = ctx.get_populated_context()?;
 
         let shard_runners = Bot::global().shard_manager().runners.lock().await;
         let Some(shard_latency) = shard_runners
-            .get(&populated_ctx.ctx.shard_id)
+            .get(&context.ctx.shard_id)
             .map(|runner| runner.latency)
         else {
-            return Err(ResponseError::Execution("Failed to obtain shard latency".to_string(), Some("An internal part of Reaper failed to provide adequate context. Please report this to the support server.".to_string())));
+            return Err(ResponseError::Execution(ExecutionError::Internal(
+                InternalError::FailedToObtainShardLatency,
+            )));
         };
 
         let guild_count = match sqlx::query!("SELECT COUNT(guild_id) FROM moderation_configuration")
@@ -83,7 +83,7 @@ impl Command for InfoCommand {
                             "Network",
                             format!(
                                 "Shard ID {}\nLatency: {}",
-                                populated_ctx.ctx.shard_id,
+                                context.ctx.shard_id,
                                 shard_latency.map_or("Pending".to_string(),|latency| latency.human(humanize_duration::Truncate::Millis).to_string())
                             ),
                             true,

@@ -24,11 +24,15 @@ use crate::{
         context::{Context, ContextReply, PopulatedContext, UnpopulatedContext},
         guild::Guild,
         permissions::Permission,
-        response::ResponseError,
+        response::{ExecutionError, InputError, InternalError, ResponseError},
         role::Role,
         user::User,
     },
 };
+
+fn internal_error(err: InternalError) -> ResponseError {
+    ResponseError::Execution(ExecutionError::Internal(err))
+}
 
 impl EventRouter {
     // Helper to fetch a PartialGuild from cache or API
@@ -61,10 +65,7 @@ impl EventRouter {
             partial_guild = Some(fetched_guild);
         }
 
-        partial_guild.ok_or_else(|| ResponseError::Execution(
-            "Failed to fetch guild".to_string(),
-            Some("Please reach out to the [support server](https://discord.gg/jhD3Xc5cm6) for more information.".to_string()),
-        ))
+        partial_guild.ok_or_else(|| internal_error(InternalError::FailedToFetchGuild))
     }
 
     // Helper to compute permissions and highest role for a user in a guild
@@ -146,10 +147,12 @@ impl EventRouter {
 
         if command.data.name != "global" && !are_commands_active {
             info!("Commands are disabled, not responding to command");
-            let _res = context.error_message(&command, ResponseError::Execution(
-                "Commands are currently disabled".to_string(),
-                Some("Please reach out to the [support server](https://discord.gg/jhD3Xc5cm6) for more information.".to_string()),
-            )).await;
+            let _res = context
+                .error_message(
+                    &command,
+                    internal_error(InternalError::InteractionsDisabled),
+                )
+                .await;
             timing.record(start.elapsed());
             return;
         }
@@ -182,10 +185,9 @@ impl EventRouter {
             let _res = context
                 .error_message(
                     &command,
-                    ResponseError::Execution(
-                        format!("{command_name} is currently disabled"),
-                        Some("Please reach out to the [support server](https://discord.gg/jhD3Xc5cm6) for more information.".to_string()),
-                    )
+                    internal_error(InternalError::InteractionDisabled {
+                        interaction_name: command_name,
+                    }),
                 )
                 .await;
             timing.record(start.elapsed());
@@ -205,10 +207,9 @@ impl EventRouter {
         .is_some()
         {
             info!("User is disabled, not responding to command");
-            let _res = context.error_message(&command, ResponseError::Execution(
-                "You are currently disabled".to_string(),
-                Some("Please reach out to the [support server](https://discord.gg/jhD3Xc5cm6) for more information.".to_string()),
-            )).await;
+            let _res = context
+                .error_message(&command, internal_error(InternalError::UserDisabled))
+                .await;
             timing.record(start.elapsed());
             return;
         }
@@ -222,10 +223,7 @@ impl EventRouter {
                 let _res = context
                     .error_message(
                         &command,
-                        ResponseError::Execution(
-                            "Reaper cannot be used here".to_string(),
-                            Some("This command can only be used in a server.".to_string()),
-                        ),
+                        internal_error(InternalError::GuildOnlyInteraction),
                     )
                     .await;
 
@@ -235,7 +233,9 @@ impl EventRouter {
 
             let Some(executing_command) = Bot::global().commands().get(&command.data.name.as_str())
             else {
-                let _res = context.error_message(&command, ResponseError::Execution("Command not found".to_string(), Some("Please reach out to the [support server](https://discord.gg/jhD3Xc5cm6) for more information.".to_string()))).await;
+                let _res = context
+                    .error_message(&command, internal_error(InternalError::InteractionNotFound))
+                    .await;
                 timing.record(start.elapsed());
                 return;
             };
@@ -257,13 +257,7 @@ impl EventRouter {
         {
             debug!("Guild is disabled, not responding to command");
             let _res = context
-                .error_message(
-                    &command,
-                    ResponseError::Execution(
-                        "This server is disabled".to_string(),
-                        Some("Please reach out to the [support server](https://discord.gg/jhD3Xc5cm6) for more information.".to_string()),
-                    ),
-                )
+                .error_message(&command, internal_error(InternalError::GuildDisabled))
                 .await;
             timing.record(start.elapsed());
             return;
@@ -300,7 +294,9 @@ impl EventRouter {
 
         let Some(executing_command) = Bot::global().commands().get(&command.data.name.as_str())
         else {
-            let _res = context.error_message(&command, ResponseError::Execution("Command not found".to_string(), Some("Please reach out to the [support server](https://discord.gg/jhD3Xc5cm6) for more information.".to_string()))).await;
+            let _res = context
+                .error_message(&command, internal_error(InternalError::InteractionNotFound))
+                .await;
             timing.record(start.elapsed());
             return;
         };
@@ -334,7 +330,16 @@ impl EventRouter {
             };
 
             if !user_permissions.contains(&required_permission) {
-                let _res = context.error_message(&command, ResponseError::Execution("You do not have permission to use this command".to_string(), Some("Please reach out to the [support server](https://discord.gg/jhD3Xc5cm6) for more information.".to_string()))).await;
+                let _res = context
+                    .error_message(
+                        &command,
+                        ResponseError::Execution(ExecutionError::Input(
+                            InputError::InsufficientPermission {
+                                required_permission,
+                            },
+                        )),
+                    )
+                    .await;
                 timing.record(start.elapsed());
                 return;
             }
@@ -396,10 +401,9 @@ impl EventRouter {
             let _res = context
                 .error_message(
                     &component,
-                    ResponseError::Execution(
-                        format!("{component_name} is currently disabled"),
-                        Some("Please reach out to the [support server](https://discord.gg/jhD3Xc5cm6) for more information.".to_string()),
-                    ),
+                    internal_error(InternalError::InteractionDisabled {
+                        interaction_name: component_name,
+                    }),
                 )
                 .await;
             timing.record(start.elapsed());
@@ -419,10 +423,9 @@ impl EventRouter {
         .is_some()
         {
             info!("User is disabled, not responding to component");
-            let _res = context.error_message(&component, ResponseError::Execution(
-                "You are currently disabled".to_string(),
-                Some("Please reach out to the [support server](https://discord.gg/jhD3Xc5cm6) for more information.".to_string()),
-            )).await;
+            let _res = context
+                .error_message(&component, internal_error(InternalError::UserDisabled))
+                .await;
             timing.record(start.elapsed());
             return;
         }
@@ -432,10 +435,7 @@ impl EventRouter {
             let _res = context
                 .error_message(
                     &component,
-                    ResponseError::Execution(
-                        "Reaper cannot be used here".to_string(),
-                        Some("This command can only be used in a server.".to_string()),
-                    ),
+                    internal_error(InternalError::GuildOnlyInteraction),
                 )
                 .await;
             timing.record(start.elapsed());
@@ -456,13 +456,7 @@ impl EventRouter {
         {
             debug!("Guild is disabled, not responding to component");
             let _res = context
-                .error_message(
-                    &component,
-                    ResponseError::Execution(
-                        "This server is disabled".to_string(),
-                        Some("Please reach out to the [support server](https://discord.gg/jhD3Xc5cm6) for more information.".to_string()),
-                    ),
-                )
+                .error_message(&component, internal_error(InternalError::GuildDisabled))
                 .await;
             timing.record(start.elapsed());
             return;
@@ -499,7 +493,12 @@ impl EventRouter {
 
         let Some(executing_component) = Bot::global().components().get(&interaction.route.as_str())
         else {
-            let _res = context.error_message(&component, ResponseError::Execution("Component not found".to_string(), Some("Please reach out to the [support server](https://discord.gg/jhD3Xc5cm6) for more information.".to_string()))).await;
+            let _res = context
+                .error_message(
+                    &component,
+                    internal_error(InternalError::InteractionNotFound),
+                )
+                .await;
             timing.record(start.elapsed());
             return;
         };
@@ -513,7 +512,16 @@ impl EventRouter {
             };
 
             if !user_permissions.contains(&required_permission) {
-                let _res = context.error_message(&component, ResponseError::Execution("You do not have permission to use this command".to_string(), Some("Please reach out to the [support server](https://discord.gg/jhD3Xc5cm6) for more information.".to_string()))).await;
+                let _res = context
+                    .error_message(
+                        &component,
+                        ResponseError::Execution(ExecutionError::Input(
+                            InputError::InsufficientPermission {
+                                required_permission,
+                            },
+                        )),
+                    )
+                    .await;
                 timing.record(start.elapsed());
                 return;
             }

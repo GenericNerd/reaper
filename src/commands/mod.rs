@@ -6,7 +6,6 @@ use serenity::all::{CommandInteraction, CreateCommand};
 use crate::models::{context::Context, permissions::Permission, response::ResponseResult};
 
 mod config;
-mod fail;
 mod info;
 mod privacy;
 
@@ -22,7 +21,6 @@ fn get_command_vec() -> Vec<Box<dyn Command>> {
     vec![
         Box::new(privacy::PrivacyCommand),
         Box::new(info::InfoCommand),
-        Box::new(fail::FailCommand),
         Box::new(config::ConfigCommand),
     ]
 }

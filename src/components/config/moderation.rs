@@ -19,7 +19,9 @@ use crate::{
             InteractionBuilder,
             config::{ConfigInteraction, ModerationStage},
         },
-        response::{Response, ResponseError, ResponseResult},
+        response::{
+            ExecutionError, InputError, InternalError, Response, ResponseError, ResponseResult,
+        },
         role::Role,
         user::User,
     },
@@ -49,12 +51,7 @@ impl ConfigStage for MuteRole {
         component: &ComponentInteraction,
         _data: &ConfigInteraction,
     ) -> ResponseResult {
-        let Context::Populated(context) = ctx else {
-            return Err(ResponseError::Execution(
-                "Failed to obtain context information".to_string(),
-                Some("Please let the developers know of this error!".to_string()),
-            ));
-        };
+        let context = ctx.get_populated_context()?;
 
         if sqlx::query!(
             "SELECT guild_id FROM moderation_configuration WHERE guild_id = $1",
@@ -134,25 +131,16 @@ impl ConfigStage for SelectedMuteRole {
         component: &ComponentInteraction,
         data: &ConfigInteraction,
     ) -> ResponseResult {
-        let Context::Populated(context) = ctx else {
-            return Err(ResponseError::Execution(
-                "Failed to obtain context information".to_string(),
-                Some("Please let the developers know of this error!".to_string()),
-            ));
-        };
+        let context = ctx.get_populated_context()?;
 
         let ComponentInteractionDataKind::RoleSelect { values } = &component.data.kind else {
-            return Err(ResponseError::Execution(
-                "Invalid interaction type".to_string(),
-                Some("Please let the developers know of this error!".to_string()),
-            ));
+            return Err(ResponseError::Execution(ExecutionError::Internal(
+                InternalError::InvalidInteractionType,
+            )));
         };
 
         let role = values.first().ok_or_else(|| {
-            ResponseError::Execution(
-                "No role selected".to_string(),
-                Some("Please select a role.".to_string()),
-            )
+            ResponseError::Execution(ExecutionError::Input(InputError::NoRoleSelected))
         })?;
         let role = Role::from(*role);
 
@@ -165,21 +153,23 @@ impl ConfigStage for SelectedMuteRole {
                 }
             }
             None => {
-                return Err(ResponseError::Execution(
-                    "Invalid role".to_string(),
-                    Some(
-                        "Please select a role that does not have administrator permissions"
-                            .to_string(),
-                    ),
-                ));
+                return Err(ResponseError::Execution(ExecutionError::Input(
+                    InputError::InvalidRole {
+                        message:
+                            "Please select a role that does not have administrator permissions"
+                                .to_string(),
+                    },
+                )));
             }
         };
 
         if role_position >= context.highest_role {
-            return Err(ResponseError::Execution(
-                "Invalid role".to_string(),
-                Some("Please select a role that is lower than your highest role".to_string()),
-            ));
+            return Err(ResponseError::Execution(ExecutionError::Input(
+                InputError::InvalidRole {
+                    message: "Please select a role that is lower than your highest role"
+                        .to_string(),
+                },
+            )));
         }
 
         // TODO: Configure role for user?
@@ -214,12 +204,7 @@ impl ConfigStage for DefaultStrikeDuration {
         component: &ComponentInteraction,
         _data: &ConfigInteraction,
     ) -> ResponseResult {
-        let Context::Populated(context) = ctx else {
-            return Err(ResponseError::Execution(
-                "Failed to obtain context information".to_string(),
-                Some("Please let the developers know of this error!".to_string()),
-            ));
-        };
+        let context = ctx.get_populated_context()?;
 
         let default_strike_duration = sqlx::query!(
             "SELECT default_strike_duration FROM moderation_configuration WHERE guild_id = $1",
@@ -296,12 +281,7 @@ impl ConfigStage for ChangeDefaultStrikeDuration {
         component: &ComponentInteraction,
         _data: &ConfigInteraction,
     ) -> ResponseResult {
-        let Context::Populated(context) = ctx else {
-            return Err(ResponseError::Execution(
-                "Failed to obtain context information".to_string(),
-                Some("Please let the developers know of this error!".to_string()),
-            ));
-        };
+        let context = ctx.get_populated_context()?;
 
         ctx.modal(
             component,
@@ -339,22 +319,19 @@ impl ConfigStage for ChangeDefaultStrikeDuration {
             {
                 let value = text.value.clone().unwrap();
                 if value.is_empty() {
-                    return Err(ResponseError::Execution(
-                        "Invalid duration".to_string(),
-                        Some("Please enter a valid duration.".to_string()),
-                    ));
+                    return Err(ResponseError::Execution(ExecutionError::Input(
+                        InputError::InvalidDuration,
+                    )));
                 }
                 let Some(duration) = Duration::new(value.as_str()).to_timestamp() else {
-                    return Err(ResponseError::Execution(
-                        "Invalid duration".to_string(),
-                        Some("Please enter a valid duration.".to_string()),
-                    ));
+                    return Err(ResponseError::Execution(ExecutionError::Input(
+                        InputError::InvalidDuration,
+                    )));
                 };
                 if duration < time::OffsetDateTime::now_utc() {
-                    return Err(ResponseError::Execution(
-                        "Invalid duration".to_string(),
-                        Some("Please enter a valid duration.".to_string()),
-                    ));
+                    return Err(ResponseError::Execution(ExecutionError::Input(
+                        InputError::InvalidDuration,
+                    )));
                 }
 
                 sqlx::query!(
@@ -375,13 +352,11 @@ impl ConfigStage for ChangeDefaultStrikeDuration {
             }
         }
 
-        Err(ResponseError::Execution(
-            "Timeout!".to_string(),
-            Some(
-                "We didn't receive the duration from you within 5 minutes. Feel free to try again"
-                    .to_string(),
-            ),
-        ))
+        Err(ResponseError::Execution(ExecutionError::Input(
+            InputError::Timeout {
+                duration: "5 minutes".to_string(),
+            },
+        )))
     }
 }
 
@@ -523,23 +498,16 @@ impl ConfigStage for Escalations {
         data: &ConfigInteraction,
     ) -> ResponseResult {
         let ConfigInteraction::Moderation { stage } = data else {
-            return Err(ResponseError::Execution(
-                "Invalid interaction type".to_string(),
-                Some("Please let the developers know of this error!".to_string()),
-            ));
+            return Err(ResponseError::Execution(ExecutionError::Internal(
+                InternalError::InvalidInteractionType,
+            )));
         };
         let ModerationStage::Escalations { escalations } = stage else {
-            return Err(ResponseError::Execution(
-                "Invalid interaction type".to_string(),
-                Some("Please let the developers know of this error!".to_string()),
-            ));
+            return Err(ResponseError::Execution(ExecutionError::Internal(
+                InternalError::InvalidInteractionType,
+            )));
         };
-        let Context::Populated(context) = ctx else {
-            return Err(ResponseError::Execution(
-                "Failed to obtain context information".to_string(),
-                Some("Please let the developers know of this error!".to_string()),
-            ));
-        };
+        let context = ctx.get_populated_context()?;
 
         let escalations = match escalations {
             Some(escalations) => escalations,
@@ -573,39 +541,29 @@ impl ConfigStage for AddEscalation {
         data: &ConfigInteraction,
     ) -> ResponseResult {
         let ConfigInteraction::Moderation { stage } = data else {
-            return Err(ResponseError::Execution(
-                "Invalid interaction type".to_string(),
-                Some("Please let the developers know of this error!".to_string()),
-            ));
+            return Err(ResponseError::Execution(ExecutionError::Internal(
+                InternalError::InvalidInteractionType,
+            )));
         };
         let ModerationStage::AddEscalation { escalations } = stage else {
-            return Err(ResponseError::Execution(
-                "Invalid interaction type".to_string(),
-                Some("Please let the developers know of this error!".to_string()),
-            ));
+            return Err(ResponseError::Execution(ExecutionError::Internal(
+                InternalError::InvalidInteractionType,
+            )));
         };
-        let Context::Populated(context) = ctx else {
-            return Err(ResponseError::Execution(
-                "Failed to obtain context information".to_string(),
-                Some("Please let the developers know of this error!".to_string()),
-            ));
-        };
+        let context = ctx.get_populated_context()?;
         let user = User::from(component.user.id);
 
-        let action_type =
-            if let ComponentInteractionDataKind::StringSelect { values } = &component.data.kind {
-                ActionType::from(&**values.first().ok_or_else(|| {
-                    ResponseError::Execution(
-                        "No action type selected".to_string(),
-                        Some("Please select an action type.".to_string()),
-                    )
-                })?)
-            } else {
-                return Err(ResponseError::Execution(
-                    "Invalid interaction type".to_string(),
-                    Some("Please let the developers know of this error!".to_string()),
-                ));
-            };
+        let action_type = if let ComponentInteractionDataKind::StringSelect { values } =
+            &component.data.kind
+        {
+            ActionType::from(&**values.first().ok_or_else(|| {
+                ResponseError::Execution(ExecutionError::Input(InputError::NoActionTypeSelected))
+            })?)
+        } else {
+            return Err(ResponseError::Execution(ExecutionError::Internal(
+                InternalError::InvalidInteractionType,
+            )));
+        };
 
         let mut modal_components = vec![CreateActionRow::InputText(
             CreateInputText::new(
@@ -650,30 +608,24 @@ impl ConfigStage for AddEscalation {
                 &modal_interaction.data.components[0].components[0]
             {
                 let Ok(strike_count) = text.value.as_ref().unwrap().parse::<i32>().map_err(|_| {
-                    ResponseError::Execution(
-                        "Invalid strike count".to_string(),
-                        Some("Please enter a valid strike count.".to_string()),
-                    )
+                    ResponseError::Execution(ExecutionError::Input(InputError::InvalidStrikeCount))
                 }) else {
-                    return Err(ResponseError::Execution(
-                        "Invalid strike count".to_string(),
-                        Some("Please enter a valid strike count.".to_string()),
-                    ));
+                    return Err(ResponseError::Execution(ExecutionError::Input(
+                        InputError::InvalidStrikeCount,
+                    )));
                 };
 
                 if strike_count <= 0 {
-                    return Err(ResponseError::Execution(
-                        "Invalid strike count".to_string(),
-                        Some("Please enter a valid strike count.".to_string()),
-                    ));
+                    return Err(ResponseError::Execution(ExecutionError::Input(
+                        InputError::InvalidStrikeCount,
+                    )));
                 }
 
                 strike_count
             } else {
-                return Err(ResponseError::Execution(
-                    "Invalid strike count".to_string(),
-                    Some("Please enter a valid strike count.".to_string()),
-                ));
+                return Err(ResponseError::Execution(ExecutionError::Input(
+                    InputError::InvalidStrikeCount,
+                )));
             };
 
             let action_duration = if action_type == ActionType::Kick {
@@ -687,18 +639,16 @@ impl ConfigStage for AddEscalation {
                 } else {
                     let duration = Duration::new(value.as_str()).to_timestamp().unwrap();
                     if duration < time::OffsetDateTime::now_utc() {
-                        return Err(ResponseError::Execution(
-                            "Invalid duration".to_string(),
-                            Some("Please enter a valid duration.".to_string()),
-                        ));
+                        return Err(ResponseError::Execution(ExecutionError::Input(
+                            InputError::InvalidDuration,
+                        )));
                     }
                     Some(value)
                 }
             } else {
-                return Err(ResponseError::Execution(
-                    "Invalid duration".to_string(),
-                    Some("Please enter a valid duration.".to_string()),
-                ));
+                return Err(ResponseError::Execution(ExecutionError::Input(
+                    InputError::InvalidDuration,
+                )));
             };
 
             let mut escalations = escalations.clone();
@@ -722,13 +672,11 @@ impl ConfigStage for AddEscalation {
             .await;
         }
 
-        Err(ResponseError::Execution(
-            "Timeout!".to_string(),
-            Some(
-                "We didn't receive the duration from you within 5 minutes. Feel free to try again"
-                    .to_string(),
-            ),
-        ))
+        Err(ResponseError::Execution(ExecutionError::Input(
+            InputError::Timeout {
+                duration: "5 minutes".to_string(),
+            },
+        )))
     }
 }
 
@@ -751,37 +699,30 @@ impl ConfigStage for RemoveEscalation {
         data: &ConfigInteraction,
     ) -> ResponseResult {
         let ConfigInteraction::Moderation { stage } = data else {
-            return Err(ResponseError::Execution(
-                "Invalid interaction type".to_string(),
-                Some("Please let the developers know of this error!".to_string()),
-            ));
+            return Err(ResponseError::Execution(ExecutionError::Internal(
+                InternalError::InvalidInteractionType,
+            )));
         };
         let ModerationStage::RemoveEscalation { escalations } = stage else {
-            return Err(ResponseError::Execution(
-                "Invalid interaction type".to_string(),
-                Some("Please let the developers know of this error!".to_string()),
-            ));
+            return Err(ResponseError::Execution(ExecutionError::Internal(
+                InternalError::InvalidInteractionType,
+            )));
         };
         let ComponentInteractionDataKind::StringSelect { values } = &component.data.kind else {
-            return Err(ResponseError::Execution(
-                "Invalid interaction type".to_string(),
-                Some("Please let the developers know of this error!".to_string()),
-            ));
+            return Err(ResponseError::Execution(ExecutionError::Internal(
+                InternalError::InvalidInteractionType,
+            )));
         };
         let index = values
             .first()
             .ok_or_else(|| {
-                ResponseError::Execution(
-                    "No role selected".to_string(),
-                    Some("Please select a role.".to_string()),
-                )
+                ResponseError::Execution(ExecutionError::Input(InputError::NoRoleSelected))
             })?
             .parse::<usize>()
             .map_err(|_| {
-                ResponseError::Execution(
-                    "Invalid role selected".to_string(),
-                    Some("Please select a valid role.".to_string()),
-                )
+                ResponseError::Execution(ExecutionError::Input(InputError::InvalidRole {
+                    message: "We couldn't quite see that role. Please try again!".to_string(),
+                }))
             })?;
 
         let mut escalations = escalations.clone();
@@ -820,51 +761,25 @@ impl ConfigStage for SubmitEscalations {
         data: &ConfigInteraction,
     ) -> ResponseResult {
         let ConfigInteraction::Moderation { stage } = data else {
-            return Err(ResponseError::Execution(
-                "Invalid interaction type".to_string(),
-                Some("Please let the developers know of this error!".to_string()),
-            ));
+            return Err(ResponseError::Execution(ExecutionError::Internal(
+                InternalError::InvalidInteractionType,
+            )));
         };
         let ModerationStage::SubmitEscalations { escalations } = stage else {
-            return Err(ResponseError::Execution(
-                "Invalid interaction type".to_string(),
-                Some("Please let the developers know of this error!".to_string()),
-            ));
+            return Err(ResponseError::Execution(ExecutionError::Internal(
+                InternalError::InvalidInteractionType,
+            )));
         };
-        let Context::Populated(context) = ctx else {
-            return Err(ResponseError::Execution(
-                "Failed to obtain context information".to_string(),
-                Some("Please let the developers know of this error!".to_string()),
-            ));
-        };
+        let context = ctx.get_populated_context()?;
 
-        let existing_escalations = sqlx::query_as!(
-            ActionEscalation,
-            "SELECT strike_count, action_type, action_duration FROM strike_escalations WHERE guild_id = $1",
+        sqlx::query!(
+            "DELETE FROM strike_escalations WHERE guild_id = $1",
             context.guild.as_i64()
-        ).fetch_all(Bot::global().postgres()).await?;
+        )
+        .execute(Bot::global().postgres())
+        .await?;
 
-        let escalations_to_remove = existing_escalations
-            .iter()
-            .filter(|escalation| !escalations.contains(escalation))
-            .collect::<Vec<_>>();
-
-        let escalations_to_add = escalations
-            .iter()
-            .filter(|escalation| !existing_escalations.contains(escalation))
-            .collect::<Vec<_>>();
-
-        for escalation in escalations_to_remove {
-            sqlx::query!(
-                "DELETE FROM strike_escalations WHERE guild_id = $1 AND strike_count = $2 AND action_type = $3 AND action_duration = $4",
-                context.guild.as_i64(),
-                escalation.strike_count,
-                escalation.action_type.to_string(),
-                escalation.action_duration
-            ).execute(Bot::global().postgres()).await?;
-        }
-
-        for escalation in escalations_to_add {
+        for escalation in escalations {
             sqlx::query!(
                 "INSERT INTO strike_escalations (guild_id, strike_count, action_type, action_duration) VALUES ($1, $2, $3, $4)",
                 context.guild.as_i64(),
