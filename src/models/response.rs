@@ -58,7 +58,7 @@ impl ReaperError for InternalError {
                 "All interactions are disabled. Please try again later".to_string()
             }
             InternalError::InteractionDisabled { interaction_name } => {
-                format!("The interaction `{}` is disabled", interaction_name)
+                format!("The interaction `{interaction_name}` is disabled")
             }
             InternalError::UserDisabled => {
                 "You are currently disabled. Please try again later".to_string()
@@ -91,11 +91,13 @@ impl ReaperError for InternalError {
 #[derive(Debug)]
 pub enum InputError {
     NoRoleSelected,
+    NoChannelSelected,
     NoActionTypeSelected,
     InvalidRole { message: String },
     InvalidDuration,
-    Timeout { duration: String },
+    InvalidNumber,
     InvalidStrikeCount,
+    Timeout { duration: String },
     InsufficientPermission { required_permission: Permission },
 }
 
@@ -109,6 +111,9 @@ impl ReaperError for InputError {
             InputError::NoRoleSelected => {
                 "We don't see any role selected. Please try again".to_string()
             }
+            InputError::NoChannelSelected => {
+                "We don't see any channel selected. Please try again".to_string()
+            }
             InputError::NoActionTypeSelected => {
                 "We don't see a selected action type. Please try again".to_string()
             }
@@ -117,6 +122,9 @@ impl ReaperError for InputError {
             }
             InputError::InvalidDuration => {
                 "The duration you inputted was invalid! Please try again".to_string()
+            }
+            InputError::InvalidNumber => {
+                "The number you inputted was invalid! Please try again".to_string()
             }
             InputError::Timeout { duration } => {
                 format!(
@@ -161,27 +169,27 @@ impl ReaperError for ExecutionError {
 
 #[derive(Debug)]
 pub enum ResponseError {
-    Serenity(serenity::Error),
-    Sqlx(sqlx::Error),
+    Serenity(Box<serenity::Error>),
+    Sqlx(Box<sqlx::Error>),
     Execution(ExecutionError),
-    Redis(redis::RedisError),
+    Redis(Box<redis::RedisError>),
 }
 
 impl From<serenity::Error> for ResponseError {
     fn from(value: serenity::Error) -> Self {
-        Self::Serenity(value)
+        Self::Serenity(Box::new(value))
     }
 }
 
 impl From<sqlx::Error> for ResponseError {
     fn from(value: sqlx::Error) -> Self {
-        Self::Sqlx(value)
+        Self::Sqlx(Box::new(value))
     }
 }
 
 impl From<redis::RedisError> for ResponseError {
     fn from(value: redis::RedisError) -> Self {
-        Self::Redis(value)
+        Self::Redis(Box::new(value))
     }
 }
 

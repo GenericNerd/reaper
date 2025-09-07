@@ -1,20 +1,17 @@
-use serenity::all::{
-    ButtonStyle, CommandInteraction, CommandOptionType, CreateActionRow, CreateButton,
-    CreateCommand, CreateCommandOption, CreateEmbed,
-};
+use serenity::all::{CommandInteraction, CommandOptionType, CreateCommand, CreateCommandOption};
 
 use crate::{
     commands::Command,
+    components::config::{Config, ConfigEntry},
     models::{
-        bot::Bot,
-        context::{Context, ContextReply},
+        context::Context,
         interactions::{
             InteractionBuilder, InteractionKind,
-            config::{ConfigInteraction, LoggingStage, ModerationStage},
+            config::{ConfigInteraction, LoggingStage, ModerationStage, XPStage},
         },
+        options::Options,
         permissions::Permission,
-        response::{Response, ResponseResult},
-        user::User,
+        response::ResponseResult,
     },
 };
 
@@ -49,55 +46,45 @@ impl Command for ConfigCommand {
     }
 
     async fn router(&self, ctx: &Context<'_>, cmd: &CommandInteraction) -> ResponseResult {
-        let user = User::from(cmd.user.id);
-        // TODO: Read command option, add field to data to determine whether to run whole config or just a specific category
-        let interactions = [
-            InteractionBuilder::new(
-                InteractionKind::Config {
-                    category: ConfigInteraction::Moderation {
-                        stage: ModerationStage::MuteRole,
+        let config = Config::new();
+        let category = Options::from_command(cmd)
+            .get_string("category")
+            .map(|cat| match cat.as_str() {
+                "moderation" => ConfigInteraction::Moderation {
+                    stage: ModerationStage::Footer,
+                },
+                "logging" => ConfigInteraction::Logging {
+                    stage: LoggingStage::Categories {
+                        actions: None,
+                        messages: None,
+                        voice: None,
                     },
                 },
-                user,
-                Some(InteractionBuilder::one_hour_expiry()),
-            )
-            .build(),
-            InteractionBuilder::new(
-                InteractionKind::Config {
-                    category: ConfigInteraction::Logging {
-                        stage: LoggingStage::Enter,
-                    },
+                "xp" => ConfigInteraction::XP {
+                    stage: XPStage::RandomOrSet,
                 },
-                user,
-                Some(InteractionBuilder::one_hour_expiry()),
-            )
-            .build(),
-        ];
+                _ => ConfigInteraction::Moderation {
+                    stage: ModerationStage::Enter,
+                },
+            });
+        let single_category = category.is_some();
 
-        Bot::global()
-            .interaction_state()
-            .register(interactions.to_vec())
-            .await?;
-
-        ctx.reply(
-            cmd,
-            Response::new()
-                .embed(
-                    CreateEmbed::new()
-                        .title("Moderation")
-                        .description("Would you like to configure moderation?")
-                        .color(0x5539CC),
+        config
+            .internal_router(
+                ctx,
+                &ConfigEntry::Command(cmd.clone()),
+                &InteractionBuilder::new(
+                    InteractionKind::Config {
+                        category: category.unwrap_or(ConfigInteraction::Moderation {
+                            stage: ModerationStage::Enter,
+                        }),
+                        single_category,
+                    },
+                    ctx.get_populated_context()?.user,
+                    Some(InteractionBuilder::one_hour_expiry()),
                 )
-                .components(vec![CreateActionRow::Buttons(vec![
-                    CreateButton::new(interactions[0].id.to_string())
-                        .style(ButtonStyle::Success)
-                        .label("Yes"),
-                    CreateButton::new(interactions[1].id.to_string())
-                        .style(ButtonStyle::Secondary)
-                        .label("No"),
-                ])]),
-        )
-        .await
-        .map(|_| ())
+                .build(),
+            )
+            .await
     }
 }

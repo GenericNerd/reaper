@@ -64,12 +64,12 @@ impl Duration {
         }
     }
 
-    pub fn to_timestamp(&self) -> Option<time::OffsetDateTime> {
+    pub fn in_seconds(&self) -> Option<i64> {
         if self.permanent {
             return None;
         }
 
-        time::OffsetDateTime::now_utc().checked_add(time::Duration::new(
+        Some(
             self.seconds
                 + (self.minutes * 60)
                 + (self.hours * 60 * 60)
@@ -77,7 +77,14 @@ impl Duration {
                 + (self.weeks * 60 * 60 * 24 * 7)
                 + (self.months * 60 * 60 * 24 * 30)
                 + (self.years * 60 * 60 * 24 * 365),
-            0,
-        ))
+        )
+    }
+
+    pub fn to_timestamp(&self) -> Option<time::OffsetDateTime> {
+        let Some(seconds) = self.in_seconds() else {
+            return None;
+        };
+
+        time::OffsetDateTime::now_utc().checked_add(time::Duration::new(seconds, 0))
     }
 }

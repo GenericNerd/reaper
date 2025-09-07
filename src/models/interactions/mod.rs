@@ -15,7 +15,10 @@ pub mod config;
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum InteractionKind {
-    Config { category: config::ConfigInteraction },
+    Config {
+        category: config::ConfigInteraction,
+        single_category: bool,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

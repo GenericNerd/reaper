@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE logging_configuration SET log_channel = $1, log_action_channel = null, log_message_channel = null, log_voice_channel = null WHERE guild_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "cb79d31d2d56ad82d6ce85a9c5e80c9f6b72525099b003356ad820d63c3276bb"
+}

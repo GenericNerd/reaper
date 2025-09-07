@@ -1,23 +1,25 @@
 // TODO: Add logging
 
 use serenity::all::{
-    ActionRowComponent, ButtonStyle, ComponentInteraction, ComponentInteractionDataKind,
-    CreateActionRow, CreateButton, CreateEmbed, CreateInputText, CreateModal, CreateSelectMenu,
-    CreateSelectMenuKind, CreateSelectMenuOption, InputTextStyle, Permissions,
+    ActionRowComponent, ButtonStyle, ComponentInteractionDataKind, CreateActionRow, CreateButton,
+    CreateEmbed, CreateInputText, CreateModal, CreateSelectMenu, CreateSelectMenuKind,
+    CreateSelectMenuOption, InputTextStyle, PermissionOverwrite, PermissionOverwriteType,
+    Permissions,
 };
 
 use crate::{
     components::config::{
-        ConfigStage, EMBED_COLOR, advance_to, interaction_builder, logging::LoggingEnter,
+        Complete, ConfigEntry, ConfigStage, EMBED_COLOR, advance_to, interaction_builder,
+        logging::LoggingEnter,
     },
     models::{
         actions::{ActionEscalation, ActionType},
         bot::Bot,
-        context::{Context, ContextComponentReplies, ContextReply},
+        context::Context,
         duration::Duration,
         interactions::{
-            InteractionBuilder,
-            config::{ConfigInteraction, ModerationStage},
+            Interaction, InteractionBuilder,
+            config::{ConfigInteraction, LoggingStage, ModerationStage},
         },
         response::{
             ExecutionError, InputError, InternalError, Response, ResponseError, ResponseResult,
@@ -29,16 +31,24 @@ use crate::{
 
 const MODERATION_TITLE: &str = "Configuration - Moderation";
 
-pub fn moderation_interaction_builder(user: User, stage: ModerationStage) -> InteractionBuilder {
-    interaction_builder(user, ConfigInteraction::Moderation { stage })
+fn moderation_interaction_builder(
+    user: User,
+    stage: ModerationStage,
+    single_category: bool,
+) -> InteractionBuilder {
+    interaction_builder(
+        user,
+        ConfigInteraction::Moderation { stage },
+        single_category,
+    )
 }
 
 #[derive(Debug)]
-pub struct MuteRole;
+pub struct ModerationEnter;
 #[async_trait::async_trait]
-impl ConfigStage for MuteRole {
+impl ConfigStage for ModerationEnter {
     fn key(&self) -> (&'static str, &'static str) {
-        ("moderation", "mute_role")
+        ("moderation", "enter")
     }
 
     fn on_error_go_to_stage(&self) -> Option<(&'static str, &'static str)> {
@@ -48,8 +58,69 @@ impl ConfigStage for MuteRole {
     async fn router(
         &self,
         ctx: &Context<'_>,
-        component: &ComponentInteraction,
-        _data: &ConfigInteraction,
+        entry: &ConfigEntry,
+        data: (&ConfigInteraction, bool),
+    ) -> ResponseResult {
+        let context = ctx.get_populated_context()?;
+
+        let interactions = [
+            moderation_interaction_builder(context.user, ModerationStage::Footer, data.1).build(),
+            interaction_builder(
+                context.user,
+                ConfigInteraction::Logging {
+                    stage: LoggingStage::Enter,
+                },
+                data.1,
+            )
+            .build(),
+        ];
+
+        Bot::global()
+            .interaction_state()
+            .register(interactions.to_vec())
+            .await?;
+
+        entry
+            .reply(
+                ctx,
+                Response::new()
+                    .embed(
+                        CreateEmbed::new()
+                            .title("Moderation")
+                            .description("Would you like to configure moderation?")
+                            .color(0x5539CC),
+                    )
+                    .components(vec![CreateActionRow::Buttons(vec![
+                        CreateButton::new(interactions[0].id.to_string())
+                            .style(ButtonStyle::Success)
+                            .label("Yes"),
+                        CreateButton::new(interactions[1].id.to_string())
+                            .style(ButtonStyle::Secondary)
+                            .label("No"),
+                    ])]),
+            )
+            .await
+            .map(|_| ())
+    }
+}
+
+#[derive(Debug)]
+pub struct Footer;
+#[async_trait::async_trait]
+impl ConfigStage for Footer {
+    fn key(&self) -> (&'static str, &'static str) {
+        ("moderation", "footer")
+    }
+
+    fn on_error_go_to_stage(&self) -> Option<(&'static str, &'static str)> {
+        None
+    }
+
+    async fn router(
+        &self,
+        ctx: &Context<'_>,
+        entry: &ConfigEntry,
+        data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
         let context = ctx.get_populated_context()?;
 
@@ -69,6 +140,164 @@ impl ConfigStage for MuteRole {
             .await?;
         }
 
+        let interactions = [
+            moderation_interaction_builder(context.user, ModerationStage::ChangeFooter, data.1)
+                .build(),
+            moderation_interaction_builder(context.user, ModerationStage::MuteRole, data.1).build(),
+        ];
+
+        Bot::global()
+            .interaction_state()
+            .register(interactions.clone().to_vec())
+            .await?;
+
+        let footer = sqlx::query!(
+            "SELECT footer FROM moderation_configuration WHERE guild_id = $1",
+            context.guild.as_i64()
+        )
+        .fetch_one(Bot::global().postgres())
+        .await?
+        .footer;
+
+        let help_text =
+            "> Use the placeholder `{uuid}` to insert the action's universally unique identifier.";
+
+        entry.reply(
+            ctx,
+            Response::new()
+                .embed(
+                    CreateEmbed::new()
+                        .title(MODERATION_TITLE)
+                        .description(format!("You can add a custom footer to DMs sent by Reaper when a user is punished.\n\n{help_text}\n\n{}", match footer {
+                            Some(footer) => format!("Your current footer is:\n```{footer}```"),
+                            None => "You currently don't have a footer set.".to_string()
+                        }))
+                        .color(EMBED_COLOR),
+                )
+                .components(vec![
+                    CreateActionRow::Buttons(vec![
+                        CreateButton::new(interactions[0].id)
+                            .label("Change")
+                            .style(ButtonStyle::Success),
+                        CreateButton::new(interactions[1].id)
+                            .label("Skip")
+                            .style(ButtonStyle::Secondary)
+                    ]),
+                ]),
+        )
+        .await
+        .map(|_| ())
+    }
+}
+
+#[derive(Debug)]
+pub struct ChangeFooter;
+#[async_trait::async_trait]
+impl ConfigStage for ChangeFooter {
+    fn key(&self) -> (&'static str, &'static str) {
+        ("moderation", "change_footer")
+    }
+
+    fn on_error_go_to_stage(&self) -> Option<(&'static str, &'static str)> {
+        Some(("moderation", "footer"))
+    }
+
+    async fn router(
+        &self,
+        ctx: &Context<'_>,
+        entry: &ConfigEntry,
+        data: (&ConfigInteraction, bool),
+    ) -> ResponseResult {
+        let context = ctx.get_populated_context()?;
+
+        entry
+            .modal(
+                ctx,
+                CreateModal::new("change_footer_modal", "Footer Text").components(vec![
+                    CreateActionRow::InputText(
+                        CreateInputText::new(
+                            InputTextStyle::Short,
+                            "Write {uuid} to replace with the UUID",
+                            "footer",
+                        )
+                        .placeholder("If you want to appeal, reference {uuid}")
+                        .required(true),
+                    ),
+                ]),
+            )
+            .await?;
+
+        let message = entry.component()?.get_response(&context.ctx.http).await?;
+
+        let modal_collector = message
+            .await_modal_interaction(context.ctx)
+            .author_id(context.user.as_serenity_id())
+            .timeout(std::time::Duration::new(300, 0));
+
+        if let Some(modal_interaction) = modal_collector.await {
+            modal_interaction
+                .create_response(
+                    &context.ctx.http,
+                    serenity::builder::CreateInteractionResponse::Acknowledge,
+                )
+                .await?;
+
+            if let ActionRowComponent::InputText(text) =
+                &modal_interaction.data.components[0].components[0]
+            {
+                let value = text.value.clone().unwrap();
+
+                sqlx::query!(
+                    "UPDATE moderation_configuration SET footer = $1 WHERE guild_id = $2",
+                    if value.is_empty() { None } else { Some(value) },
+                    context.guild.as_i64(),
+                )
+                .execute(Bot::global().postgres())
+                .await?;
+
+                return advance_to(
+                    MuteRole,
+                    ctx,
+                    entry,
+                    (
+                        &ConfigInteraction::Moderation {
+                            stage: ModerationStage::MuteRole,
+                        },
+                        data.1,
+                    ),
+                )
+                .await;
+            }
+        }
+
+        Err(ResponseError::Execution(ExecutionError::Input(
+            InputError::Timeout {
+                duration: "5 minutes".to_string(),
+            },
+        )))
+    }
+}
+
+#[derive(Debug)]
+pub struct MuteRole;
+#[async_trait::async_trait]
+impl ConfigStage for MuteRole {
+    fn key(&self) -> (&'static str, &'static str) {
+        ("moderation", "mute_role")
+    }
+
+    fn on_error_go_to_stage(&self) -> Option<(&'static str, &'static str)> {
+        None
+    }
+
+    async fn router(
+        &self,
+        ctx: &Context<'_>,
+        entry: &ConfigEntry,
+        data: (&ConfigInteraction, bool),
+    ) -> ResponseResult {
+        let context = ctx.get_populated_context()?;
+
         let mute_role = sqlx::query!(
             "SELECT mute_role FROM moderation_configuration WHERE guild_id = $1",
             context.guild.as_i64()
@@ -77,10 +306,15 @@ impl ConfigStage for MuteRole {
         .await?
         .mute_role;
 
-        let user = User::from(component.user.id);
         let interactions = [
-            moderation_interaction_builder(user, ModerationStage::SelectedMuteRole).build(),
-            moderation_interaction_builder(user, ModerationStage::DefaultStrikeDuration).build(),
+            moderation_interaction_builder(context.user, ModerationStage::SelectedMuteRole, data.1)
+                .build(),
+            moderation_interaction_builder(
+                context.user,
+                ModerationStage::DefaultStrikeDuration,
+                data.1,
+            )
+            .build(),
         ];
 
         Bot::global()
@@ -88,11 +322,17 @@ impl ConfigStage for MuteRole {
             .register(interactions.clone().to_vec())
             .await?;
 
-        ctx.reply(component, Response::new().embed(
+        let help_text = r"> The mute role is a special role that Reaper will assign to users when they are affected by a mute.
+> 
+> - Members with this role will be prevented from sending messages or speaking in voice channels.
+> - Reaper will automatically add and remove this role when muting and unmuting users.
+> 
+> If you change this role, Reaper will automatically modify permissions of all channels to deny this role from sending messages or speaking in voice channels.";
+
+        entry.reply(ctx, Response::new().embed(
             CreateEmbed::new()
                 .title(MODERATION_TITLE)
-                // TODO: Improve and add descriptions
-                .description(format!("You can add a role that Reaper will use to mute users.\nThe current mute role is: {}", match mute_role {
+                .description(format!("You can now change what role Reaper will apply during mutes.\n\n{help_text}\n\nThe current mute role is: {}", match mute_role {
                     Some(role) => format!("<@&{role}>"),
                     None => "None".to_string(),
                 }))
@@ -128,12 +368,22 @@ impl ConfigStage for SelectedMuteRole {
     async fn router(
         &self,
         ctx: &Context<'_>,
-        component: &ComponentInteraction,
-        data: &ConfigInteraction,
+        entry: &ConfigEntry,
+        data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
         let context = ctx.get_populated_context()?;
 
-        let ComponentInteractionDataKind::RoleSelect { values } = &component.data.kind else {
+        let current_role = sqlx::query!(
+            "SELECT mute_role FROM moderation_configuration WHERE guild_id = $1",
+            context.guild.as_i64()
+        )
+        .fetch_one(Bot::global().postgres())
+        .await?
+        .mute_role
+        .map(Role::from);
+
+        let ComponentInteractionDataKind::RoleSelect { values } = &entry.component()?.data.kind
+        else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -172,7 +422,27 @@ impl ConfigStage for SelectedMuteRole {
             )));
         }
 
-        // TODO: Configure role for user?
+        if current_role.is_some() {
+            let http = context.ctx.http.clone();
+            let partial_guild = context.partial_guild.clone();
+            let role_id = role.as_serenity();
+            tokio::spawn(async move {
+                if let Ok(channels) = partial_guild.channels(&http).await {
+                    for (channel_id, _) in channels {
+                        let _ = channel_id
+                            .create_permission(
+                                &http,
+                                PermissionOverwrite {
+                                    allow: Permissions::empty(),
+                                    deny: Permissions::all(),
+                                    kind: PermissionOverwriteType::Role(role_id),
+                                },
+                            )
+                            .await;
+                    }
+                }
+            });
+        }
 
         sqlx::query!(
             "UPDATE moderation_configuration SET mute_role = $1 WHERE guild_id = $2",
@@ -182,7 +452,7 @@ impl ConfigStage for SelectedMuteRole {
         .execute(Bot::global().postgres())
         .await?;
 
-        advance_to(DefaultStrikeDuration, ctx, component, data).await
+        advance_to(DefaultStrikeDuration, ctx, entry, data).await
     }
 }
 
@@ -201,8 +471,8 @@ impl ConfigStage for DefaultStrikeDuration {
     async fn router(
         &self,
         ctx: &Context<'_>,
-        component: &ComponentInteraction,
-        _data: &ConfigInteraction,
+        entry: &ConfigEntry,
+        data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
         let context = ctx.get_populated_context()?;
 
@@ -214,18 +484,25 @@ impl ConfigStage for DefaultStrikeDuration {
         .await?
         .default_strike_duration;
 
-        let help_text = r"> This refers to how long it takes for a strike to expire.
-> Strikes™️ are Reaper's method of punishing users for breaking a rule, like the warns used in other bots!
-> When a strike expires, they will not count towards strike escalations. Strike escalations allow you to automatically action against users for breaking a rule.
-> You will be able to configure strike escalations later in the config.";
+        let help_text = r"When striking a user, how long should it take for a strike to expire?
 
-        let user = User::from(component.user.id);
+> Strikes™️ are Reaper's method of punishing users for breaking rules, similar to warns in other bots.
+> 
+> - Strike escalations allow you to automatically take action against repeat offenders (e.g. mute, kick, ban).
+> - When a strike expires, it no longer counts towards strike escalations.
+> - You will be able to configure strike escalations later in the config.";
+
         let interactions = [
-            moderation_interaction_builder(user, ModerationStage::ChangeDefaultStrikeDuration)
-                .build(),
             moderation_interaction_builder(
-                user,
+                context.user,
+                ModerationStage::ChangeDefaultStrikeDuration,
+                data.1,
+            )
+            .build(),
+            moderation_interaction_builder(
+                context.user,
                 ModerationStage::Escalations { escalations: None },
+                data.1,
             )
             .build(),
         ];
@@ -235,8 +512,8 @@ impl ConfigStage for DefaultStrikeDuration {
             .register(interactions.clone().to_vec())
             .await?;
 
-        ctx.reply(
-            component,
+        entry.reply(
+            ctx,
             Response::new()
                 .embed(
                     CreateEmbed::new()
@@ -278,32 +555,32 @@ impl ConfigStage for ChangeDefaultStrikeDuration {
     async fn router(
         &self,
         ctx: &Context<'_>,
-        component: &ComponentInteraction,
-        _data: &ConfigInteraction,
+        entry: &ConfigEntry,
+        data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
         let context = ctx.get_populated_context()?;
 
-        ctx.modal(
-            component,
-            CreateModal::new("default_strike_duration_modal", "Default Strike Duration")
-                .components(vec![CreateActionRow::InputText(
-                    CreateInputText::new(
-                        InputTextStyle::Short,
-                        "Duration",
-                        "default_strike_duration",
-                    )
-                    .placeholder("30d")
-                    .required(true),
-                )]),
-        )
-        .await?;
+        entry
+            .modal(
+                ctx,
+                CreateModal::new("default_strike_duration_modal", "Default Strike Duration")
+                    .components(vec![CreateActionRow::InputText(
+                        CreateInputText::new(
+                            InputTextStyle::Short,
+                            "Duration",
+                            "default_strike_duration",
+                        )
+                        .placeholder("30d")
+                        .required(true),
+                    )]),
+            )
+            .await?;
 
-        let user = User::from(component.user.id);
-        let message = component.get_response(&context.ctx.http).await?;
+        let message = entry.component()?.get_response(&context.ctx.http).await?;
 
         let modal_collector = message
             .await_modal_interaction(context.ctx)
-            .author_id(user.as_serenity_id())
+            .author_id(context.user.as_serenity_id())
             .timeout(std::time::Duration::new(300, 0));
 
         if let Some(modal_interaction) = modal_collector.await {
@@ -343,10 +620,13 @@ impl ConfigStage for ChangeDefaultStrikeDuration {
                 return advance_to(
                     Escalations,
                     ctx,
-                    component,
-                    &ConfigInteraction::Moderation {
-                        stage: ModerationStage::Escalations { escalations: None },
-                    },
+                    entry,
+                    (
+                        &ConfigInteraction::Moderation {
+                            stage: ModerationStage::Escalations { escalations: None },
+                        },
+                        data.1,
+                    ),
                 )
                 .await;
             }
@@ -364,25 +644,18 @@ impl ConfigStage for ChangeDefaultStrikeDuration {
 pub struct Escalations;
 
 impl Escalations {
-    async fn create_response(
-        &self,
+    fn interactions(
         user: User,
         escalations: &[ActionEscalation],
-    ) -> Result<Response, ResponseError> {
-        let description_text = r"You can configure your strike escalations using the dropdowns below.
-
-> What are escalations?
-> 
-> These are automatic actions (such as a mute, kick, or ban) that occur when a user reaches a certain number of strikes.
-> If you make a mistake, press the Revert button to start over.";
-
-        let mut components = vec![];
-        let interactions = [
+        single_category: bool,
+    ) -> Vec<Interaction> {
+        [
             moderation_interaction_builder(
                 user,
                 ModerationStage::AddEscalation {
                     escalations: escalations.to_vec(),
                 },
+                single_category,
             )
             .build(),
             moderation_interaction_builder(
@@ -390,6 +663,7 @@ impl Escalations {
                 ModerationStage::RemoveEscalation {
                     escalations: escalations.to_vec(),
                 },
+                single_category,
             )
             .build(),
             moderation_interaction_builder(
@@ -397,18 +671,39 @@ impl Escalations {
                 ModerationStage::SubmitEscalations {
                     escalations: escalations.to_vec(),
                 },
+                single_category,
             )
             .build(),
             moderation_interaction_builder(
                 user,
                 ModerationStage::Escalations { escalations: None },
+                single_category,
             )
             .build(),
-        ];
+        ]
+        .to_vec()
+    }
+
+    async fn create_response(
+        &self,
+        user: User,
+        escalations: &[ActionEscalation],
+        single_category: bool,
+    ) -> Result<Response, ResponseError> {
+        let help_text = r"You can configure your strike escalations using the dropdowns below.
+
+> Strike escalations are automatic actions that occur when a user reaches a certain number of strikes.
+> 
+> - Examples of actions include a mute, kick, or ban.
+> - Escalations help automate moderation for repeat offenders.
+> - If you make a mistake while configuring, press the Revert button to start over.";
+
+        let mut components = vec![];
+        let interactions = Escalations::interactions(user, escalations, single_category);
 
         Bot::global()
             .interaction_state()
-            .register(interactions.clone().to_vec())
+            .register(interactions.clone())
             .await?;
 
         if escalations.len() < 15 {
@@ -455,7 +750,7 @@ impl Escalations {
             .embed(
                 CreateEmbed::new()
                     .title(MODERATION_TITLE)
-                    .description(description_text)
+                    .description(help_text)
                     .color(EMBED_COLOR)
                     .fields(escalations.iter().enumerate().map(|(index, escalation)| {
                         (
@@ -494,10 +789,10 @@ impl ConfigStage for Escalations {
     async fn router(
         &self,
         ctx: &Context<'_>,
-        component: &ComponentInteraction,
-        data: &ConfigInteraction,
+        entry: &ConfigEntry,
+        data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
-        let ConfigInteraction::Moderation { stage } = data else {
+        let ConfigInteraction::Moderation { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -515,10 +810,12 @@ impl ConfigStage for Escalations {
                 &sqlx::query_as!(ActionEscalation, "SELECT strike_count, action_type, action_duration FROM strike_escalations WHERE guild_id = $1", context.guild.as_i64()).fetch_all(Bot::global().postgres()).await?
             }
         };
-        let user = User::from(component.user.id);
-        let response = self.create_response(user, escalations).await?;
 
-        ctx.reply(component, response).await.map(|_| ())
+        let response = self
+            .create_response(context.user, escalations, data.1)
+            .await?;
+
+        entry.reply(ctx, response).await.map(|_| ())
     }
 }
 
@@ -537,10 +834,10 @@ impl ConfigStage for AddEscalation {
     async fn router(
         &self,
         ctx: &Context<'_>,
-        component: &ComponentInteraction,
-        data: &ConfigInteraction,
+        entry: &ConfigEntry,
+        data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
-        let ConfigInteraction::Moderation { stage } = data else {
+        let ConfigInteraction::Moderation { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -551,10 +848,9 @@ impl ConfigStage for AddEscalation {
             )));
         };
         let context = ctx.get_populated_context()?;
-        let user = User::from(component.user.id);
 
         let action_type = if let ComponentInteractionDataKind::StringSelect { values } =
-            &component.data.kind
+            &entry.component()?.data.kind
         {
             ActionType::from(&**values.first().ok_or_else(|| {
                 ResponseError::Execution(ExecutionError::Input(InputError::NoActionTypeSelected))
@@ -583,17 +879,18 @@ impl ConfigStage for AddEscalation {
             ));
         }
 
-        ctx.modal(
-            component,
-            CreateModal::new("escalation_modal", "Add Escalation").components(modal_components),
-        )
-        .await?;
+        entry
+            .modal(
+                ctx,
+                CreateModal::new("escalation_modal", "Add Escalation").components(modal_components),
+            )
+            .await?;
 
-        let message = component.get_response(&context.ctx.http).await?;
+        let message = entry.component()?.get_response(&context.ctx.http).await?;
 
         let modal_collector = message
             .await_modal_interaction(context.ctx)
-            .author_id(user.as_serenity_id())
+            .author_id(context.user.as_serenity_id())
             .timeout(std::time::Duration::new(300, 0));
 
         if let Some(modal_interaction) = modal_collector.await {
@@ -662,12 +959,15 @@ impl ConfigStage for AddEscalation {
             return advance_to(
                 Escalations,
                 ctx,
-                component,
-                &ConfigInteraction::Moderation {
-                    stage: ModerationStage::Escalations {
-                        escalations: Some(escalations),
+                entry,
+                (
+                    &ConfigInteraction::Moderation {
+                        stage: ModerationStage::Escalations {
+                            escalations: Some(escalations),
+                        },
                     },
-                },
+                    data.1,
+                ),
             )
             .await;
         }
@@ -695,10 +995,10 @@ impl ConfigStage for RemoveEscalation {
     async fn router(
         &self,
         ctx: &Context<'_>,
-        component: &ComponentInteraction,
-        data: &ConfigInteraction,
+        entry: &ConfigEntry,
+        data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
-        let ConfigInteraction::Moderation { stage } = data else {
+        let ConfigInteraction::Moderation { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -708,7 +1008,8 @@ impl ConfigStage for RemoveEscalation {
                 InternalError::InvalidInteractionType,
             )));
         };
-        let ComponentInteractionDataKind::StringSelect { values } = &component.data.kind else {
+        let ComponentInteractionDataKind::StringSelect { values } = &entry.component()?.data.kind
+        else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -731,12 +1032,15 @@ impl ConfigStage for RemoveEscalation {
         advance_to(
             Escalations,
             ctx,
-            component,
-            &ConfigInteraction::Moderation {
-                stage: ModerationStage::Escalations {
-                    escalations: Some(escalations),
+            entry,
+            (
+                &ConfigInteraction::Moderation {
+                    stage: ModerationStage::Escalations {
+                        escalations: Some(escalations),
+                    },
                 },
-            },
+                data.1,
+            ),
         )
         .await
     }
@@ -757,10 +1061,10 @@ impl ConfigStage for SubmitEscalations {
     async fn router(
         &self,
         ctx: &Context<'_>,
-        component: &ComponentInteraction,
-        data: &ConfigInteraction,
+        entry: &ConfigEntry,
+        data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
-        let ConfigInteraction::Moderation { stage } = data else {
+        let ConfigInteraction::Moderation { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -789,6 +1093,10 @@ impl ConfigStage for SubmitEscalations {
             ).execute(Bot::global().postgres()).await?;
         }
 
-        advance_to(LoggingEnter, ctx, component, data).await
+        if data.1 {
+            advance_to(Complete, ctx, entry, data).await
+        } else {
+            advance_to(LoggingEnter, ctx, entry, data).await
+        }
     }
 }

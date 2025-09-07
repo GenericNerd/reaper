@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE logging_configuration SET log_actions = $1, log_messages = $2, log_voice = $3 WHERE guild_id = $4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Bool",
+        "Bool",
+        "Bool",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2c654ed869fd2a2b5ea047d4d56074b14ace5207b210921bbf27d08ca178aafe"
+}

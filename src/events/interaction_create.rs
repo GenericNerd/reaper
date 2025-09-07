@@ -138,7 +138,7 @@ impl EventRouter {
                 Err(err) => {
                     error!("Failed to fetch global kills configuration: {err}");
                     let _res = context
-                        .error_message(&command, ResponseError::Sqlx(err))
+                        .error_message(&command, ResponseError::Sqlx(Box::new(err)))
                         .await;
                     timing.record(start.elapsed());
                     return;
@@ -169,7 +169,7 @@ impl EventRouter {
             Err(err) => {
                 error!("Failed to fetch global kills configuration: {err}");
                 let _res = context
-                    .error_message(&command, ResponseError::Sqlx(err))
+                    .error_message(&command, ResponseError::Sqlx(Box::new(err)))
                     .await;
                 timing.record(start.elapsed());
                 return;
@@ -282,9 +282,11 @@ impl EventRouter {
             )
             .await;
 
+        let user = User::from(command.user.id);
         let context = Context::Populated(Box::new(PopulatedContext {
             ctx: &ctx,
             has_responded: Arc::new(AtomicBool::new(false)),
+            user,
             user_permissions,
             highest_role,
             partial_guild,
@@ -312,7 +314,7 @@ impl EventRouter {
             {
                 error!("Failed to defer command: {err}");
                 let _res = context
-                    .error_message(&command, ResponseError::Serenity(err))
+                    .error_message(&command, ResponseError::Serenity(Box::new(err)))
                     .await;
                 timing.record(start.elapsed());
                 return;
@@ -379,7 +381,7 @@ impl EventRouter {
                 Err(err) => {
                     error!("Failed to fetch global kills configuration: {err}");
                     let _res = context
-                        .error_message(&component, ResponseError::Sqlx(err))
+                        .error_message(&component, ResponseError::Sqlx(Box::new(err)))
                         .await;
                     timing.record(start.elapsed());
                     return;
@@ -481,9 +483,11 @@ impl EventRouter {
             )
             .await;
 
+        let user = User::from(component.user.id);
         let context = Context::Populated(Box::new(PopulatedContext {
             ctx: &ctx,
             has_responded: Arc::new(AtomicBool::new(false)),
+            user,
             user_permissions,
             highest_role,
             partial_guild,

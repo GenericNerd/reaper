@@ -1,4 +1,4 @@
-use humanize_duration::prelude::DurationExt;
+use humantime::format_duration;
 use serenity::{
     all::CommandInteraction,
     builder::{CreateCommand, CreateEmbed},
@@ -49,7 +49,7 @@ impl Command for InfoCommand {
         {
             Ok(record) => record.count.unwrap(),
             Err(err) => {
-                return Err(ResponseError::Sqlx(err));
+                return Err(ResponseError::Sqlx(Box::new(err)));
             }
         };
 
@@ -59,7 +59,7 @@ impl Command for InfoCommand {
         {
             Ok(record) => record.count.unwrap(),
             Err(err) => {
-                return Err(ResponseError::Sqlx(err));
+                return Err(ResponseError::Sqlx(Box::new(err)));
             }
         };
 
@@ -69,7 +69,7 @@ impl Command for InfoCommand {
         {
             Ok(record) => record.count.unwrap(),
             Err(err) => {
-                return Err(ResponseError::Sqlx(err));
+                return Err(ResponseError::Sqlx(Box::new(err)));
             }
         };
 
@@ -84,7 +84,7 @@ impl Command for InfoCommand {
                             format!(
                                 "Shard ID {}\nLatency: {}",
                                 context.ctx.shard_id,
-                                shard_latency.map_or("Pending".to_string(),|latency| latency.human(humanize_duration::Truncate::Millis).to_string())
+                                shard_latency.map_or("Pending".to_string(),|latency| format_duration(latency).to_string())
                             ),
                             true,
                         ),
@@ -100,7 +100,7 @@ impl Command for InfoCommand {
                             format!(
                                 "Version: {}\nUptime: {}",
                                 env!("CARGO_PKG_VERSION"),
-                                Bot::global().start_time().elapsed().human(humanize_duration::Truncate::Millis)
+                                format_duration(Bot::global().start_time().elapsed()).to_string()
                             ),
                             true,
                         ),

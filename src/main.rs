@@ -3,7 +3,8 @@
 #![allow(
     clippy::cast_possible_wrap,
     clippy::cast_sign_loss,
-    clippy::cast_precision_loss
+    clippy::cast_precision_loss,
+    clippy::unreadable_literal
 )]
 use std::{net::SocketAddr, sync::Arc};
 

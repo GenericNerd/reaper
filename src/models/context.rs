@@ -14,6 +14,7 @@ use crate::models::{
     guild::Guild,
     permissions::Permission,
     response::{ExecutionError, InternalError, ReaperError, Response, ResponseError},
+    user::User,
 };
 
 pub trait ContextReply<T> {
@@ -43,6 +44,7 @@ pub struct UnpopulatedContext<'a> {
 pub struct PopulatedContext<'a> {
     pub ctx: &'a SerenityContext,
     pub has_responded: Arc<AtomicBool>,
+    pub user: User,
     pub user_permissions: Vec<Permission>,
     pub highest_role: u16,
     pub partial_guild: PartialGuild,
@@ -97,7 +99,7 @@ fn error_message(error: &ResponseError) -> CreateEmbed {
 }
 
 impl ContextReply<CommandInteraction> for Context<'_> {
-    #[tracing::instrument(skip(cmd, response), fields(command_name = cmd.data.name))]
+    #[tracing::instrument(skip(self, cmd, response), fields(command_name = cmd.data.name))]
     async fn reply(
         &self,
         cmd: &CommandInteraction,
@@ -134,7 +136,7 @@ impl ContextReply<CommandInteraction> for Context<'_> {
                 Ok(msg) => Ok(msg),
                 Err(err) => {
                     error!("Attempted to edit a response to a command, failed with error: {err}");
-                    Err(ResponseError::Serenity(err))
+                    Err(ResponseError::Serenity(Box::new(err)))
                 }
             };
         }
@@ -169,13 +171,13 @@ impl ContextReply<CommandInteraction> for Context<'_> {
                     Ok(message) => Ok(message),
                     Err(err) => {
                         error!("A message was sent, but failed to fetch. Failed with error: {err}");
-                        Err(ResponseError::Serenity(err))
+                        Err(ResponseError::Serenity(Box::new(err)))
                     }
                 }
             }
             Err(err) => {
                 error!("Failed to create response to command: {err}");
-                Err(ResponseError::Serenity(err))
+                Err(ResponseError::Serenity(Box::new(err)))
             }
         }
     }
@@ -216,7 +218,7 @@ impl ContextReply<CommandInteraction> for Context<'_> {
 }
 
 impl ContextReply<ComponentInteraction> for Context<'_> {
-    #[tracing::instrument(skip(interaction, response))]
+    #[tracing::instrument(skip(self, interaction, response))]
     async fn reply(
         &self,
         interaction: &ComponentInteraction,
@@ -252,8 +254,8 @@ impl ContextReply<ComponentInteraction> for Context<'_> {
             return match interaction.edit_response(&ctx.http, edit).await {
                 Ok(msg) => Ok(msg),
                 Err(err) => {
-                    error!("Attempted to edit a response to a command, failed with error: {err}");
-                    Err(ResponseError::Serenity(err))
+                    error!("Attempted to edit a response to a component, failed with error: {err}");
+                    Err(ResponseError::Serenity(Box::new(err)))
                 }
             };
         }
@@ -288,13 +290,13 @@ impl ContextReply<ComponentInteraction> for Context<'_> {
                     Ok(message) => Ok(message),
                     Err(err) => {
                         error!("A message was sent, but failed to fetch. Failed with error: {err}");
-                        Err(ResponseError::Serenity(err))
+                        Err(ResponseError::Serenity(Box::new(err)))
                     }
                 }
             }
             Err(err) => {
-                error!("Failed to create response to command: {err}");
-                Err(ResponseError::Serenity(err))
+                error!("Failed to create response to component: {err}");
+                Err(ResponseError::Serenity(Box::new(err)))
             }
         }
     }
@@ -351,6 +353,6 @@ impl ContextComponentReplies<ComponentInteraction> for Context<'_> {
         interaction
             .create_response(&ctx.http, CreateInteractionResponse::Modal(modal))
             .await
-            .map_err(ResponseError::Serenity)
+            .map_err(|err| ResponseError::Serenity(Box::new(err)))
     }
 }

@@ -1,37 +1,110 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, time::Duration};
 
 use dashmap::DashMap;
-use serenity::all::ComponentInteraction;
+use serenity::all::{CommandInteraction, ComponentInteraction, CreateEmbed, CreateModal, Message};
 use tracing::debug;
 
 use crate::{
     components::Component,
     models::{
-        context::{Context, ContextReply},
+        context::{Context, ContextComponentReplies, ContextReply},
         interactions::{
             Interaction, InteractionBuilder, InteractionKind, config::ConfigInteraction,
         },
         permissions::Permission,
-        response::{ExecutionError, InternalError, ResponseError, ResponseResult},
+        response::{ExecutionError, InternalError, Response, ResponseError, ResponseResult},
         user::User,
     },
 };
 
-pub const EMBED_COLOR: u32 = 0x5539CC;
+const EMBED_COLOR: u32 = 0x5539CC;
 
 mod logging;
 mod moderation;
+mod xp;
+
+pub enum ConfigEntry {
+    Command(CommandInteraction),
+    Component(ComponentInteraction),
+}
+
+impl ConfigEntry {
+    async fn reply(&self, ctx: &Context<'_>, response: Response) -> Result<Message, ResponseError> {
+        match self {
+            ConfigEntry::Command(command) => ctx.reply(command, response).await,
+            ConfigEntry::Component(component) => ctx.reply(component, response).await,
+        }
+    }
+
+    async fn modal(&self, ctx: &Context<'_>, modal: CreateModal) -> ResponseResult {
+        match self {
+            ConfigEntry::Command(_) => Err(ResponseError::Execution(ExecutionError::Internal(
+                InternalError::InvalidInteractionType,
+            ))),
+            ConfigEntry::Component(component) => ctx.modal(component, modal).await,
+        }
+    }
+
+    fn component(&self) -> Result<ComponentInteraction, ResponseError> {
+        match self {
+            ConfigEntry::Command(_) => Err(ResponseError::Execution(ExecutionError::Internal(
+                InternalError::InvalidInteractionType,
+            ))),
+            ConfigEntry::Component(component) => Ok(component.clone()),
+        }
+    }
+}
 
 #[async_trait::async_trait]
-pub trait ConfigStage: Debug + Send + Sync {
+trait ConfigStage: Debug + Send + Sync {
     fn key(&self) -> (&'static str, &'static str);
     async fn router(
         &self,
         ctx: &Context<'_>,
-        component: &ComponentInteraction,
-        data: &ConfigInteraction,
+        entry: &ConfigEntry,
+        data: (&ConfigInteraction, bool),
     ) -> ResponseResult;
     fn on_error_go_to_stage(&self) -> Option<(&'static str, &'static str)>;
+}
+
+#[derive(Debug)]
+struct Complete;
+#[async_trait::async_trait]
+impl ConfigStage for Complete {
+    fn key(&self) -> (&'static str, &'static str) {
+        ("complete", "complete")
+    }
+
+    fn on_error_go_to_stage(&self) -> Option<(&'static str, &'static str)> {
+        None
+    }
+
+    async fn router(
+        &self,
+        ctx: &Context<'_>,
+        entry: &ConfigEntry,
+        _data: (&ConfigInteraction, bool),
+    ) -> ResponseResult {
+        let message = entry
+            .reply(
+                ctx,
+                Response::new()
+                    .embed(
+                        CreateEmbed::new()
+                            .title("Configuration Complete!")
+                            .color(0x00ff00),
+                    )
+                    .components(vec![]),
+            )
+            .await?;
+
+        tokio::time::sleep(Duration::new(5, 0)).await;
+
+        message
+            .delete(ctx.get_populated_context()?.ctx.http.clone())
+            .await
+            .map_err(|err| ResponseError::Serenity(Box::new(err)))
+    }
 }
 
 #[derive(Debug)]
@@ -41,7 +114,10 @@ pub struct Config {
 
 impl Config {
     pub fn new() -> Self {
-        let handlers: Vec<Box<dyn ConfigStage>> = vec![
+        let handlers: [Box<dyn ConfigStage>; 30] = [
+            Box::new(moderation::ModerationEnter),
+            Box::new(moderation::Footer),
+            Box::new(moderation::ChangeFooter),
             Box::new(moderation::MuteRole),
             Box::new(moderation::SelectedMuteRole),
             Box::new(moderation::DefaultStrikeDuration),
@@ -51,6 +127,24 @@ impl Config {
             Box::new(moderation::RemoveEscalation),
             Box::new(moderation::SubmitEscalations),
             Box::new(logging::LoggingEnter),
+            Box::new(logging::Categories),
+            Box::new(logging::SubmitCategories),
+            Box::new(logging::OneOrMultiple),
+            Box::new(logging::SingleLogChannel),
+            Box::new(logging::SubmitSingleLogChannel),
+            Box::new(logging::ActionsChannel),
+            Box::new(logging::SubmitActionsChannel),
+            Box::new(logging::MessagesChannel),
+            Box::new(logging::SubmitMessagesChannel),
+            Box::new(logging::VoiceChannel),
+            Box::new(logging::SubmitVoiceChannel),
+            Box::new(xp::XPEnter),
+            Box::new(xp::RandomOrSet),
+            Box::new(xp::SelectedRandomOrSet),
+            Box::new(xp::MessageCooldown),
+            Box::new(xp::ChangeMessageCooldown),
+            Box::new(xp::MaxLevel),
+            Box::new(Complete),
         ];
         Self {
             handlers: handlers
@@ -59,21 +153,93 @@ impl Config {
                 .collect::<DashMap<_, _>>(),
         }
     }
+
+    pub async fn internal_router(
+        &self,
+        ctx: &Context<'_>,
+        entry: &ConfigEntry,
+        interaction: &Interaction,
+    ) -> ResponseResult {
+        // TODO: Remove once more interactions are added
+        #[allow(irrefutable_let_patterns)]
+        let InteractionKind::Config {
+            category,
+            single_category,
+        } = &interaction.kind
+        else {
+            return Err(ResponseError::Execution(ExecutionError::Internal(
+                InternalError::InvalidInteractionType,
+            )));
+        };
+        let stage = match &category {
+            ConfigInteraction::Moderation { stage } => stage.to_string(),
+            ConfigInteraction::Logging { stage } => stage.to_string(),
+            ConfigInteraction::XP { stage } => stage.to_string(),
+            ConfigInteraction::Complete => "complete".to_string(),
+        };
+        debug!(
+            "Running config category {} stage {}",
+            category.to_string(),
+            stage
+        );
+
+        let mut current_key = (category.to_string(), stage);
+
+        loop {
+            let handler = self
+                .handlers
+                .get(&current_key)
+                .ok_or(ResponseError::Execution(ExecutionError::Internal(
+                    InternalError::InvalidConfigurationStep,
+                )))?;
+
+            match handler
+                .router(ctx, entry, (category, *single_category))
+                .await
+            {
+                Ok(res) => return Ok(res),
+                Err(err) => {
+                    if let ResponseError::Execution(_) = err {
+                        match entry {
+                            ConfigEntry::Command(command) => {
+                                ctx.error_message_ref(command, &err).await?;
+                            }
+                            ConfigEntry::Component(component) => {
+                                ctx.error_message_ref(component, &err).await?;
+                            }
+                        }
+                        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                        if let Some((next_cat, next_stage)) = handler.on_error_go_to_stage() {
+                            current_key = (next_cat.to_string(), next_stage.to_string());
+                            continue;
+                        }
+                        return Err(err);
+                    }
+                    return Err(err);
+                }
+            }
+        }
+    }
 }
 
-pub async fn advance_to<S: ConfigStage>(
+async fn advance_to<S: ConfigStage>(
     stage: S,
     ctx: &Context<'_>,
-    component: &ComponentInteraction,
-    data: &ConfigInteraction,
+    entry: &ConfigEntry,
+    data: (&ConfigInteraction, bool),
 ) -> ResponseResult {
-    stage.router(ctx, component, data).await
+    stage.router(ctx, entry, data).await
 }
 
-pub fn interaction_builder(user: User, interaction: ConfigInteraction) -> InteractionBuilder {
+fn interaction_builder(
+    user: User,
+    interaction: ConfigInteraction,
+    single_category: bool,
+) -> InteractionBuilder {
     InteractionBuilder::new(
         InteractionKind::Config {
             category: interaction,
+            single_category,
         },
         user,
         Some(time::OffsetDateTime::now_utc() + time::Duration::hours(1)),
@@ -97,50 +263,7 @@ impl Component for Config {
         component: &ComponentInteraction,
         interaction: &Interaction,
     ) -> ResponseResult {
-        // TODO: Remove once more interactions are added
-        #[allow(irrefutable_let_patterns)]
-        let InteractionKind::Config { category } = &interaction.kind else {
-            return Err(ResponseError::Execution(ExecutionError::Internal(
-                InternalError::InvalidInteractionType,
-            )));
-        };
-        let stage = match &category {
-            ConfigInteraction::Moderation { stage } => stage.to_string(),
-            ConfigInteraction::Logging { stage } => stage.to_string(),
-        };
-        debug!(
-            "Running config category {} stage {}",
-            category.to_string(),
-            stage
-        );
-
-        let mut current_key = (category.to_string(), stage);
-
-        loop {
-            let handler = self
-                .handlers
-                .get(&current_key)
-                .ok_or(ResponseError::Execution(ExecutionError::Internal(
-                    InternalError::InvalidConfigurationStep,
-                )))?;
-
-            match handler.router(ctx, component, category).await {
-                Ok(res) => return Ok(res),
-                Err(err) => {
-                    if let ResponseError::Execution(_) = err {
-                        ctx.error_message_ref(component, &err).await?;
-                        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-                        if let Some((next_cat, next_stage)) = handler.on_error_go_to_stage() {
-                            current_key = (next_cat.to_string(), next_stage.to_string());
-                            continue;
-                        } else {
-                            return Err(err);
-                        }
-                    } else {
-                        return Err(err);
-                    }
-                }
-            }
-        }
+        self.internal_router(ctx, &ConfigEntry::Component(component.clone()), interaction)
+            .await
     }
 }

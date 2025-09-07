@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE xp_configuration SET set_xp_per_message = $1, min_xp_per_message = null, max_xp_per_message = null WHERE guild_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f99b4aa8fcb101e0d891a7a12e593b4f992dde95025c4e026fc013f7deed3833"
+}

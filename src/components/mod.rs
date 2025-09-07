@@ -7,7 +7,7 @@ use crate::models::{
     context::Context, interactions::Interaction, permissions::Permission, response::ResponseResult,
 };
 
-mod config;
+pub mod config;
 
 #[async_trait]
 pub trait Component: Send + Sync {

@@ -1,10 +1,12 @@
 pub mod actions;
 pub mod bot;
+pub mod channel;
 pub mod context;
 pub mod duration;
 pub mod guild;
 pub mod interactions;
 pub mod member;
+pub mod options;
 pub mod permissions;
 pub mod response;
 pub mod role;

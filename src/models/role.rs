@@ -15,6 +15,12 @@ impl From<u64> for Role {
     }
 }
 
+impl From<i64> for Role {
+    fn from(raw: i64) -> Self {
+        Self::from(raw as u64)
+    }
+}
+
 impl From<SerenityRoleId> for Role {
     fn from(serenity_id: SerenityRoleId) -> Self {
         Self {
