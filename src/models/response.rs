@@ -90,13 +90,17 @@ impl ReaperError for InternalError {
 
 #[derive(Debug)]
 pub enum InputError {
+    NoEscalationSelected,
     NoRoleSelected,
     NoChannelSelected,
     NoActionTypeSelected,
+    InvalidEscalation,
     InvalidRole { message: String },
     InvalidDuration,
     InvalidNumber,
     InvalidStrikeCount,
+    InvalidMinXP,
+    InvalidMaxLevel,
     Timeout { duration: String },
     InsufficientPermission { required_permission: Permission },
 }
@@ -108,6 +112,9 @@ impl ReaperError for InputError {
 
     fn description(&self) -> Option<String> {
         Some(match self {
+            InputError::NoEscalationSelected => {
+                "We don't see any escalation selected. Please try again".to_string()
+            }
             InputError::NoRoleSelected => {
                 "We don't see any role selected. Please try again".to_string()
             }
@@ -117,6 +124,9 @@ impl ReaperError for InputError {
             InputError::NoActionTypeSelected => {
                 "We don't see a selected action type. Please try again".to_string()
             }
+            InputError::InvalidEscalation => {
+                "The escalation you selected was invalid! Please try again".to_string()
+            }
             InputError::InvalidRole { message } => {
                 format!("The role you selected was invalid!\n`{message}`")
             }
@@ -125,6 +135,12 @@ impl ReaperError for InputError {
             }
             InputError::InvalidNumber => {
                 "The number you inputted was invalid! Please try again".to_string()
+            }
+            InputError::InvalidMinXP => {
+                "The minimum XP was higher than the maximum XP. Please try again.".to_string()
+            }
+            InputError::InvalidMaxLevel => {
+                "The maximum level you inputted was invalid! Please try again".to_string()
             }
             InputError::Timeout { duration } => {
                 format!(

@@ -114,7 +114,7 @@ pub struct Config {
 
 impl Config {
     pub fn new() -> Self {
-        let handlers: [Box<dyn ConfigStage>; 30] = [
+        let handlers: [Box<dyn ConfigStage>; 28] = [
             Box::new(moderation::ModerationEnter),
             Box::new(moderation::Footer),
             Box::new(moderation::ChangeFooter),
@@ -132,20 +132,19 @@ impl Config {
             Box::new(logging::OneOrMultiple),
             Box::new(logging::SingleLogChannel),
             Box::new(logging::SubmitSingleLogChannel),
-            Box::new(logging::ActionsChannel),
-            Box::new(logging::SubmitActionsChannel),
-            Box::new(logging::MessagesChannel),
-            Box::new(logging::SubmitMessagesChannel),
-            Box::new(logging::VoiceChannel),
-            Box::new(logging::SubmitVoiceChannel),
+            Box::new(logging::MultipleLogChannels),
+            Box::new(logging::SubmitMultipleLogChannels),
             Box::new(xp::XPEnter),
             Box::new(xp::RandomOrSet),
             Box::new(xp::SelectedRandomOrSet),
             Box::new(xp::MessageCooldown),
             Box::new(xp::ChangeMessageCooldown),
             Box::new(xp::MaxLevel),
+            Box::new(xp::ChangeMaxLevel),
+            Box::new(xp::ChangeStackRewards),
             Box::new(Complete),
         ];
+
         Self {
             handlers: handlers
                 .into_iter()

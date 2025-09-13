@@ -31,6 +31,15 @@ pub enum ModerationStage {
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
+pub enum LogCategory {
+    Actions,
+    Messages,
+    Voice,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 pub enum LoggingStage {
     Enter,
     Categories {
@@ -46,12 +55,12 @@ pub enum LoggingStage {
     OneOrMultiple,
     SingleLogChannel,
     SubmitSingleLogChannel,
-    ActionsChannel,
-    SubmitActionsChannel,
-    MessagesChannel,
-    SubmitMessagesChannel,
-    VoiceChannel,
-    SubmitVoiceChannel,
+    MultipleLogChannels {
+        category: LogCategory,
+    },
+    SubmitMultipleLogChannels {
+        category: LogCategory,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
@@ -64,7 +73,23 @@ pub enum XPStage {
     MessageCooldown,
     ChangeMessageCooldown,
     MaxLevel,
-    SubmitMaxLevel,
+    ChangeMaxLevel { is_limited: bool },
+    StackRewards,
+    ChangeStackRewards { is_enabled: bool },
+    StackMultipliers,
+    ChangeStackMultipliers { is_enabled: bool },
+    MultiplierCap,
+    ChangeMultiplierCap { is_limited: bool },
+    ResetXpOnLeave,
+    ChangeResetXPOnLeave { is_enabled: bool },
+    LevelUpMessages,
+    ChangeLevelUpMessages { is_enabled: bool },
+    DmOnLevelUp,
+    ChangeDmOnLevelUp { is_enabled: bool },
+    LevelUpChannel,
+    ChangeLevelUpChannel,
+    LevelUpMessage,
+    ChangeLevelUpMessage,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]

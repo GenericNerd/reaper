@@ -7,8 +7,27 @@ pub struct Options {
 }
 
 impl Options {
-    pub fn new(options: Vec<CommandDataOption>) -> Self {
-        Self { options }
+    fn find<T>(
+        options: &[CommandDataOption],
+        name: &str,
+        f: impl Fn(&CommandDataOptionValue) -> Option<T>,
+    ) -> Option<T> {
+        let mut stack: Vec<&[CommandDataOption]> = vec![options];
+        while let Some(opts) = stack.pop() {
+            for opt in opts {
+                match &opt.value {
+                    CommandDataOptionValue::SubCommand(cmd)
+                    | CommandDataOptionValue::SubCommandGroup(cmd) => stack.push(cmd),
+                    v if opt.name == name => {
+                        if let Some(val) = f(v) {
+                            return Some(val);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        None
     }
 
     pub fn from_command(cmd: &CommandInteraction) -> Self {
@@ -18,97 +37,37 @@ impl Options {
     }
 
     pub fn get_user(&self, name: &str) -> Option<User> {
-        for option in &self.options {
-            match &option.value {
-                CommandDataOptionValue::SubCommand(cmd)
-                | CommandDataOptionValue::SubCommandGroup(cmd) => {
-                    let new_options = Options::new(cmd.clone());
-                    return new_options.get_user(name);
-                }
-                CommandDataOptionValue::User(user) => {
-                    if option.name == name {
-                        return Some(User::from(*user));
-                    }
-                }
-                _ => return None,
-            }
-        }
-        None
+        Self::find(&self.options, name, |v| match v {
+            CommandDataOptionValue::User(user) => Some(User::from(*user)),
+            _ => None,
+        })
     }
 
     pub fn get_role(&self, name: &str) -> Option<Role> {
-        for option in &self.options {
-            match &option.value {
-                CommandDataOptionValue::SubCommand(cmd)
-                | CommandDataOptionValue::SubCommandGroup(cmd) => {
-                    let new_options = Options::new(cmd.clone());
-                    return new_options.get_role(name);
-                }
-                CommandDataOptionValue::Role(role) => {
-                    if option.name == name {
-                        return Some(Role::from(*role));
-                    }
-                }
-                _ => return None,
-            }
-        }
-        None
+        Self::find(&self.options, name, |v| match v {
+            CommandDataOptionValue::Role(role) => Some(Role::from(*role)),
+            _ => None,
+        })
     }
 
     pub fn get_string(&self, name: &str) -> Option<String> {
-        for option in &self.options {
-            match &option.value {
-                CommandDataOptionValue::SubCommand(cmd)
-                | CommandDataOptionValue::SubCommandGroup(cmd) => {
-                    let new_options = Options::new(cmd.clone());
-                    return new_options.get_string(name);
-                }
-                CommandDataOptionValue::String(string) => {
-                    if option.name == name {
-                        return Some(string.clone());
-                    }
-                }
-                _ => return None,
-            }
-        }
-        None
+        Self::find(&self.options, name, |v| match v {
+            CommandDataOptionValue::String(string) => Some(string.clone()),
+            _ => None,
+        })
     }
 
     pub fn get_boolean(&self, name: &str) -> Option<bool> {
-        for option in &self.options {
-            match &option.value {
-                CommandDataOptionValue::SubCommand(cmd)
-                | CommandDataOptionValue::SubCommandGroup(cmd) => {
-                    let new_options = Options::new(cmd.clone());
-                    return new_options.get_boolean(name);
-                }
-                CommandDataOptionValue::Boolean(boolean) => {
-                    if option.name == name {
-                        return Some(*boolean);
-                    }
-                }
-                _ => return None,
-            }
-        }
-        None
+        Self::find(&self.options, name, |v| match v {
+            CommandDataOptionValue::Boolean(boolean) => Some(*boolean),
+            _ => None,
+        })
     }
 
     pub fn get_integer(&self, name: &str) -> Option<i64> {
-        for option in &self.options {
-            match &option.value {
-                CommandDataOptionValue::SubCommand(cmd)
-                | CommandDataOptionValue::SubCommandGroup(cmd) => {
-                    let new_options = Options::new(cmd.clone());
-                    return new_options.get_integer(name);
-                }
-                CommandDataOptionValue::Integer(integer) => {
-                    if option.name == name {
-                        return Some(*integer);
-                    }
-                }
-                _ => return None,
-            }
-        }
-        None
+        Self::find(&self.options, name, |v| match v {
+            CommandDataOptionValue::Integer(integer) => Some(*integer),
+            _ => None,
+        })
     }
 }

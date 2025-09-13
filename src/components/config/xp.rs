@@ -283,7 +283,7 @@ impl ConfigStage for SelectedRandomOrSet {
                 )
                 .await?;
 
-            if let ActionRowComponent::InputText(text) =
+            let min_xp = if let ActionRowComponent::InputText(text) =
                 &modal_interaction.data.components[0].components[0]
             {
                 let Ok(xp_value) = text.value.as_ref().unwrap().parse::<i32>().map_err(|_| {
@@ -301,13 +301,7 @@ impl ConfigStage for SelectedRandomOrSet {
                 }
 
                 if *is_random {
-                    sqlx::query!(
-                        "UPDATE xp_configuration SET min_xp_per_message = $1, set_xp_per_message = null WHERE guild_id = $2",
-                        xp_value,
-                        context.guild.as_i64(),
-                    )
-                    .execute(Bot::global().postgres())
-                    .await?;
+                    xp_value
                 } else {
                     sqlx::query!(
                         "UPDATE xp_configuration SET set_xp_per_message = $1, min_xp_per_message = null, max_xp_per_message = null WHERE guild_id = $2",
@@ -319,7 +313,11 @@ impl ConfigStage for SelectedRandomOrSet {
 
                     return advance_to(MessageCooldown, ctx, entry, data).await;
                 }
-            }
+            } else {
+                return Err(ResponseError::Execution(ExecutionError::Internal(
+                    InternalError::InvalidInteractionType,
+                )));
+            };
 
             if let ActionRowComponent::InputText(text) =
                 &modal_interaction.data.components[1].components[0]
@@ -335,6 +333,12 @@ impl ConfigStage for SelectedRandomOrSet {
                 if max_xp < 0 {
                     return Err(ResponseError::Execution(ExecutionError::Input(
                         InputError::InvalidNumber,
+                    )));
+                }
+
+                if min_xp > max_xp {
+                    return Err(ResponseError::Execution(ExecutionError::Input(
+                        InputError::InvalidMinXP,
                     )));
                 }
 
@@ -387,7 +391,7 @@ impl ConfigStage for MessageCooldown {
 
         let cooldown_duration =
             format_duration(StdDuration::from_secs(cooldown as u64)).to_string();
-        let help_text = r"When earning XP, how long should pass before someone can gain XP again?
+        let help_text = r"When earning XP, how much time should pass before someone can gain XP again?
 
 > The cooldown prevents spam and ensures XP is earned fairly.
 > 
@@ -535,10 +539,547 @@ impl ConfigStage for MaxLevel {
 
     async fn router(
         &self,
-        _ctx: &Context<'_>,
-        _entry: &ConfigEntry,
-        _data: (&ConfigInteraction, bool),
+        ctx: &Context<'_>,
+        entry: &ConfigEntry,
+        data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
-        unimplemented!()
+        let context = ctx.get_populated_context()?;
+        let max_level = sqlx::query!(
+            "SELECT max_level FROM xp_configuration WHERE guild_id = $1",
+            context.guild.as_i64(),
+        )
+        .fetch_one(Bot::global().postgres())
+        .await?
+        .max_level;
+
+        let current_setting = match max_level {
+            Some(max_level) => format!("**Level {max_level}**"),
+            None => format!("**No limit**"),
+        };
+
+        let help_text = r"You can set a maximum level that members can reach.
+
+> - Once members hit this level, they will stop earning XP.
+> - This can be useful to cap progression and prevent infinite grinding.
+> - If you don't want a limit, you can click the `No limit` button.";
+
+        let interactions = [
+            xp_interaction_builder(
+                context.user,
+                XPStage::ChangeMaxLevel { is_limited: true },
+                data.1,
+            )
+            .build(),
+            xp_interaction_builder(
+                context.user,
+                XPStage::ChangeMaxLevel { is_limited: false },
+                data.1,
+            )
+            .build(),
+            xp_interaction_builder(context.user, XPStage::StackRewards, data.1).build(),
+        ];
+
+        Bot::global()
+            .interaction_state()
+            .register(interactions.to_vec())
+            .await?;
+
+        entry
+            .reply(
+                ctx,
+                Response::new()
+                    .embed(
+                        CreateEmbed::new()
+                            .title(XP_TITLE)
+                            .description(format!(
+                                "{help_text}\n\nThe current limit is: {current_setting}"
+                            ))
+                            .color(EMBED_COLOR),
+                    )
+                    .components(vec![CreateActionRow::Buttons(vec![
+                        CreateButton::new(interactions[0].id.to_string())
+                            .label(if max_level.is_some() {
+                                "Change maximum"
+                            } else {
+                                "Set maximum"
+                            })
+                            .style(ButtonStyle::Primary),
+                        CreateButton::new(interactions[1].id.to_string())
+                            .label("No limit")
+                            .style(ButtonStyle::Danger),
+                        CreateButton::new(interactions[2].id.to_string())
+                            .label("Skip")
+                            .style(ButtonStyle::Secondary),
+                    ])]),
+            )
+            .await
+            .map(|_| ())
+    }
+}
+
+#[derive(Debug)]
+pub struct ChangeMaxLevel;
+#[async_trait::async_trait]
+impl ConfigStage for ChangeMaxLevel {
+    fn key(&self) -> (&'static str, &'static str) {
+        ("xp", "change_max_level")
+    }
+
+    fn on_error_go_to_stage(&self) -> Option<(&'static str, &'static str)> {
+        Some(("xp", "max_level"))
+    }
+
+    async fn router(
+        &self,
+        ctx: &Context<'_>,
+        entry: &ConfigEntry,
+        data: (&ConfigInteraction, bool),
+    ) -> ResponseResult {
+        let context = ctx.get_populated_context()?;
+        let ConfigInteraction::XP { stage } = data.0 else {
+            return Err(ResponseError::Execution(ExecutionError::Internal(
+                InternalError::InvalidInteractionType,
+            )));
+        };
+        let XPStage::ChangeMaxLevel { is_limited } = stage else {
+            return Err(ResponseError::Execution(ExecutionError::Internal(
+                InternalError::InvalidInteractionType,
+            )));
+        };
+
+        if !is_limited {
+            sqlx::query!(
+                "UPDATE xp_configuration SET max_level = null WHERE guild_id = $1",
+                context.guild.as_i64()
+            )
+            .execute(Bot::global().postgres())
+            .await?;
+
+            return advance_to(StackRewards, ctx, entry, data).await;
+        }
+
+        entry
+            .modal(
+                ctx,
+                CreateModal::new("max_level_modal", "Maximum Level").components(vec![
+                    CreateActionRow::InputText(
+                        CreateInputText::new(InputTextStyle::Short, "Maximum Level", "max_level")
+                            .required(true),
+                    ),
+                ]),
+            )
+            .await?;
+
+        let message = entry.component()?.get_response(&context.ctx.http).await?;
+
+        let modal_collector = message
+            .await_modal_interaction(context.ctx)
+            .author_id(context.user.as_serenity_id())
+            .timeout(std::time::Duration::new(300, 0));
+
+        if let Some(modal_interaction) = modal_collector.await {
+            modal_interaction
+                .create_response(
+                    &context.ctx.http,
+                    serenity::builder::CreateInteractionResponse::Acknowledge,
+                )
+                .await?;
+
+            if let ActionRowComponent::InputText(text) =
+                &modal_interaction.data.components[0].components[0]
+            {
+                let value = text.value.clone().unwrap();
+                if value.is_empty() {
+                    return Err(ResponseError::Execution(ExecutionError::Input(
+                        InputError::InvalidDuration,
+                    )));
+                }
+                let Ok(max_level) = text.value.as_ref().unwrap().parse::<i32>().map_err(|_| {
+                    ResponseError::Execution(ExecutionError::Input(InputError::InvalidMaxLevel))
+                }) else {
+                    return Err(ResponseError::Execution(ExecutionError::Input(
+                        InputError::InvalidMaxLevel,
+                    )));
+                };
+
+                if max_level <= 0 {
+                    return Err(ResponseError::Execution(ExecutionError::Input(
+                        InputError::InvalidMaxLevel,
+                    )));
+                }
+
+                sqlx::query!(
+                    "UPDATE xp_configuration SET max_level = $1 WHERE guild_id = $2",
+                    max_level,
+                    context.guild.as_i64()
+                )
+                .execute(Bot::global().postgres())
+                .await?;
+
+                return advance_to(StackRewards, ctx, entry, data).await;
+            }
+        }
+
+        Err(ResponseError::Execution(ExecutionError::Input(
+            InputError::Timeout {
+                duration: "5 minutes".to_string(),
+            },
+        )))
+    }
+}
+
+#[derive(Debug)]
+pub struct StackRewards;
+#[async_trait::async_trait]
+impl ConfigStage for StackRewards {
+    fn key(&self) -> (&'static str, &'static str) {
+        ("xp", "stack_rewards")
+    }
+
+    fn on_error_go_to_stage(&self) -> Option<(&'static str, &'static str)> {
+        None
+    }
+
+    async fn router(
+        &self,
+        ctx: &Context<'_>,
+        entry: &ConfigEntry,
+        data: (&ConfigInteraction, bool),
+    ) -> ResponseResult {
+        let context = ctx.get_populated_context()?;
+
+        let stacking = sqlx::query!(
+            "SELECT stack_rewards FROM xp_configuration WHERE guild_id = $1",
+            context.guild.as_i64(),
+        )
+        .fetch_one(Bot::global().postgres())
+        .await?
+        .stack_rewards;
+
+        let current_setting = if stacking {
+            "**Enabled**"
+        } else {
+            "**Disabled**"
+        };
+
+        let help_text = r"When members level up, you can reward them with special roles.
+
+> - By default, when a member earns a new reward role, their previous reward is replaced.
+> - Enabling stacking rewards lets members **keep all the roles** they earn as they level up.
+> - Stackable rewards are useful if you want leveling to feel like progression (e.g. keeping Bronze, Silver, and Gold).
+> - Non-stacking rewards are useful if you only want members to hold the **highest role** they've unlocked.";
+
+        let interactions = [
+            xp_interaction_builder(
+                context.user,
+                XPStage::ChangeStackRewards { is_enabled: true },
+                data.1,
+            )
+            .build(),
+            xp_interaction_builder(
+                context.user,
+                XPStage::ChangeStackRewards { is_enabled: false },
+                data.1,
+            )
+            .build(),
+            xp_interaction_builder(context.user, XPStage::StackMultipliers, data.1).build(),
+        ];
+
+        Bot::global()
+            .interaction_state()
+            .register(interactions.to_vec())
+            .await?;
+
+        entry
+            .reply(
+                ctx,
+                Response::new()
+                    .embed(
+                        CreateEmbed::new()
+                            .title(XP_TITLE)
+                            .description(format!(
+                                "{help_text}\n\nStacking rewards is currently: {current_setting}"
+                            ))
+                            .color(EMBED_COLOR),
+                    )
+                    .components(vec![CreateActionRow::Buttons(vec![
+                        CreateButton::new(interactions[0].id.to_string())
+                            .label("Stacking")
+                            .style(ButtonStyle::Primary),
+                        CreateButton::new(interactions[1].id.to_string())
+                            .label("No stacking")
+                            .style(ButtonStyle::Danger),
+                        CreateButton::new(interactions[2].id.to_string())
+                            .label("Skip")
+                            .style(ButtonStyle::Secondary),
+                    ])]),
+            )
+            .await
+            .map(|_| ())
+    }
+}
+
+#[derive(Debug)]
+pub struct ChangeStackRewards;
+#[async_trait::async_trait]
+impl ConfigStage for ChangeStackRewards {
+    fn key(&self) -> (&'static str, &'static str) {
+        ("xp", "change_stack_rewards")
+    }
+
+    fn on_error_go_to_stage(&self) -> Option<(&'static str, &'static str)> {
+        Some(("xp", "stack_rewards"))
+    }
+
+    async fn router(
+        &self,
+        ctx: &Context<'_>,
+        entry: &ConfigEntry,
+        data: (&ConfigInteraction, bool),
+    ) -> ResponseResult {
+        let context = ctx.get_populated_context()?;
+        let ConfigInteraction::XP { stage } = data.0 else {
+            return Err(ResponseError::Execution(ExecutionError::Internal(
+                InternalError::InvalidInteractionType,
+            )));
+        };
+        let XPStage::ChangeStackRewards { is_enabled } = stage else {
+            return Err(ResponseError::Execution(ExecutionError::Internal(
+                InternalError::InvalidInteractionType,
+            )));
+        };
+
+        sqlx::query!(
+            "UPDATE xp_configuration SET stack_rewards = $1 WHERE guild_id = $2",
+            is_enabled,
+            context.guild.as_i64()
+        )
+        .execute(Bot::global().postgres())
+        .await?;
+
+        advance_to(StackMultipliers, ctx, entry, data).await
+    }
+}
+
+#[derive(Debug)]
+pub struct StackMultipliers;
+#[async_trait::async_trait]
+impl ConfigStage for StackMultipliers {
+    fn key(&self) -> (&'static str, &'static str) {
+        ("xp", "stack_multipliers")
+    }
+
+    fn on_error_go_to_stage(&self) -> Option<(&'static str, &'static str)> {
+        None
+    }
+
+    async fn router(
+        &self,
+        ctx: &Context<'_>,
+        entry: &ConfigEntry,
+        data: (&ConfigInteraction, bool),
+    ) -> ResponseResult {
+        let context = ctx.get_populated_context()?;
+
+        let stacking = sqlx::query!(
+            "SELECT stack_multipliers FROM xp_configuration WHERE guild_id = $1",
+            context.guild.as_i64(),
+        )
+        .fetch_one(Bot::global().postgres())
+        .await?
+        .stack_multipliers;
+
+        let current_setting = if stacking {
+            "**Enabled**"
+        } else {
+            "**Disabled**"
+        };
+
+        let help_text = r"You can configure how XP boosts are applied from roles and channels.
+
+> - Boosts increase the amount of XP a member earns. They can come from special roles or specific channels.
+> - By default, boosts are **stacked together**. For example, a user with a role giving +20% XP chatting in a channel with +10% XP will receive a total +30% XP.
+> - If you disable stacking, only the **highest single boost** will apply. In the same example, the user would receive only the +20% XP boost.";
+
+        let interactions = [
+            xp_interaction_builder(
+                context.user,
+                XPStage::ChangeStackMultipliers { is_enabled: true },
+                data.1,
+            )
+            .build(),
+            xp_interaction_builder(
+                context.user,
+                XPStage::ChangeStackMultipliers { is_enabled: false },
+                data.1,
+            )
+            .build(),
+            xp_interaction_builder(context.user, XPStage::MultiplierCap, data.1).build(),
+        ];
+
+        Bot::global()
+            .interaction_state()
+            .register(interactions.to_vec())
+            .await?;
+
+        entry
+            .reply(
+                ctx,
+                Response::new()
+                    .embed(
+                        CreateEmbed::new()
+                            .title(XP_TITLE)
+                            .description(format!(
+                                "{help_text}\n\nStacking multipliers is currently: {current_setting}"
+                            ))
+                            .color(EMBED_COLOR),
+                    )
+                    .components(vec![CreateActionRow::Buttons(vec![
+                        CreateButton::new(interactions[0].id.to_string())
+                            .label("Stacking")
+                            .style(ButtonStyle::Primary),
+                        CreateButton::new(interactions[1].id.to_string())
+                            .label("No stacking")
+                            .style(ButtonStyle::Danger),
+                        CreateButton::new(interactions[2].id.to_string())
+                            .label("Skip")
+                            .style(ButtonStyle::Secondary),
+                    ])]),
+            )
+            .await
+            .map(|_| ())
+    }
+}
+
+#[derive(Debug)]
+pub struct ChangeStackMultipliers;
+#[async_trait::async_trait]
+impl ConfigStage for ChangeStackMultipliers {
+    fn key(&self) -> (&'static str, &'static str) {
+        ("xp", "change_stack_multipliers")
+    }
+
+    fn on_error_go_to_stage(&self) -> Option<(&'static str, &'static str)> {
+        Some(("xp", "stack_multipliers"))
+    }
+
+    async fn router(
+        &self,
+        ctx: &Context<'_>,
+        entry: &ConfigEntry,
+        data: (&ConfigInteraction, bool),
+    ) -> ResponseResult {
+        let context = ctx.get_populated_context()?;
+        let ConfigInteraction::XP { stage } = data.0 else {
+            return Err(ResponseError::Execution(ExecutionError::Internal(
+                InternalError::InvalidInteractionType,
+            )));
+        };
+        let XPStage::ChangeStackMultipliers { is_enabled } = stage else {
+            return Err(ResponseError::Execution(ExecutionError::Internal(
+                InternalError::InvalidInteractionType,
+            )));
+        };
+
+        sqlx::query!(
+            "UPDATE xp_configuration SET stack_multipliers = $1 WHERE guild_id = $2",
+            is_enabled,
+            context.guild.as_i64()
+        )
+        .execute(Bot::global().postgres())
+        .await?;
+
+        advance_to(StackMultipliers, ctx, entry, data).await
+    }
+}
+
+#[derive(Debug)]
+pub struct MultiplierCap;
+#[async_trait::async_trait]
+impl ConfigStage for MultiplierCap {
+    fn key(&self) -> (&'static str, &'static str) {
+        ("xp", "multiplier_cap")
+    }
+
+    fn on_error_go_to_stage(&self) -> Option<(&'static str, &'static str)> {
+        None
+    }
+
+    async fn router(
+        &self,
+        ctx: &Context<'_>,
+        entry: &ConfigEntry,
+        data: (&ConfigInteraction, bool),
+    ) -> ResponseResult {
+        let context = ctx.get_populated_context()?;
+
+        let multiplier_cap = sqlx::query!(
+            "SELECT multiplier_cap FROM xp_configuration WHERE guild_id = $1",
+            context.guild.as_i64(),
+        )
+        .fetch_one(Bot::global().postgres())
+        .await?
+        .multiplier_cap;
+
+        let current_setting = if let Some(cap) = multiplier_cap {
+            format!("**Capped at {cap}%**")
+        } else {
+            "**Uncapped**".to_string()
+        };
+
+        let help_text = r"You can set a cap on how much XP boost a user can receive in total.
+
+> - XP boosts come from roles and channels, and they increase the amount of XP a member earns.
+> - By default, multiple boosts can stack without limit (e.g. a role with +20% XP and a channel with +10% XP would give +30% total).
+> - Setting an XP boost cap defines the maximum bonus a member can get.
+> - For example, with a 25% cap, the same user would receive only +25% even though their total stacked boost was +30%.";
+
+        let interactions = [
+            xp_interaction_builder(
+                context.user,
+                XPStage::ChangeMultiplierCap { is_limited: true },
+                data.1,
+            )
+            .build(),
+            xp_interaction_builder(
+                context.user,
+                XPStage::ChangeMultiplierCap { is_limited: false },
+                data.1,
+            )
+            .build(),
+            xp_interaction_builder(context.user, XPStage::ResetXpOnLeave, data.1).build(),
+        ];
+
+        Bot::global()
+            .interaction_state()
+            .register(interactions.to_vec())
+            .await?;
+
+        entry
+            .reply(
+                ctx,
+                Response::new()
+                    .embed(
+                        CreateEmbed::new()
+                            .title(XP_TITLE)
+                            .description(format!(
+                                "{help_text}\n\nMultipliers are: {current_setting}"
+                            ))
+                            .color(EMBED_COLOR),
+                    )
+                    .components(vec![CreateActionRow::Buttons(vec![
+                        CreateButton::new(interactions[0].id.to_string())
+                            .label("Limited")
+                            .style(ButtonStyle::Primary),
+                        CreateButton::new(interactions[1].id.to_string())
+                            .label("No cap")
+                            .style(ButtonStyle::Danger),
+                        CreateButton::new(interactions[2].id.to_string())
+                            .label("Skip")
+                            .style(ButtonStyle::Secondary),
+                    ])]),
+            )
+            .await
+            .map(|_| ())
     }
 }

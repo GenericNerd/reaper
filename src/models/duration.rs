@@ -85,6 +85,6 @@ impl Duration {
             return None;
         };
 
-        time::OffsetDateTime::now_utc().checked_add(time::Duration::new(seconds, 0))
+        time::OffsetDateTime::now_utc().checked_add(time::Duration::seconds(seconds))
     }
 }

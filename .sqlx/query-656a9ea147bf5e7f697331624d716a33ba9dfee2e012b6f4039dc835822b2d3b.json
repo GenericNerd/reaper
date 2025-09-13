@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO logging_configuration (guild_id) VALUES ($1) ON CONFLICT (guild_id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "656a9ea147bf5e7f697331624d716a33ba9dfee2e012b6f4039dc835822b2d3b"
+}

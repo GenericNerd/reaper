@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE xp_configuration SET message_cooldown = $1 WHERE guild_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "662f0e88cfb3dd8dcf3a2eb53929f9c080de99fae8ae98088da85de4169a0bee"
+}

@@ -14,7 +14,7 @@ use crate::{
         context::Context,
         interactions::{
             Interaction, InteractionBuilder,
-            config::{ConfigInteraction, LoggingStage, XPStage},
+            config::{ConfigInteraction, LogCategory, LoggingStage, XPStage},
         },
         response::{
             ExecutionError, InputError, InternalError, Response, ResponseError, ResponseResult,
@@ -299,55 +299,26 @@ impl ConfigStage for Categories {
 
         let context = ctx.get_populated_context()?;
 
-        if sqlx::query!(
-            "SELECT guild_id FROM logging_configuration WHERE guild_id = $1",
+        sqlx::query!(
+            "INSERT INTO logging_configuration (guild_id) VALUES ($1) ON CONFLICT (guild_id) DO NOTHING",
+            context.guild.as_i64(),
+        )
+        .execute(Bot::global().postgres())
+        .await?;
+
+        // Fetch all logging settings in one go if any are missing
+        let settings = sqlx::query!(
+            "SELECT log_actions, log_messages, log_voice \
+                FROM logging_configuration \
+                WHERE guild_id = $1",
             context.guild.as_i64()
         )
-        .fetch_optional(Bot::global().postgres())
-        .await?
-        .is_none()
-        {
-            sqlx::query!(
-                "INSERT INTO logging_configuration (guild_id) VALUES ($1)",
-                context.guild.as_i64()
-            )
-            .execute(Bot::global().postgres())
-            .await?;
-        }
+        .fetch_one(Bot::global().postgres())
+        .await?;
 
-        let log_actions = if let Some(actions) = actions {
-            *actions
-        } else {
-            sqlx::query!(
-                "SELECT log_actions FROM logging_configuration WHERE guild_id = $1",
-                context.guild.as_i64()
-            )
-            .fetch_one(Bot::global().postgres())
-            .await?
-            .log_actions
-        };
-        let log_messages = if let Some(messages) = messages {
-            *messages
-        } else {
-            sqlx::query!(
-                "SELECT log_messages FROM logging_configuration WHERE guild_id = $1",
-                context.guild.as_i64()
-            )
-            .fetch_one(Bot::global().postgres())
-            .await?
-            .log_messages
-        };
-        let log_voice = if let Some(voice) = voice {
-            *voice
-        } else {
-            sqlx::query!(
-                "SELECT log_voice FROM logging_configuration WHERE guild_id = $1",
-                context.guild.as_i64()
-            )
-            .fetch_one(Bot::global().postgres())
-            .await?
-            .log_voice
-        };
+        let log_actions = actions.unwrap_or(settings.log_actions);
+        let log_messages = messages.unwrap_or(settings.log_messages);
+        let log_voice = voice.unwrap_or(settings.log_voice);
 
         let response = self
             .create_response(
@@ -453,7 +424,14 @@ impl ConfigStage for OneOrMultiple {
         let interactions = [
             logging_interaction_builder(context.user, LoggingStage::SingleLogChannel, data.1)
                 .build(),
-            logging_interaction_builder(context.user, LoggingStage::ActionsChannel, data.1).build(),
+            logging_interaction_builder(
+                context.user,
+                LoggingStage::MultipleLogChannels {
+                    category: LogCategory::Actions,
+                },
+                data.1,
+            )
+            .build(),
         ];
 
         Bot::global()
@@ -604,11 +582,11 @@ impl ConfigStage for SubmitSingleLogChannel {
 }
 
 #[derive(Debug)]
-pub struct ActionsChannel;
+pub struct MultipleLogChannels;
 #[async_trait::async_trait]
-impl ConfigStage for ActionsChannel {
+impl ConfigStage for MultipleLogChannels {
     fn key(&self) -> (&'static str, &'static str) {
-        ("logging", "actions_channel")
+        ("logging", "multiple_log_channels")
     }
 
     fn on_error_go_to_stage(&self) -> Option<(&'static str, &'static str)> {
@@ -621,299 +599,135 @@ impl ConfigStage for ActionsChannel {
         entry: &ConfigEntry,
         data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
-        let help_text = r"Which channel should Reaper send moderation actions to?
-
-> **Actions Logging** → Records moderation actions such as strikes, mutes, kicks, and bans.";
-
-        let context = ctx.get_populated_context()?;
-
-        if !sqlx::query!(
-            "SELECT log_actions FROM logging_configuration WHERE guild_id = $1",
-            context.guild.as_i64()
-        )
-        .fetch_one(Bot::global().postgres())
-        .await?
-        .log_actions
-        {
-            return advance_to(MessagesChannel, ctx, entry, data).await;
-        }
-
-        let interactions = [
-            logging_interaction_builder(context.user, LoggingStage::SubmitActionsChannel, data.1)
-                .build(),
-            logging_interaction_builder(context.user, LoggingStage::MessagesChannel, data.1)
-                .build(),
-            logging_interaction_builder(context.user, LoggingStage::OneOrMultiple, data.1).build(),
-        ];
-
-        Bot::global()
-            .interaction_state()
-            .register(interactions.to_vec())
-            .await?;
-
-        entry
-            .reply(
-                ctx,
-                Response::new()
-                    .embed(
-                        CreateEmbed::new()
-                            .title(LOGGING_TITLE)
-                            .description(help_text)
-                            .color(EMBED_COLOR),
-                    )
-                    .components(vec![
-                        CreateActionRow::SelectMenu(CreateSelectMenu::new(
-                            interactions[0].id.to_string(),
-                            CreateSelectMenuKind::Channel {
-                                channel_types: Some(vec![
-                                    ChannelType::Text,
-                                    ChannelType::Forum,
-                                    ChannelType::PublicThread,
-                                    ChannelType::PrivateThread,
-                                ]),
-                                default_channels: None,
-                            },
-                        )),
-                        CreateActionRow::Buttons(vec![
-                            CreateButton::new(interactions[1].id.to_string())
-                                .label("Skip")
-                                .style(ButtonStyle::Secondary),
-                            CreateButton::new(interactions[2].id.to_string())
-                                .label("Cancel")
-                                .style(ButtonStyle::Danger),
-                        ]),
-                    ]),
-            )
-            .await
-            .map(|_| ())
-    }
-}
-
-#[derive(Debug)]
-pub struct SubmitActionsChannel;
-#[async_trait::async_trait]
-impl ConfigStage for SubmitActionsChannel {
-    fn key(&self) -> (&'static str, &'static str) {
-        ("logging", "submit_actions_channel")
-    }
-
-    fn on_error_go_to_stage(&self) -> Option<(&'static str, &'static str)> {
-        Some(("logging", "actions_channel"))
-    }
-
-    async fn router(
-        &self,
-        ctx: &Context<'_>,
-        entry: &ConfigEntry,
-        data: (&ConfigInteraction, bool),
-    ) -> ResponseResult {
-        let context = ctx.get_populated_context()?;
-
-        let ComponentInteractionDataKind::ChannelSelect { values } = &entry.component()?.data.kind
-        else {
+        let ConfigInteraction::Logging { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
         };
-
-        let channel = values.first().ok_or_else(|| {
-            ResponseError::Execution(ExecutionError::Input(InputError::NoChannelSelected))
-        })?;
-        let channel = Channel::from(*channel);
-
-        sqlx::query!(
-            "UPDATE logging_configuration SET log_channel = null, log_action_channel = $1 WHERE guild_id = $2",
-            channel.as_i64(),
-            context.guild.as_i64(),
-        )
-        .execute(Bot::global().postgres())
-        .await?;
-
-        advance_to(MessagesChannel, ctx, entry, data).await
-    }
-}
-
-#[derive(Debug)]
-pub struct MessagesChannel;
-#[async_trait::async_trait]
-impl ConfigStage for MessagesChannel {
-    fn key(&self) -> (&'static str, &'static str) {
-        ("logging", "messages_channel")
-    }
-
-    fn on_error_go_to_stage(&self) -> Option<(&'static str, &'static str)> {
-        None
-    }
-
-    async fn router(
-        &self,
-        ctx: &Context<'_>,
-        entry: &ConfigEntry,
-        data: (&ConfigInteraction, bool),
-    ) -> ResponseResult {
-        let help_text = r"Which channel should Reaper send message events to?
-
-> **Message Logging** → Records message edits, deletions, and bulk deletions.";
-
-        let context = ctx.get_populated_context()?;
-
-        if !sqlx::query!(
-            "SELECT log_messages FROM logging_configuration WHERE guild_id = $1",
-            context.guild.as_i64()
-        )
-        .fetch_one(Bot::global().postgres())
-        .await?
-        .log_messages
-        {
-            return advance_to(VoiceChannel, ctx, entry, data).await;
-        }
-
-        let interactions = [
-            logging_interaction_builder(context.user, LoggingStage::SubmitMessagesChannel, data.1)
-                .build(),
-            logging_interaction_builder(context.user, LoggingStage::VoiceChannel, data.1).build(),
-            logging_interaction_builder(context.user, LoggingStage::OneOrMultiple, data.1).build(),
-        ];
-
-        Bot::global()
-            .interaction_state()
-            .register(interactions.to_vec())
-            .await?;
-
-        entry
-            .reply(
-                ctx,
-                Response::new()
-                    .embed(
-                        CreateEmbed::new()
-                            .title(LOGGING_TITLE)
-                            .description(help_text)
-                            .color(EMBED_COLOR),
-                    )
-                    .components(vec![
-                        CreateActionRow::SelectMenu(CreateSelectMenu::new(
-                            interactions[0].id.to_string(),
-                            CreateSelectMenuKind::Channel {
-                                channel_types: Some(vec![
-                                    ChannelType::Text,
-                                    ChannelType::Forum,
-                                    ChannelType::PublicThread,
-                                    ChannelType::PrivateThread,
-                                ]),
-                                default_channels: None,
-                            },
-                        )),
-                        CreateActionRow::Buttons(vec![
-                            CreateButton::new(interactions[1].id.to_string())
-                                .label("Skip")
-                                .style(ButtonStyle::Secondary),
-                            CreateButton::new(interactions[2].id.to_string())
-                                .label("Cancel")
-                                .style(ButtonStyle::Danger),
-                        ]),
-                    ]),
-            )
-            .await
-            .map(|_| ())
-    }
-}
-
-#[derive(Debug)]
-pub struct SubmitMessagesChannel;
-#[async_trait::async_trait]
-impl ConfigStage for SubmitMessagesChannel {
-    fn key(&self) -> (&'static str, &'static str) {
-        ("logging", "submit_messages_channel")
-    }
-
-    fn on_error_go_to_stage(&self) -> Option<(&'static str, &'static str)> {
-        Some(("logging", "messages_channel"))
-    }
-
-    async fn router(
-        &self,
-        ctx: &Context<'_>,
-        entry: &ConfigEntry,
-        data: (&ConfigInteraction, bool),
-    ) -> ResponseResult {
-        let context = ctx.get_populated_context()?;
-
-        let ComponentInteractionDataKind::ChannelSelect { values } = &entry.component()?.data.kind
-        else {
-            return Err(ResponseError::Execution(ExecutionError::Internal(
-                InternalError::InvalidInteractionType,
-            )));
-        };
-
-        let channel = values.first().ok_or_else(|| {
-            ResponseError::Execution(ExecutionError::Input(InputError::NoChannelSelected))
-        })?;
-        let channel = Channel::from(*channel);
-
-        sqlx::query!(
-            "UPDATE logging_configuration SET log_channel = null, log_message_channel = $1 WHERE guild_id = $2",
-            channel.as_i64(),
-            context.guild.as_i64(),
-        )
-        .execute(Bot::global().postgres())
-        .await?;
-
-        advance_to(VoiceChannel, ctx, entry, data).await
-    }
-}
-
-#[derive(Debug)]
-pub struct VoiceChannel;
-#[async_trait::async_trait]
-impl ConfigStage for VoiceChannel {
-    fn key(&self) -> (&'static str, &'static str) {
-        ("logging", "voice_channel")
-    }
-
-    fn on_error_go_to_stage(&self) -> Option<(&'static str, &'static str)> {
-        None
-    }
-
-    async fn router(
-        &self,
-        ctx: &Context<'_>,
-        entry: &ConfigEntry,
-        data: (&ConfigInteraction, bool),
-    ) -> ResponseResult {
-        let help_text = r"Which channel should Reaper send voice channel events to?
-
-> **Voice Logging** → Records when members join, leave or move between voice channels.";
-
-        let context = ctx.get_populated_context()?;
-
-        if !sqlx::query!(
-            "SELECT log_voice FROM logging_configuration WHERE guild_id = $1",
-            context.guild.as_i64()
-        )
-        .fetch_one(Bot::global().postgres())
-        .await?
-        .log_voice
-        {
-            if data.1 {
-                return advance_to(Complete, ctx, entry, data).await;
+        let category = match stage {
+            LoggingStage::MultipleLogChannels { category } => category,
+            LoggingStage::SubmitMultipleLogChannels { category } => category,
+            _ => {
+                return Err(ResponseError::Execution(ExecutionError::Internal(
+                    InternalError::InvalidInteractionType,
+                )));
             }
-            return advance_to(XPEnter, ctx, entry, data).await;
+        };
+
+        let context = ctx.get_populated_context()?;
+
+        let guild_settings = sqlx::query!(
+            "SELECT log_actions, log_messages, log_voice FROM logging_configuration WHERE guild_id = $1",
+            context.guild.as_i64(),
+        )
+        .fetch_one(Bot::global().postgres())
+        .await?;
+
+        match category {
+            LogCategory::Actions => {
+                if !guild_settings.log_actions {
+                    return advance_to(
+                        MultipleLogChannels,
+                        ctx,
+                        entry,
+                        (
+                            &ConfigInteraction::Logging {
+                                stage: LoggingStage::MultipleLogChannels {
+                                    category: LogCategory::Messages,
+                                },
+                            },
+                            data.1,
+                        ),
+                    )
+                    .await;
+                }
+            }
+            LogCategory::Messages => {
+                if !guild_settings.log_messages {
+                    return advance_to(
+                        MultipleLogChannels,
+                        ctx,
+                        entry,
+                        (
+                            &ConfigInteraction::Logging {
+                                stage: LoggingStage::MultipleLogChannels {
+                                    category: LogCategory::Voice,
+                                },
+                            },
+                            data.1,
+                        ),
+                    )
+                    .await;
+                }
+            }
+            LogCategory::Voice => {
+                if !guild_settings.log_voice {
+                    if data.1 {
+                        return advance_to(Complete, ctx, entry, data).await;
+                    }
+                    return advance_to(XPEnter, ctx, entry, data).await;
+                }
+            }
         }
 
-        let interactions = [
-            logging_interaction_builder(context.user, LoggingStage::SubmitVoiceChannel, data.1)
-                .build(),
-            if data.1 {
-                interaction_builder(context.user, ConfigInteraction::Complete, data.1).build()
-            } else {
-                interaction_builder(
+        let help_text = format!(
+            "Which channel should Reaper send {} logs to?\n\n> {}",
+            match category {
+                LogCategory::Actions => "moderation action",
+                LogCategory::Messages => "messages events",
+                LogCategory::Voice => "voice channel events",
+            },
+            match category {
+                LogCategory::Actions =>
+                    "**Actions Logging** → Records moderation actions such as strikes, mutes, kicks, and bans.",
+                LogCategory::Messages =>
+                    "**Message Logging** → Records message edits, deletions, and bulk deletions.",
+                LogCategory::Voice =>
+                    "**Voice Logging** → Records when members join, leave or move between voice channels.",
+            }
+        );
+
+        let interactions = vec![
+            logging_interaction_builder(
+                context.user,
+                LoggingStage::SubmitMultipleLogChannels {
+                    category: category.clone(),
+                },
+                data.1,
+            )
+            .build(),
+            match category {
+                LogCategory::Actions => logging_interaction_builder(
                     context.user,
-                    ConfigInteraction::XP {
-                        stage: XPStage::Enter,
+                    LoggingStage::MultipleLogChannels {
+                        category: LogCategory::Messages,
                     },
-                    false,
+                    data.1,
                 )
-                .build()
+                .build(),
+                LogCategory::Messages => logging_interaction_builder(
+                    context.user,
+                    LoggingStage::MultipleLogChannels {
+                        category: LogCategory::Voice,
+                    },
+                    data.1,
+                )
+                .build(),
+                LogCategory::Voice => {
+                    if data.1 {
+                        interaction_builder(context.user, ConfigInteraction::Complete, data.1)
+                            .build()
+                    } else {
+                        interaction_builder(
+                            context.user,
+                            ConfigInteraction::XP {
+                                stage: XPStage::Enter,
+                            },
+                            data.1,
+                        )
+                        .build()
+                    }
+                }
             },
             logging_interaction_builder(context.user, LoggingStage::OneOrMultiple, data.1).build(),
         ];
@@ -962,15 +776,15 @@ impl ConfigStage for VoiceChannel {
 }
 
 #[derive(Debug)]
-pub struct SubmitVoiceChannel;
+pub struct SubmitMultipleLogChannels;
 #[async_trait::async_trait]
-impl ConfigStage for SubmitVoiceChannel {
+impl ConfigStage for SubmitMultipleLogChannels {
     fn key(&self) -> (&'static str, &'static str) {
-        ("logging", "submit_voice_channel")
+        ("logging", "submit_multiple_log_channels")
     }
 
     fn on_error_go_to_stage(&self) -> Option<(&'static str, &'static str)> {
-        Some(("logging", "voice_channel"))
+        Some(("logging", "multiple_log_channels"))
     }
 
     async fn router(
@@ -980,6 +794,19 @@ impl ConfigStage for SubmitVoiceChannel {
         data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
         let context = ctx.get_populated_context()?;
+        let ConfigInteraction::Logging { stage } = data.0 else {
+            return Err(ResponseError::Execution(ExecutionError::Internal(
+                InternalError::InvalidInteractionType,
+            )));
+        };
+        let category = match stage {
+            LoggingStage::SubmitMultipleLogChannels { category } => category,
+            _ => {
+                return Err(ResponseError::Execution(ExecutionError::Internal(
+                    InternalError::InvalidInteractionType,
+                )));
+            }
+        };
 
         let ComponentInteractionDataKind::ChannelSelect { values } = &entry.component()?.data.kind
         else {
@@ -993,18 +820,61 @@ impl ConfigStage for SubmitVoiceChannel {
         })?;
         let channel = Channel::from(*channel);
 
-        sqlx::query!(
-            "UPDATE logging_configuration SET log_channel = null, log_voice_channel = $1 WHERE guild_id = $2",
-            channel.as_i64(),
-            context.guild.as_i64(),
-        )
-        .execute(Bot::global().postgres())
-        .await?;
+        let mut query = sqlx::QueryBuilder::<sqlx::Postgres>::new(
+            "UPDATE logging_configuration SET log_channel = null, ",
+        );
+        query.push(match category {
+            LogCategory::Actions => "log_action_channel",
+            LogCategory::Messages => "log_message_channel",
+            LogCategory::Voice => "log_voice_channel",
+        });
+        query.push(" = ");
+        query.push_bind(channel.as_i64());
+        query.push(" WHERE guild_id = ");
+        query.push_bind(context.guild.as_i64());
 
-        if data.1 {
-            advance_to(Complete, ctx, entry, data).await
-        } else {
-            advance_to(XPEnter, ctx, entry, data).await
+        query.build().execute(Bot::global().postgres()).await?;
+
+        match category {
+            LogCategory::Actions => {
+                advance_to(
+                    MultipleLogChannels,
+                    ctx,
+                    entry,
+                    (
+                        &ConfigInteraction::Logging {
+                            stage: LoggingStage::MultipleLogChannels {
+                                category: LogCategory::Messages,
+                            },
+                        },
+                        data.1,
+                    ),
+                )
+                .await
+            }
+            LogCategory::Messages => {
+                advance_to(
+                    MultipleLogChannels,
+                    ctx,
+                    entry,
+                    (
+                        &ConfigInteraction::Logging {
+                            stage: LoggingStage::MultipleLogChannels {
+                                category: LogCategory::Voice,
+                            },
+                        },
+                        data.1,
+                    ),
+                )
+                .await
+            }
+            LogCategory::Voice => {
+                if data.1 {
+                    advance_to(Complete, ctx, entry, data).await
+                } else {
+                    advance_to(XPEnter, ctx, entry, data).await
+                }
+            }
         }
     }
 }

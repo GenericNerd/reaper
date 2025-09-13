@@ -434,7 +434,14 @@ impl ConfigStage for SelectedMuteRole {
                                 &http,
                                 PermissionOverwrite {
                                     allow: Permissions::empty(),
-                                    deny: Permissions::all(),
+                                    deny: Permissions::SEND_MESSAGES
+                                        | Permissions::SEND_MESSAGES_IN_THREADS
+                                        | Permissions::CREATE_PUBLIC_THREADS
+                                        | Permissions::CREATE_PRIVATE_THREADS
+                                        | Permissions::ADD_REACTIONS
+                                        | Permissions::SPEAK
+                                        | Permissions::STREAM
+                                        | Permissions::USE_VAD,
                                     kind: PermissionOverwriteType::Role(role_id),
                                 },
                             )
@@ -797,10 +804,9 @@ impl ConfigStage for Escalations {
                 InternalError::InvalidInteractionType,
             )));
         };
-        let ModerationStage::Escalations { escalations } = stage else {
-            return Err(ResponseError::Execution(ExecutionError::Internal(
-                InternalError::InvalidInteractionType,
-            )));
+        let escalations = match stage {
+            ModerationStage::Escalations { escalations } => escalations,
+            _ => &None,
         };
         let context = ctx.get_populated_context()?;
 
@@ -1017,13 +1023,11 @@ impl ConfigStage for RemoveEscalation {
         let index = values
             .first()
             .ok_or_else(|| {
-                ResponseError::Execution(ExecutionError::Input(InputError::NoRoleSelected))
+                ResponseError::Execution(ExecutionError::Input(InputError::NoEscalationSelected))
             })?
             .parse::<usize>()
             .map_err(|_| {
-                ResponseError::Execution(ExecutionError::Input(InputError::InvalidRole {
-                    message: "We couldn't quite see that role. Please try again!".to_string(),
-                }))
+                ResponseError::Execution(ExecutionError::Input(InputError::InvalidEscalation))
             })?;
 
         let mut escalations = escalations.clone();
