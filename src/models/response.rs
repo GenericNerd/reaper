@@ -101,6 +101,7 @@ pub enum InputError {
     InvalidStrikeCount,
     InvalidMinXP,
     InvalidMaxLevel,
+    InvalidMultiplierCap,
     Timeout { duration: String },
     InsufficientPermission { required_permission: Permission },
 }
@@ -141,6 +142,9 @@ impl ReaperError for InputError {
             }
             InputError::InvalidMaxLevel => {
                 "The maximum level you inputted was invalid! Please try again".to_string()
+            }
+            InputError::InvalidMultiplierCap => {
+                "The multiplier cap you inputted was invalid! Please try again".to_string()
             }
             InputError::Timeout { duration } => {
                 format!(

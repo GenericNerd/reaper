@@ -63,33 +63,150 @@ pub enum LoggingStage {
     },
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct Reward {
+    pub role: i64,
+    pub level: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct RoleMultiplier {
+    pub role: i64,
+    pub multiplier: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct ChannelMultiplier {
+    pub channel: i64,
+    pub multiplier: f64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum XPStage {
     Enter,
     RandomOrSet,
-    SelectedRandomOrSet { is_random: bool },
+    SelectedRandomOrSet {
+        is_random: bool,
+    },
     MessageCooldown,
     ChangeMessageCooldown,
     MaxLevel,
-    ChangeMaxLevel { is_limited: bool },
+    ChangeMaxLevel {
+        is_limited: bool,
+    },
     StackRewards,
-    ChangeStackRewards { is_enabled: bool },
+    ChangeStackRewards {
+        is_enabled: bool,
+    },
     StackMultipliers,
-    ChangeStackMultipliers { is_enabled: bool },
+    ChangeStackMultipliers {
+        is_enabled: bool,
+    },
     MultiplierCap,
-    ChangeMultiplierCap { is_limited: bool },
+    ChangeMultiplierCap {
+        is_limited: bool,
+    },
     ResetXpOnLeave,
-    ChangeResetXPOnLeave { is_enabled: bool },
+    ChangeResetXpOnLeave {
+        is_enabled: bool,
+    },
     LevelUpMessages,
-    ChangeLevelUpMessages { is_enabled: bool },
+    ChangeLevelUpMessages {
+        is_enabled: bool,
+    },
     DmOnLevelUp,
-    ChangeDmOnLevelUp { is_enabled: bool },
+    ChangeDmOnLevelUp {
+        is_enabled: bool,
+    },
     LevelUpChannel,
     ChangeLevelUpChannel,
     LevelUpMessage,
     ChangeLevelUpMessage,
+    RewardsEnter,
+    Rewards {
+        page: usize,
+        rewards: Option<Vec<Reward>>,
+    },
+    AddReward {
+        page: usize,
+        rewards: Vec<Reward>,
+    },
+    RemoveReward {
+        page: usize,
+        rewards: Vec<Reward>,
+    },
+    SaveRewards {
+        rewards: Vec<Reward>,
+    },
+    RoleMultiplierEnter,
+    RoleMultipliers {
+        page: usize,
+        multipliers: Option<Vec<RoleMultiplier>>,
+    },
+    AddRoleMultiplier {
+        page: usize,
+        multipliers: Vec<RoleMultiplier>,
+    },
+    RemoveRoleMultiplier {
+        page: usize,
+        multipliers: Vec<RoleMultiplier>,
+    },
+    SaveRoleMultipliers {
+        multipliers: Vec<RoleMultiplier>,
+    },
+    ChannelMultiplierEnter,
+    ChannelMultipliers {
+        page: usize,
+        multipliers: Option<Vec<ChannelMultiplier>>,
+    },
+    AddChannelMultiplier {
+        page: usize,
+        multipliers: Vec<ChannelMultiplier>,
+    },
+    RemoveChannelMultiplier {
+        page: usize,
+        multipliers: Vec<ChannelMultiplier>,
+    },
+    SaveChannelMultipliers {
+        multipliers: Vec<ChannelMultiplier>,
+    },
+    RoleBlacklistEnter,
+    RoleBlacklists {
+        page: usize,
+        blacklists: Option<Vec<i64>>,
+    },
+    AddRoleBlacklist {
+        page: usize,
+        blacklists: Vec<i64>,
+    },
+    RemoveRoleBlacklist {
+        page: usize,
+        blacklists: Vec<i64>,
+    },
+    SaveRoleBlacklist {
+        blacklists: Vec<i64>,
+    },
+    ChannelBlacklistEnter,
+    ChannelBlacklists {
+        page: usize,
+        blacklists: Option<Vec<i64>>,
+    },
+    AddChannelBlacklist {
+        page: usize,
+        blacklists: Vec<i64>,
+    },
+    RemoveChannelBlacklist {
+        page: usize,
+        blacklists: Vec<i64>,
+    },
+    SaveChannelBlacklist {
+        blacklists: Vec<i64>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
