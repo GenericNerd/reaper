@@ -269,17 +269,28 @@ impl Handler {
                         };
 
                         // Find intersection between user roles and guild rewards
-                        let user_role = guild_rewards
+                        let user_roles = guild_rewards
                             .iter()
                             .filter(|reward| {
                                 member.roles.contains(&RoleId::new(reward.role as u64))
                             })
                             .collect::<Vec<_>>();
-                        let user_role = user_role.first();
 
-                        if let Some(user_role) = user_role {
-                            let user_xp =
-                                (50 * (user_role.level * user_role.level)) + (25 * user_role.level);
+                        let mut highest_role: Option<i64> = None;
+                        for user_role in user_roles {
+                            let level = user_role.level;
+
+                            if let Some(highest_role_level) = highest_role {
+                                if level > highest_role_level {
+                                    highest_role = Some(level);
+                                }
+                            } else {
+                                highest_role = Some(level);
+                            }
+                        }
+
+                        if let Some(level) = highest_role {
+                            let user_xp = (50 * (level * level)) + (25 * level);
                             match sqlx::query!(
                                 "INSERT INTO user_xp (guild_id, user_id, xp) VALUES ($1, $2, $3)",
                                 guild_id,
