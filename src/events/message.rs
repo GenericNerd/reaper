@@ -253,7 +253,7 @@ impl Handler {
                     // This exception is written in for Troll. If the user doesn't have our XP,
                     // we will get the closest level from the role reward they have
                     let mut inserted = None;
-                    if guild_id == 690072854582264086 {
+                    if guild_id == 690072854582264086 || guild_id == 819233227028824066 {
                         let guild_rewards = match sqlx::query!(
                             "SELECT level, role FROM xp_rewards WHERE guild_id = $1",
                             guild_id
