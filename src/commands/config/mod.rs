@@ -97,7 +97,10 @@ impl Command for ConfigCommand {
         if !ctx.user_permissions.contains(&Permission::ConfigEdit) {
             return Err(ResponseError::Execution(
                 "You do not have permission to do this!",
-                Some(format!("You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.", Permission::ConfigEdit)),
+                Some(format!(
+                    "You are missing the `{}` permission. If you believe this is a mistake, please contact your server administrators.",
+                    Permission::ConfigEdit
+                )),
             ));
         }
 
@@ -107,7 +110,7 @@ impl Command for ConfigCommand {
 
         let category = options.get_string("category").into_owned();
 
-        let stages: Vec<Box<dyn ConfigStage>> = vec![
+        let stages: [Box<dyn ConfigStage>; 37] = [
             Box::new(moderation::ModerationEnter),
             Box::new(moderation::ModerationMuteRole),
             Box::new(moderation::ModerationDefaultStrikeDuration),
