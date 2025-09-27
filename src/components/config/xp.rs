@@ -402,7 +402,7 @@ impl ConfigStage for MessageCooldown {
         .message_cooldown;
 
         let cooldown_duration =
-            format_duration(StdDuration::from_secs(cooldown as u64)).to_string();
+            format_duration(StdDuration::from_secs(u64::try_from(cooldown)?)).to_string();
         let help_text = r"When earning XP, how much time should pass before someone can gain XP again?
 
 > The cooldown prevents spam and ensures XP is earned fairly.
@@ -516,10 +516,11 @@ impl ConfigStage for ChangeMessageCooldown {
                         InputError::InvalidDuration,
                     )));
                 }
+                let duration = i32::try_from(duration)?;
 
                 sqlx::query!(
                     "UPDATE xp_configuration SET message_cooldown = $1 WHERE guild_id = $2",
-                    duration as i32,
+                    duration,
                     context.guild.as_i64()
                 )
                 .execute(Bot::global().postgres())
@@ -1178,7 +1179,7 @@ impl ConfigStage for ChangeMultiplierCap {
                     )));
                 }
                 let Ok(multiplier_cap) =
-                    text.value.as_ref().unwrap().parse::<i32>().map_err(|_| {
+                    text.value.as_ref().unwrap().parse::<i16>().map_err(|_| {
                         ResponseError::Execution(ExecutionError::Input(
                             InputError::InvalidMultiplierCap,
                         ))
@@ -1197,7 +1198,7 @@ impl ConfigStage for ChangeMultiplierCap {
 
                 sqlx::query!(
                     "UPDATE xp_configuration SET multiplier_cap = $1 WHERE guild_id = $2",
-                    (multiplier_cap as f32 / 100.0) + 1.0,
+                    (f32::from(multiplier_cap) / 100.0) + 1.0,
                     context.guild.as_i64()
                 )
                 .execute(Bot::global().postgres())
@@ -1994,7 +1995,7 @@ pub struct Rewards;
 impl Rewards {
     const MAX_REWARDS_PER_PAGE: usize = 25;
     fn max_pages(reward_count: usize) -> usize {
-        ((reward_count as f64 / Rewards::MAX_REWARDS_PER_PAGE as f64).ceil() as usize).max(1)
+        (reward_count / Self::MAX_REWARDS_PER_PAGE).max(1)
     }
 
     fn generate_interactions(
@@ -2065,7 +2066,7 @@ impl Rewards {
                 xp_interaction_builder(
                     user,
                     XPStage::Rewards {
-                        page: current_page - 1,
+                        page: current_page.saturating_sub(1),
                         rewards: Some(rewards.to_owned()),
                     },
                     single_category,
@@ -2593,9 +2594,7 @@ pub struct RoleMultipliers;
 impl RoleMultipliers {
     const MAX_MULTIPLIERS_PER_PAGE: usize = 25;
     fn max_pages(multiplier_count: usize) -> usize {
-        ((multiplier_count as f64 / RoleMultipliers::MAX_MULTIPLIERS_PER_PAGE as f64).ceil()
-            as usize)
-            .max(1)
+        (multiplier_count / Self::MAX_MULTIPLIERS_PER_PAGE).max(1)
     }
 
     fn generate_interactions(
@@ -2666,7 +2665,7 @@ impl RoleMultipliers {
                 xp_interaction_builder(
                     user,
                     XPStage::RoleMultipliers {
-                        page: current_page - 1,
+                        page: current_page.saturating_sub(1),
                         multipliers: Some(multipliers.to_owned()),
                     },
                     single_category,
@@ -2967,7 +2966,7 @@ impl ConfigStage for AddRoleMultiplier {
 
                     multipliers.push(RoleMultiplier {
                         role: role.as_i64(),
-                        multiplier: (multiplier as f64 / 100.0) + 1.0,
+                        multiplier: (f64::from(multiplier) / 100.0) + 1.0,
                     });
 
                     return advance_to(
@@ -3223,9 +3222,7 @@ pub struct ChannelMultipliers;
 impl ChannelMultipliers {
     const MAX_MULTIPLIERS_PER_PAGE: usize = 25;
     fn max_pages(multiplier_count: usize) -> usize {
-        ((multiplier_count as f64 / ChannelMultipliers::MAX_MULTIPLIERS_PER_PAGE as f64).ceil()
-            as usize)
-            .max(1)
+        (multiplier_count / Self::MAX_MULTIPLIERS_PER_PAGE).max(1)
     }
 
     fn generate_interactions(
@@ -3302,7 +3299,7 @@ impl ChannelMultipliers {
                 xp_interaction_builder(
                     user,
                     XPStage::ChannelMultipliers {
-                        page: current_page - 1,
+                        page: current_page.saturating_sub(1),
                         multipliers: Some(multipliers.to_owned()),
                     },
                     single_category,
@@ -3610,7 +3607,7 @@ impl ConfigStage for AddChannelMultiplier {
 
                     multipliers.push(ChannelMultiplier {
                         channel: channel.as_i64(),
-                        multiplier: (multiplier as f64 / 100.0) + 1.0,
+                        multiplier: (f64::from(multiplier) / 100.0) + 1.0,
                     });
 
                     return advance_to(
@@ -3859,9 +3856,7 @@ impl RoleBlacklists {
     const MAX_BLACKLISTS_PER_PAGE: usize = 25;
 
     fn max_pages(blacklisted_roles_count: usize) -> usize {
-        ((blacklisted_roles_count as f64 / RoleBlacklists::MAX_BLACKLISTS_PER_PAGE as f64).ceil()
-            as usize)
-            .max(1)
+        (blacklisted_roles_count / Self::MAX_BLACKLISTS_PER_PAGE).max(1)
     }
 
     fn generate_interactions(
@@ -3932,7 +3927,7 @@ impl RoleBlacklists {
                 xp_interaction_builder(
                     user,
                     XPStage::RoleBlacklists {
-                        page: current_page - 1,
+                        page: current_page.saturating_sub(1),
                         blacklists: Some(blacklists.to_owned()),
                     },
                     single_category,
@@ -4399,9 +4394,7 @@ impl ChannelBlacklists {
     const MAX_BLACKLISTS_PER_PAGE: usize = 25;
 
     fn max_pages(blacklisted_roles_count: usize) -> usize {
-        ((blacklisted_roles_count as f64 / RoleBlacklists::MAX_BLACKLISTS_PER_PAGE as f64).ceil()
-            as usize)
-            .max(1)
+        (blacklisted_roles_count / Self::MAX_BLACKLISTS_PER_PAGE).max(1)
     }
 
     fn generate_interactions(
@@ -4473,7 +4466,7 @@ impl ChannelBlacklists {
                 xp_interaction_builder(
                     user,
                     XPStage::ChannelBlacklists {
-                        page: current_page - 1,
+                        page: current_page.saturating_sub(1),
                         blacklists: Some(blacklists.to_owned()),
                     },
                     single_category,

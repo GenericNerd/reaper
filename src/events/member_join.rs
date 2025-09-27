@@ -52,10 +52,20 @@ impl EventRouter {
         };
 
         // TODO: Handle auto-roles here as well
-        let roles = role_ids
-            .iter()
-            .map(|row| RoleId::new(row.role_id as u64))
-            .collect::<Vec<RoleId>>();
+        let mut roles = vec![];
+
+        for role in role_ids {
+            let Ok(role_id) = u64::try_from(role.role_id) else {
+                error!(
+                    guild_id = member.guild().as_u64(),
+                    user_id = member.user().as_u64(),
+                    "Failed to convert role ID to u64"
+                );
+                continue;
+            };
+            roles.push(RoleId::new(role_id));
+        }
+
         let mut roles_to_add = vec![];
 
         for role in roles {

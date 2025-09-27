@@ -1,3 +1,5 @@
+use std::num::TryFromIntError;
+
 use serenity::{
     all::CreateAttachment,
     builder::{CreateActionRow, CreateAllowedMentions, CreateEmbed},
@@ -32,6 +34,7 @@ pub enum InternalError {
     GuildDisabled,
     InvalidInteractionType,
     InvalidConfigurationStep,
+    TryFromIntError,
 }
 
 impl ReaperError for InternalError {
@@ -72,6 +75,7 @@ impl ReaperError for InternalError {
             InternalError::InvalidConfigurationStep => {
                 "We have entered an invalid step during configuration".to_string()
             }
+            InternalError::TryFromIntError => "We couldn't convert a number correctly".to_string(),
         };
 
         let mut official = false;
@@ -222,6 +226,12 @@ impl From<sqlx::Error> for ResponseError {
 impl From<redis::RedisError> for ResponseError {
     fn from(value: redis::RedisError) -> Self {
         Self::Redis(Box::new(value))
+    }
+}
+
+impl From<TryFromIntError> for ResponseError {
+    fn from(_value: TryFromIntError) -> Self {
+        Self::Execution(ExecutionError::Internal(InternalError::TryFromIntError))
     }
 }
 

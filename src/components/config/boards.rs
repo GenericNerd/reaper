@@ -193,21 +193,20 @@ impl ConfigStage for EditSettingsOrEmotes {
             &None
         };
 
-        let channel = match channel_id {
-            Some(channel_id) => Channel::from(*channel_id),
-            None => {
-                let ComponentInteractionDataKind::ChannelSelect { values } =
-                    &entry.component()?.data.kind
-                else {
-                    return Err(ResponseError::Execution(ExecutionError::Internal(
-                        InternalError::InvalidInteractionType,
-                    )));
-                };
-                let channel = values.first().ok_or_else(|| {
-                    ResponseError::Execution(ExecutionError::Input(InputError::NoChannelSelected))
-                })?;
-                Channel::from(*channel)
-            }
+        let channel = if let Some(channel_id) = channel_id {
+            Channel::from(*channel_id)
+        } else {
+            let ComponentInteractionDataKind::ChannelSelect { values } =
+                &entry.component()?.data.kind
+            else {
+                return Err(ResponseError::Execution(ExecutionError::Internal(
+                    InternalError::InvalidInteractionType,
+                )));
+            };
+            let channel = values.first().ok_or_else(|| {
+                ResponseError::Execution(ExecutionError::Input(InputError::NoChannelSelected))
+            })?;
+            Channel::from(*channel)
         };
 
         sqlx::query!(
@@ -685,7 +684,7 @@ pub struct Emotes;
 impl Emotes {
     const MAX_EMOTES_PER_PAGE: usize = 25;
     fn max_pages(emote_count: usize) -> usize {
-        ((emote_count as f64 / Emotes::MAX_EMOTES_PER_PAGE as f64).ceil() as usize).max(1)
+        (emote_count / Self::MAX_EMOTES_PER_PAGE).max(1)
     }
 
     fn generate_interactions(
@@ -773,7 +772,7 @@ impl Emotes {
                     user,
                     BoardsStage::Emotes {
                         channel_id,
-                        page: current_page - 1,
+                        page: current_page.saturating_sub(1),
                         emotes: Some(emotes.to_owned()),
                     },
                     single_category,
@@ -875,7 +874,7 @@ impl Emotes {
         let fields = emotes
             .iter()
             .enumerate()
-            .map(|(index, emote)| (format!("#{}", index + 1), format!("**{}**", emote), true))
+            .map(|(index, emote)| (format!("#{}", index + 1), format!("**{emote}**"), true))
             .collect::<Vec<_>>();
 
         let start = current_page * Emotes::MAX_EMOTES_PER_PAGE;
@@ -1035,7 +1034,7 @@ impl ConfigStage for AddEmote {
                     context.user,
                     data.1,
                     *channel_id,
-                    &emotes,
+                    emotes,
                     *page,
                     Some(EditMode::Add),
                 )
@@ -1044,7 +1043,7 @@ impl ConfigStage for AddEmote {
             .await?;
 
         let reaction_collector = message
-            .await_reaction(&context.ctx)
+            .await_reaction(context.ctx)
             .author_id(context.user.as_serenity_id())
             .timeout(std::time::Duration::new(300, 0));
 
@@ -1188,7 +1187,7 @@ impl ConfigStage for RemoveEmote {
                     context.user,
                     data.1,
                     *channel_id,
-                    &emotes,
+                    emotes,
                     *page,
                     Some(EditMode::Remove),
                 )

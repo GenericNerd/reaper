@@ -105,7 +105,7 @@ impl Command for InfoCommand {
                             true,
                         ),
                     ])
-                    .color(0xeb966d),
+                    .color(0xeb_966d),
                 ),
             )
             .await

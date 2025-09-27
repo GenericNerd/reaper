@@ -88,7 +88,7 @@ impl ConfigStage for ModerationEnter {
                         CreateEmbed::new()
                             .title("Moderation")
                             .description("Would you like to configure moderation?")
-                            .color(0x5539CC),
+                            .color(0x55_39CC),
                     )
                     .components(vec![CreateActionRow::Buttons(vec![
                         CreateButton::new(interactions[0].id.to_string())
@@ -958,7 +958,9 @@ impl ConfigStage for AddEscalation {
                 if value.is_empty() {
                     None
                 } else {
-                    let duration = Duration::new(value.as_str()).to_timestamp().unwrap();
+                    let Some(duration) = Duration::new(value.as_str()).to_timestamp() else {
+                        return invalid!("duration");
+                    };
                     if duration < time::OffsetDateTime::now_utc() {
                         return invalid!("duration");
                     }
@@ -1034,7 +1036,20 @@ impl ConfigStage for RemoveEscalation {
         let mut escalations = escalations.clone();
         escalations.remove(index);
 
-        advance_to(Escalations, ctx, entry, data).await
+        advance_to(
+            Escalations,
+            ctx,
+            entry,
+            (
+                &ConfigInteraction::Moderation {
+                    stage: ModerationStage::Escalations {
+                        escalations: Some(escalations),
+                    },
+                },
+                data.1,
+            ),
+        )
+        .await
     }
 }
 

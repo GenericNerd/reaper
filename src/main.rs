@@ -5,8 +5,7 @@
     clippy::cast_sign_loss,
     clippy::cast_lossless,
     clippy::cast_possible_truncation,
-    clippy::cast_precision_loss,
-    clippy::unreadable_literal
+    clippy::cast_precision_loss
 )]
 use std::{net::SocketAddr, sync::Arc};
 

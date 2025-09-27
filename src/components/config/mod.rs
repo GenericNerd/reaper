@@ -17,7 +17,7 @@ use crate::{
     },
 };
 
-const EMBED_COLOR: u32 = 0x5539CC;
+const EMBED_COLOR: u32 = 0x55_39CC;
 
 mod boards;
 mod logging;
@@ -99,7 +99,7 @@ impl ConfigStage for Complete {
                     .embed(
                         CreateEmbed::new()
                             .title("Configuration Complete!")
-                            .color(0x00ff00),
+                            .color(0x00_ff00),
                     )
                     .components(vec![]),
             )

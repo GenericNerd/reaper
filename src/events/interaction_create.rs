@@ -422,7 +422,7 @@ impl EventRouter {
         let context = Context::Unpopulated(UnpopulatedContext { ctx: &ctx });
         counter!("bot.component_count").increment(1);
 
-        let components_active = match Self::global_kill_active("commands").await {
+        let components_active = match Self::global_kill_active("components").await {
             Ok(active) => active,
             Err(err) => {
                 let _res = context.error_message(&component, err).await;

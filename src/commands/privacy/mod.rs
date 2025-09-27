@@ -36,7 +36,7 @@ impl Command for PrivacyCommand {
                         .description(
                             "You can view Reaper's Privacy Policy [here](https://github.com/GenericNerd/reaper/blob/development/PRIVACY.md).".to_string()
                         )
-                        .color(0xeb966d)
+                        .color(0xeb_966d)
                 ).ephemeral(true)
         ).await.map(|_| ())
     }

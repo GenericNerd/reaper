@@ -28,7 +28,7 @@ impl From<SerenityChannelId> for Channel {
 }
 
 impl Channel {
-    pub fn as_i64(&self) -> i64 {
+    pub fn as_i64(self) -> i64 {
         self.raw_id as i64
     }
 }

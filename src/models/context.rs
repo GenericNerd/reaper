@@ -73,28 +73,28 @@ fn error_message(error: &ResponseError) -> CreateEmbed {
         ResponseError::Execution(err) => CreateEmbed::new()
             .title(err.title())
             .description(err.description().clone().unwrap_or(String::new()))
-            .color(0xff0000),
+            .color(0xff_0000),
         ResponseError::Sqlx(err) => CreateEmbed::new()
             .title("A database error occurred while executing the command")
             .description(format!("```{err:?}```"))
             .footer(CreateEmbedFooter::new(
                 "Please report this issue to developers",
             ))
-            .color(0xff0000),
+            .color(0xff_0000),
         ResponseError::Serenity(err) => CreateEmbed::new()
             .title("A Discord error occurred while executing the command")
             .description(format!("```{err:?}```"))
             .footer(CreateEmbedFooter::new(
                 "Please report this issue to developers if this persists",
             ))
-            .color(0xff0000),
+            .color(0xff_0000),
         ResponseError::Redis(err) => CreateEmbed::new()
             .title("A Redis error occurred while executing the command")
             .description(format!("```{err:?}```"))
             .footer(CreateEmbedFooter::new(
                 "Please report this issue to developers",
             ))
-            .color(0xff0000),
+            .color(0xff_0000),
     }
 }
 
