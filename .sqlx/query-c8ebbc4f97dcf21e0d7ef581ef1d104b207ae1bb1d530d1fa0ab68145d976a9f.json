@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE xp_configuration SET reset_level_on_leave = $1 WHERE guild_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Bool",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c8ebbc4f97dcf21e0d7ef581ef1d104b207ae1bb1d530d1fa0ab68145d976a9f"
+}

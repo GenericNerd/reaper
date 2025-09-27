@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT dm_message, channel FROM xp_level_up_messages WHERE guild_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "dm_message",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 1,
+        "name": "channel",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "d312044797f6dee91b3f0ba1398c5e68cea68b1af7d70339a9e0eeda161e2e25"
+}

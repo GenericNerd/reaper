@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO xp_level_up_messages (guild_id) VALUES ($1) ON CONFLICT (guild_id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "74fc4d846d4ec554c0aa7be0812bb52d6c73a2b3ed9be255847fa2d8e87df31f"
+}

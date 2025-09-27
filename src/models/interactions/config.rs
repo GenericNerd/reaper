@@ -212,9 +212,53 @@ pub enum XPStage {
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
+pub enum BoardsStage {
+    Enter,
+    SelectBoardChannel,
+    EditSettingsOrEmotes {
+        channel_id: Option<i64>,
+    },
+    Quota {
+        channel_id: i64,
+    },
+    ChangeQuota {
+        channel_id: i64,
+    },
+    IgnoreSelfReacts {
+        channel_id: i64,
+    },
+    ChangeIgnoreSelfReacts {
+        channel_id: i64,
+        is_ignoring: bool,
+    },
+    Emotes {
+        channel_id: i64,
+        emotes: Option<Vec<String>>,
+        page: usize,
+    },
+    AddEmote {
+        channel_id: i64,
+        emotes: Vec<String>,
+        page: usize,
+    },
+    RemoveEmote {
+        channel_id: i64,
+        emotes: Vec<String>,
+        page: usize,
+    },
+    SaveEmotes {
+        channel_id: i64,
+        emotes: Vec<String>,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 pub enum ConfigInteraction {
     Moderation { stage: ModerationStage },
     Logging { stage: LoggingStage },
-    XP { stage: XPStage },
+    Xp { stage: XPStage },
+    Boards { stage: BoardsStage },
     Complete,
 }

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO xp_channel_blacklists (guild_id, channel) VALUES ($1, $2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1e2961e9608da4dca05b2ce355f3eddff3c8fc7e3ef8f154b09f3104bd1f6797"
+}

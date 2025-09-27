@@ -1,11 +1,11 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT guild_id FROM xp_configuration WHERE guild_id = $1",
+  "query": "SELECT role FROM xp_role_blacklists WHERE guild_id = $1",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "guild_id",
+        "name": "role",
         "type_info": "Int8"
       }
     ],
@@ -18,5 +18,5 @@
       false
     ]
   },
-  "hash": "6c223dd592e669c96caf967997ea7a726079b2fd8f7bc6bd4cd03034768cf005"
+  "hash": "1004c0740fe998d8165600f04ad0534a8b884729fb6e26dc6307dac92c193faf"
 }

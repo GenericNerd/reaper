@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO xp_role_multipliers (guild_id, role, multiplier) VALUES ($1, $2, $3)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Float4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "98cc034fe7cedf924c07c1b78c5d57bc19775c7c9f053183a3d3994aadc26658"
+}

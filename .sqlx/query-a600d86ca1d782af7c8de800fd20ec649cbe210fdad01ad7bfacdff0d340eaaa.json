@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO xp_channel_multipliers (guild_id, channel, multiplier) VALUES ($1, $2, $3)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Float4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a600d86ca1d782af7c8de800fd20ec649cbe210fdad01ad7bfacdff0d340eaaa"
+}

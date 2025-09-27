@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE xp_configuration SET multiplier_cap = NULL WHERE guild_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0301546b0500f6f3b86711ac80dd9a3735fac83b80e12246ebaa2e2e2ee7e705"
+}
