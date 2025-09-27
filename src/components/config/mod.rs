@@ -1,4 +1,4 @@
-use std::{fmt::Debug, time::Duration};
+use std::{fmt::Debug, sync::Arc, time::Duration};
 
 use dashmap::DashMap;
 use serenity::all::{CommandInteraction, ComponentInteraction, CreateEmbed, CreateModal, Message};
@@ -19,6 +19,7 @@ use crate::{
 
 const EMBED_COLOR: u32 = 0x5539CC;
 
+mod boards;
 mod logging;
 mod moderation;
 mod xp;
@@ -26,6 +27,12 @@ mod xp;
 pub enum ConfigEntry {
     Command(CommandInteraction),
     Component(ComponentInteraction),
+}
+
+#[derive(PartialEq, Clone)]
+enum EditMode {
+    Add,
+    Remove,
 }
 
 impl ConfigEntry {
@@ -67,7 +74,7 @@ trait ConfigStage: Debug + Send + Sync {
     fn on_error_go_to_stage(&self) -> Option<(&'static str, &'static str)>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Complete;
 #[async_trait::async_trait]
 impl ConfigStage for Complete {
@@ -113,8 +120,8 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new() -> Self {
-        let handlers: [Box<dyn ConfigStage>; 68] = [
+    pub fn new() -> Arc<Self> {
+        let handlers: [Box<dyn ConfigStage>; 79] = [
             Box::new(moderation::ModerationEnter),
             Box::new(moderation::Footer),
             Box::new(moderation::ChangeFooter),
@@ -182,15 +189,26 @@ impl Config {
             Box::new(xp::AddChannelBlacklist),
             Box::new(xp::RemoveChannelBlacklist),
             Box::new(xp::SaveChannelBlacklist),
+            Box::new(boards::BoardsEnter),
+            Box::new(boards::SelectBoardChannel),
+            Box::new(boards::EditSettingsOrEmotes),
+            Box::new(boards::Quota),
+            Box::new(boards::ChangeQuota),
+            Box::new(boards::IgnoreSelfReacts),
+            Box::new(boards::ChangeIgnoreSelfReacts),
+            Box::new(boards::Emotes),
+            Box::new(boards::AddEmote),
+            Box::new(boards::RemoveEmote),
+            Box::new(boards::SaveEmotes),
             Box::new(Complete),
         ];
 
-        Self {
+        Arc::new(Self {
             handlers: handlers
                 .into_iter()
                 .map(|h| ((h.key().0.to_string(), h.key().1.to_string()), h))
                 .collect::<DashMap<_, _>>(),
-        }
+        })
     }
 
     pub async fn internal_router(
@@ -213,7 +231,8 @@ impl Config {
         let stage = match &category {
             ConfigInteraction::Moderation { stage } => stage.to_string(),
             ConfigInteraction::Logging { stage } => stage.to_string(),
-            ConfigInteraction::XP { stage } => stage.to_string(),
+            ConfigInteraction::Xp { stage } => stage.to_string(),
+            ConfigInteraction::Boards { stage } => stage.to_string(),
             ConfigInteraction::Complete => "complete".to_string(),
         };
         debug!(

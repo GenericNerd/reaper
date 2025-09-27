@@ -17,8 +17,8 @@ use crate::{
 static BOT_INSTANCE: OnceCell<Arc<Bot>> = OnceCell::const_new();
 
 pub struct Bot {
-    commands: HashMap<&'static str, Box<dyn Command>>,
-    components: HashMap<&'static str, Box<dyn Component>>,
+    commands: HashMap<&'static str, Arc<dyn Command>>,
+    components: HashMap<&'static str, Arc<dyn Component>>,
     shard_manager: Arc<ShardManager>,
     postgres: Arc<Pool<Postgres>>,
     redis: RedisClient,
@@ -67,11 +67,11 @@ impl Bot {
             .expect("Bot must be initialized before use")
     }
 
-    pub fn commands(&self) -> &HashMap<&'static str, Box<dyn Command>> {
+    pub fn commands(&self) -> &HashMap<&'static str, Arc<dyn Command>> {
         &self.commands
     }
 
-    pub fn components(&self) -> &HashMap<&'static str, Box<dyn Component>> {
+    pub fn components(&self) -> &HashMap<&'static str, Arc<dyn Component>> {
         &self.components
     }
 

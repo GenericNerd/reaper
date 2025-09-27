@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use async_trait::async_trait;
 use serenity::all::ComponentInteraction;
@@ -21,11 +21,11 @@ pub trait Component: Send + Sync {
     ) -> ResponseResult;
 }
 
-fn get_components_vec() -> Vec<Box<dyn Component>> {
-    vec![Box::new(config::Config::new())]
+fn get_components_vec() -> Vec<Arc<dyn Component>> {
+    vec![config::Config::new()]
 }
 
-pub fn get_components_available() -> HashMap<&'static str, Box<dyn Component>> {
+pub fn get_components_available() -> HashMap<&'static str, Arc<dyn Component>> {
     let mut components = HashMap::new();
 
     for component in get_components_vec() {

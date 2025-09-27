@@ -100,7 +100,7 @@ impl Command for InfoCommand {
                             format!(
                                 "Version: {}\nUptime: {}",
                                 env!("CARGO_PKG_VERSION"),
-                                format_duration(Bot::global().start_time().elapsed()).to_string()
+                                format_duration(Bot::global().start_time().elapsed())
                             ),
                             true,
                         ),

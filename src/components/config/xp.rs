@@ -9,7 +9,8 @@ use serenity::all::{
 
 use crate::{
     components::config::{
-        Complete, ConfigEntry, ConfigStage, EMBED_COLOR, advance_to, interaction_builder,
+        Complete, ConfigEntry, ConfigStage, EMBED_COLOR, EditMode, advance_to, boards::BoardsEnter,
+        interaction_builder,
     },
     models::{
         bot::Bot,
@@ -18,7 +19,9 @@ use crate::{
         duration::Duration,
         interactions::{
             Interaction, InteractionBuilder,
-            config::{ChannelMultiplier, ConfigInteraction, Reward, RoleMultiplier, XPStage},
+            config::{
+                BoardsStage, ChannelMultiplier, ConfigInteraction, Reward, RoleMultiplier, XPStage,
+            },
         },
         response::{
             ExecutionError, InputError, InternalError, Response, ResponseError, ResponseResult,
@@ -31,7 +34,7 @@ use crate::{
 const XP_TITLE: &str = "Configuration - Levelling";
 
 fn xp_interaction_builder(user: User, stage: XPStage, single_category: bool) -> InteractionBuilder {
-    interaction_builder(user, ConfigInteraction::XP { stage }, single_category)
+    interaction_builder(user, ConfigInteraction::Xp { stage }, single_category)
 }
 
 #[derive(Debug)]
@@ -55,7 +58,14 @@ impl ConfigStage for XPEnter {
         let context = ctx.get_populated_context()?;
         let interactions = [
             xp_interaction_builder(context.user, XPStage::RandomOrSet, data.1).build(),
-            interaction_builder(context.user, ConfigInteraction::Complete, data.1).build(),
+            interaction_builder(
+                context.user,
+                ConfigInteraction::Boards {
+                    stage: BoardsStage::Enter,
+                },
+                data.1,
+            )
+            .build(),
         ];
 
         Bot::global()
@@ -215,7 +225,7 @@ impl ConfigStage for SelectedRandomOrSet {
         entry: &ConfigEntry,
         data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
-        let ConfigInteraction::XP { stage } = data.0 else {
+        let ConfigInteraction::Xp { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -556,7 +566,7 @@ impl ConfigStage for MaxLevel {
 
         let current_setting = match max_level {
             Some(max_level) => format!("**Level {max_level}**"),
-            None => format!("**No limit**"),
+            None => "**No limit**".to_string(),
         };
 
         let help_text = r"You can set a maximum level that members can reach.
@@ -638,7 +648,7 @@ impl ConfigStage for ChangeMaxLevel {
         data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
         let context = ctx.get_populated_context()?;
-        let ConfigInteraction::XP { stage } = data.0 else {
+        let ConfigInteraction::Xp { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -840,7 +850,7 @@ impl ConfigStage for ChangeStackRewards {
         data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
         let context = ctx.get_populated_context()?;
-        let ConfigInteraction::XP { stage } = data.0 else {
+        let ConfigInteraction::Xp { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -972,7 +982,7 @@ impl ConfigStage for ChangeStackMultipliers {
         data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
         let context = ctx.get_populated_context()?;
-        let ConfigInteraction::XP { stage } = data.0 else {
+        let ConfigInteraction::Xp { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -991,7 +1001,7 @@ impl ConfigStage for ChangeStackMultipliers {
         .execute(Bot::global().postgres())
         .await?;
 
-        advance_to(StackMultipliers, ctx, entry, data).await
+        advance_to(MultiplierCap, ctx, entry, data).await
     }
 }
 
@@ -1105,7 +1115,7 @@ impl ConfigStage for ChangeMultiplierCap {
         data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
         let context = ctx.get_populated_context()?;
-        let ConfigInteraction::XP { stage } = data.0 else {
+        let ConfigInteraction::Xp { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -1311,7 +1321,7 @@ impl ConfigStage for ChangeResetXpOnLeave {
         data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
         let context = ctx.get_populated_context()?;
-        let ConfigInteraction::XP { stage } = data.0 else {
+        let ConfigInteraction::Xp { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -1449,7 +1459,7 @@ impl ConfigStage for ChangeLevelUpMessages {
         data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
         let context = ctx.get_populated_context()?;
-        let ConfigInteraction::XP { stage } = data.0 else {
+        let ConfigInteraction::Xp { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -1556,7 +1566,7 @@ impl ConfigStage for DmOnLevelUp {
                             .style(ButtonStyle::Primary),
                         CreateButton::new(interactions[1].id.to_string())
                             .label("In Channel")
-                            .style(ButtonStyle::Danger),
+                            .style(ButtonStyle::Primary),
                     ])]),
             )
             .await
@@ -1583,7 +1593,7 @@ impl ConfigStage for ChangeDmOnLevelUp {
         data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
         let context = ctx.get_populated_context()?;
-        let ConfigInteraction::XP { stage } = data.0 else {
+        let ConfigInteraction::Xp { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -1685,7 +1695,7 @@ impl ConfigStage for LevelUpChannel {
                         CreateActionRow::Buttons(vec![
                             CreateButton::new(interactions[1].id.to_string())
                                 .label("Channel Spoken In")
-                                .style(ButtonStyle::Danger),
+                                .style(ButtonStyle::Primary),
                         ]),
                     ]),
             )
@@ -1722,7 +1732,7 @@ impl ConfigStage for ChangeLevelUpChannel {
             .execute(Bot::global().postgres())
             .await?;
             return advance_to(LevelUpMessage, ctx, entry, data).await;
-        };
+        }
 
         let ComponentInteractionDataKind::ChannelSelect { values } = &entry.component()?.data.kind
         else {
@@ -1815,7 +1825,7 @@ impl ConfigStage for LevelUpMessage {
                                 "{help_text}\n\nCurrent message:\n{}",
                                 match message {
                                     Some(msg) => format!("```{msg}```"),
-                                    None => format!("**No message**"),
+                                    None => "**No message**".to_string(),
                                 }
                             ))
                             .color(EMBED_COLOR),
@@ -1978,11 +1988,6 @@ impl ConfigStage for RewardsEnter {
     }
 }
 
-enum EditMode {
-    Add,
-    Remove,
-}
-
 #[derive(Debug)]
 pub struct Rewards;
 
@@ -1995,7 +2000,7 @@ impl Rewards {
     fn generate_interactions(
         user: User,
         single_category: bool,
-        rewards: &Vec<Reward>,
+        rewards: &[Reward],
         current_page: usize,
         max_pages: usize,
         edit_mode: Option<EditMode>,
@@ -2010,11 +2015,11 @@ impl Rewards {
                     match edit_mode {
                         EditMode::Add => XPStage::AddReward {
                             page: current_page,
-                            rewards: rewards.clone(),
+                            rewards: rewards.to_owned(),
                         },
                         EditMode::Remove => XPStage::RemoveReward {
                             page: current_page,
-                            rewards: rewards.clone(),
+                            rewards: rewards.to_owned(),
                         },
                     },
                     single_category,
@@ -2024,7 +2029,7 @@ impl Rewards {
                     user,
                     XPStage::Rewards {
                         page: current_page,
-                        rewards: Some(rewards.clone()),
+                        rewards: Some(rewards.to_owned()),
                     },
                     single_category,
                 )
@@ -2054,14 +2059,14 @@ impl Rewards {
                         .style(ButtonStyle::Danger)
                         .label("Revert"),
                 ]),
-            ])
+            ]);
         } else {
             interactions.append(&mut vec![
                 xp_interaction_builder(
                     user,
                     XPStage::Rewards {
                         page: current_page - 1,
-                        rewards: Some(rewards.clone()),
+                        rewards: Some(rewards.to_owned()),
                     },
                     single_category,
                 )
@@ -2070,7 +2075,7 @@ impl Rewards {
                     user,
                     XPStage::Rewards {
                         page: current_page + 1,
-                        rewards: Some(rewards.clone()),
+                        rewards: Some(rewards.to_owned()),
                     },
                     single_category,
                 )
@@ -2079,7 +2084,7 @@ impl Rewards {
                     user,
                     XPStage::AddReward {
                         page: current_page,
-                        rewards: rewards.clone(),
+                        rewards: rewards.to_owned(),
                     },
                     single_category,
                 )
@@ -2088,7 +2093,7 @@ impl Rewards {
                     user,
                     XPStage::RemoveReward {
                         page: current_page,
-                        rewards: rewards.clone(),
+                        rewards: rewards.to_owned(),
                     },
                     single_category,
                 )
@@ -2096,7 +2101,7 @@ impl Rewards {
                 xp_interaction_builder(
                     user,
                     XPStage::SaveRewards {
-                        rewards: rewards.clone(),
+                        rewards: rewards.to_owned(),
                     },
                     single_category,
                 )
@@ -2232,7 +2237,7 @@ impl ConfigStage for Rewards {
         data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
         let context = ctx.get_populated_context()?;
-        let ConfigInteraction::XP { stage } = data.0 else {
+        let ConfigInteraction::Xp { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -2285,7 +2290,7 @@ impl ConfigStage for AddReward {
         data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
         let context = ctx.get_populated_context()?;
-        let ConfigInteraction::XP { stage } = data.0 else {
+        let ConfigInteraction::Xp { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -2354,7 +2359,7 @@ impl ConfigStage for AddReward {
                         ctx,
                         entry,
                         (
-                            &ConfigInteraction::XP {
+                            &ConfigInteraction::Xp {
                                 stage: XPStage::Rewards {
                                     page: *page,
                                     rewards: Some(rewards.clone()),
@@ -2364,11 +2369,10 @@ impl ConfigStage for AddReward {
                         ),
                     )
                     .await;
-                } else {
-                    return Err(ResponseError::Execution(ExecutionError::Internal(
-                        InternalError::InvalidInteractionType,
-                    )));
                 }
+                return Err(ResponseError::Execution(ExecutionError::Internal(
+                    InternalError::InvalidInteractionType,
+                )));
             }
 
             return Err(ResponseError::Execution(ExecutionError::Input(
@@ -2376,7 +2380,7 @@ impl ConfigStage for AddReward {
                     duration: "5 minutes".to_string(),
                 },
             )));
-        };
+        }
 
         entry
             .reply(
@@ -2414,7 +2418,7 @@ impl ConfigStage for RemoveReward {
         data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
         let context = ctx.get_populated_context()?;
-        let ConfigInteraction::XP { stage } = data.0 else {
+        let ConfigInteraction::Xp { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -2439,7 +2443,7 @@ impl ConfigStage for RemoveReward {
                 ctx,
                 entry,
                 (
-                    &ConfigInteraction::XP {
+                    &ConfigInteraction::Xp {
                         stage: XPStage::Rewards {
                             page: *page,
                             rewards: Some(rewards),
@@ -2449,7 +2453,7 @@ impl ConfigStage for RemoveReward {
                 ),
             )
             .await;
-        };
+        }
 
         entry
             .reply(
@@ -2487,7 +2491,7 @@ impl ConfigStage for SaveRewards {
         data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
         let context = ctx.get_populated_context()?;
-        let ConfigInteraction::XP { stage } = data.0 else {
+        let ConfigInteraction::Xp { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -2597,7 +2601,7 @@ impl RoleMultipliers {
     fn generate_interactions(
         user: User,
         single_category: bool,
-        multipliers: &Vec<RoleMultiplier>,
+        multipliers: &[RoleMultiplier],
         current_page: usize,
         max_pages: usize,
         edit_mode: Option<EditMode>,
@@ -2612,11 +2616,11 @@ impl RoleMultipliers {
                     match edit_mode {
                         EditMode::Add => XPStage::AddRoleMultiplier {
                             page: current_page,
-                            multipliers: multipliers.clone(),
+                            multipliers: multipliers.to_owned(),
                         },
                         EditMode::Remove => XPStage::RemoveRoleMultiplier {
                             page: current_page,
-                            multipliers: multipliers.clone(),
+                            multipliers: multipliers.to_owned(),
                         },
                     },
                     single_category,
@@ -2626,7 +2630,7 @@ impl RoleMultipliers {
                     user,
                     XPStage::RoleMultipliers {
                         page: current_page,
-                        multipliers: Some(multipliers.clone()),
+                        multipliers: Some(multipliers.to_owned()),
                     },
                     single_category,
                 )
@@ -2656,14 +2660,14 @@ impl RoleMultipliers {
                         .style(ButtonStyle::Danger)
                         .label("Revert"),
                 ]),
-            ])
+            ]);
         } else {
             interactions.append(&mut vec![
                 xp_interaction_builder(
                     user,
                     XPStage::RoleMultipliers {
                         page: current_page - 1,
-                        multipliers: Some(multipliers.clone()),
+                        multipliers: Some(multipliers.to_owned()),
                     },
                     single_category,
                 )
@@ -2672,7 +2676,7 @@ impl RoleMultipliers {
                     user,
                     XPStage::RoleMultipliers {
                         page: current_page + 1,
-                        multipliers: Some(multipliers.clone()),
+                        multipliers: Some(multipliers.to_owned()),
                     },
                     single_category,
                 )
@@ -2681,7 +2685,7 @@ impl RoleMultipliers {
                     user,
                     XPStage::AddRoleMultiplier {
                         page: current_page,
-                        multipliers: multipliers.clone(),
+                        multipliers: multipliers.to_owned(),
                     },
                     single_category,
                 )
@@ -2690,7 +2694,7 @@ impl RoleMultipliers {
                     user,
                     XPStage::RemoveRoleMultiplier {
                         page: current_page,
-                        multipliers: multipliers.clone(),
+                        multipliers: multipliers.to_owned(),
                     },
                     single_category,
                 )
@@ -2698,7 +2702,7 @@ impl RoleMultipliers {
                 xp_interaction_builder(
                     user,
                     XPStage::SaveRoleMultipliers {
-                        multipliers: multipliers.clone(),
+                        multipliers: multipliers.to_owned(),
                     },
                     single_category,
                 )
@@ -2836,7 +2840,7 @@ impl ConfigStage for RoleMultipliers {
         data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
         let context = ctx.get_populated_context()?;
-        let ConfigInteraction::XP { stage } = data.0 else {
+        let ConfigInteraction::Xp { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -2890,7 +2894,7 @@ impl ConfigStage for AddRoleMultiplier {
         data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
         let context = ctx.get_populated_context()?;
-        let ConfigInteraction::XP { stage } = data.0 else {
+        let ConfigInteraction::Xp { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -2971,7 +2975,7 @@ impl ConfigStage for AddRoleMultiplier {
                         ctx,
                         entry,
                         (
-                            &ConfigInteraction::XP {
+                            &ConfigInteraction::Xp {
                                 stage: XPStage::RoleMultipliers {
                                     page: *page,
                                     multipliers: Some(multipliers.clone()),
@@ -2981,11 +2985,10 @@ impl ConfigStage for AddRoleMultiplier {
                         ),
                     )
                     .await;
-                } else {
-                    return Err(ResponseError::Execution(ExecutionError::Internal(
-                        InternalError::InvalidInteractionType,
-                    )));
                 }
+                return Err(ResponseError::Execution(ExecutionError::Internal(
+                    InternalError::InvalidInteractionType,
+                )));
             }
 
             return Err(ResponseError::Execution(ExecutionError::Input(
@@ -2993,7 +2996,7 @@ impl ConfigStage for AddRoleMultiplier {
                     duration: "5 minutes".to_string(),
                 },
             )));
-        };
+        }
 
         entry
             .reply(
@@ -3031,7 +3034,7 @@ impl ConfigStage for RemoveRoleMultiplier {
         data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
         let context = ctx.get_populated_context()?;
-        let ConfigInteraction::XP { stage } = data.0 else {
+        let ConfigInteraction::Xp { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -3056,7 +3059,7 @@ impl ConfigStage for RemoveRoleMultiplier {
                 ctx,
                 entry,
                 (
-                    &ConfigInteraction::XP {
+                    &ConfigInteraction::Xp {
                         stage: XPStage::RoleMultipliers {
                             page: *page,
                             multipliers: Some(multipliers),
@@ -3066,7 +3069,7 @@ impl ConfigStage for RemoveRoleMultiplier {
                 ),
             )
             .await;
-        };
+        }
 
         entry
             .reply(
@@ -3104,7 +3107,7 @@ impl ConfigStage for SaveRoleMultipliers {
         data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
         let context = ctx.get_populated_context()?;
-        let ConfigInteraction::XP { stage } = data.0 else {
+        let ConfigInteraction::Xp { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -3140,7 +3143,7 @@ impl ConfigStage for SaveRoleMultipliers {
             ctx,
             entry,
             (
-                &ConfigInteraction::XP {
+                &ConfigInteraction::Xp {
                     stage: XPStage::ChannelMultipliers {
                         page: 0,
                         multipliers: None,
@@ -3228,7 +3231,7 @@ impl ChannelMultipliers {
     fn generate_interactions(
         user: User,
         single_category: bool,
-        multipliers: &Vec<ChannelMultiplier>,
+        multipliers: &[ChannelMultiplier],
         current_page: usize,
         max_pages: usize,
         edit_mode: Option<EditMode>,
@@ -3243,11 +3246,11 @@ impl ChannelMultipliers {
                     match edit_mode {
                         EditMode::Add => XPStage::AddChannelMultiplier {
                             page: current_page,
-                            multipliers: multipliers.clone(),
+                            multipliers: multipliers.to_owned(),
                         },
                         EditMode::Remove => XPStage::RemoveChannelMultiplier {
                             page: current_page,
-                            multipliers: multipliers.clone(),
+                            multipliers: multipliers.to_owned(),
                         },
                     },
                     single_category,
@@ -3257,7 +3260,7 @@ impl ChannelMultipliers {
                     user,
                     XPStage::ChannelMultipliers {
                         page: current_page,
-                        multipliers: Some(multipliers.clone()),
+                        multipliers: Some(multipliers.to_owned()),
                     },
                     single_category,
                 )
@@ -3293,14 +3296,14 @@ impl ChannelMultipliers {
                         .style(ButtonStyle::Danger)
                         .label("Revert"),
                 ]),
-            ])
+            ]);
         } else {
             interactions.append(&mut vec![
                 xp_interaction_builder(
                     user,
                     XPStage::ChannelMultipliers {
                         page: current_page - 1,
-                        multipliers: Some(multipliers.clone()),
+                        multipliers: Some(multipliers.to_owned()),
                     },
                     single_category,
                 )
@@ -3309,7 +3312,7 @@ impl ChannelMultipliers {
                     user,
                     XPStage::ChannelMultipliers {
                         page: current_page + 1,
-                        multipliers: Some(multipliers.clone()),
+                        multipliers: Some(multipliers.to_owned()),
                     },
                     single_category,
                 )
@@ -3318,7 +3321,7 @@ impl ChannelMultipliers {
                     user,
                     XPStage::AddChannelMultiplier {
                         page: current_page,
-                        multipliers: multipliers.clone(),
+                        multipliers: multipliers.to_owned(),
                     },
                     single_category,
                 )
@@ -3327,7 +3330,7 @@ impl ChannelMultipliers {
                     user,
                     XPStage::RemoveChannelMultiplier {
                         page: current_page,
-                        multipliers: multipliers.clone(),
+                        multipliers: multipliers.to_owned(),
                     },
                     single_category,
                 )
@@ -3335,7 +3338,7 @@ impl ChannelMultipliers {
                 xp_interaction_builder(
                     user,
                     XPStage::SaveChannelMultipliers {
-                        multipliers: multipliers.clone(),
+                        multipliers: multipliers.to_owned(),
                     },
                     single_category,
                 )
@@ -3412,7 +3415,7 @@ impl ChannelMultipliers {
                     format!("{mult}% boost"),
                     channels
                         .iter()
-                        .map(|ch| format!("<#{}>", ch))
+                        .map(|ch| format!("<#{ch}>"))
                         .collect::<Vec<_>>()
                         .join("\n"),
                     true,
@@ -3473,7 +3476,7 @@ impl ConfigStage for ChannelMultipliers {
         data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
         let context = ctx.get_populated_context()?;
-        let ConfigInteraction::XP { stage } = data.0 else {
+        let ConfigInteraction::Xp { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -3532,7 +3535,7 @@ impl ConfigStage for AddChannelMultiplier {
         data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
         let context = ctx.get_populated_context()?;
-        let ConfigInteraction::XP { stage } = data.0 else {
+        let ConfigInteraction::Xp { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -3615,7 +3618,7 @@ impl ConfigStage for AddChannelMultiplier {
                         ctx,
                         entry,
                         (
-                            &ConfigInteraction::XP {
+                            &ConfigInteraction::Xp {
                                 stage: XPStage::ChannelMultipliers {
                                     page: *page,
                                     multipliers: Some(multipliers.clone()),
@@ -3625,11 +3628,10 @@ impl ConfigStage for AddChannelMultiplier {
                         ),
                     )
                     .await;
-                } else {
-                    return Err(ResponseError::Execution(ExecutionError::Internal(
-                        InternalError::InvalidInteractionType,
-                    )));
                 }
+                return Err(ResponseError::Execution(ExecutionError::Internal(
+                    InternalError::InvalidInteractionType,
+                )));
             }
 
             return Err(ResponseError::Execution(ExecutionError::Input(
@@ -3637,7 +3639,7 @@ impl ConfigStage for AddChannelMultiplier {
                     duration: "5 minutes".to_string(),
                 },
             )));
-        };
+        }
 
         entry
             .reply(
@@ -3675,7 +3677,7 @@ impl ConfigStage for RemoveChannelMultiplier {
         data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
         let context = ctx.get_populated_context()?;
-        let ConfigInteraction::XP { stage } = data.0 else {
+        let ConfigInteraction::Xp { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -3702,7 +3704,7 @@ impl ConfigStage for RemoveChannelMultiplier {
                 ctx,
                 entry,
                 (
-                    &ConfigInteraction::XP {
+                    &ConfigInteraction::Xp {
                         stage: XPStage::ChannelMultipliers {
                             page: *page,
                             multipliers: Some(multipliers),
@@ -3712,7 +3714,7 @@ impl ConfigStage for RemoveChannelMultiplier {
                 ),
             )
             .await;
-        };
+        }
 
         entry
             .reply(
@@ -3750,7 +3752,7 @@ impl ConfigStage for SaveChannelMultipliers {
         data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
         let context = ctx.get_populated_context()?;
-        let ConfigInteraction::XP { stage } = data.0 else {
+        let ConfigInteraction::Xp { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -3865,7 +3867,7 @@ impl RoleBlacklists {
     fn generate_interactions(
         user: User,
         single_category: bool,
-        blacklists: &Vec<i64>,
+        blacklists: &[i64],
         current_page: usize,
         max_pages: usize,
         edit_mode: Option<EditMode>,
@@ -3880,11 +3882,11 @@ impl RoleBlacklists {
                     match edit_mode {
                         EditMode::Add => XPStage::AddRoleBlacklist {
                             page: current_page,
-                            blacklists: blacklists.clone(),
+                            blacklists: blacklists.to_owned(),
                         },
                         EditMode::Remove => XPStage::RemoveRoleBlacklist {
                             page: current_page,
-                            blacklists: blacklists.clone(),
+                            blacklists: blacklists.to_owned(),
                         },
                     },
                     single_category,
@@ -3894,7 +3896,7 @@ impl RoleBlacklists {
                     user,
                     XPStage::RoleBlacklists {
                         page: current_page,
-                        blacklists: Some(blacklists.clone()),
+                        blacklists: Some(blacklists.to_owned()),
                     },
                     single_category,
                 )
@@ -3924,14 +3926,14 @@ impl RoleBlacklists {
                         .style(ButtonStyle::Danger)
                         .label("Revert"),
                 ]),
-            ])
+            ]);
         } else {
             interactions.append(&mut vec![
                 xp_interaction_builder(
                     user,
                     XPStage::RoleBlacklists {
                         page: current_page - 1,
-                        blacklists: Some(blacklists.clone()),
+                        blacklists: Some(blacklists.to_owned()),
                     },
                     single_category,
                 )
@@ -3940,7 +3942,7 @@ impl RoleBlacklists {
                     user,
                     XPStage::RoleBlacklists {
                         page: current_page + 1,
-                        blacklists: Some(blacklists.clone()),
+                        blacklists: Some(blacklists.to_owned()),
                     },
                     single_category,
                 )
@@ -3949,7 +3951,7 @@ impl RoleBlacklists {
                     user,
                     XPStage::AddRoleBlacklist {
                         page: current_page,
-                        blacklists: blacklists.clone(),
+                        blacklists: blacklists.to_owned(),
                     },
                     single_category,
                 )
@@ -3958,7 +3960,7 @@ impl RoleBlacklists {
                     user,
                     XPStage::RemoveRoleBlacklist {
                         page: current_page,
-                        blacklists: blacklists.clone(),
+                        blacklists: blacklists.to_owned(),
                     },
                     single_category,
                 )
@@ -3966,7 +3968,7 @@ impl RoleBlacklists {
                 xp_interaction_builder(
                     user,
                     XPStage::SaveRoleBlacklist {
-                        blacklists: blacklists.clone(),
+                        blacklists: blacklists.to_owned(),
                     },
                     single_category,
                 )
@@ -4016,7 +4018,7 @@ impl RoleBlacklists {
     async fn generate_message(
         user: User,
         single_category: bool,
-        blacklists: &Vec<i64>,
+        blacklists: &[i64],
         current_page: usize,
         edit_mode: Option<EditMode>,
     ) -> Result<Response, ResponseError> {
@@ -4080,7 +4082,7 @@ impl ConfigStage for RoleBlacklists {
         data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
         let context = ctx.get_populated_context()?;
-        let ConfigInteraction::XP { stage } = data.0 else {
+        let ConfigInteraction::Xp { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -4134,7 +4136,7 @@ impl ConfigStage for AddRoleBlacklist {
         data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
         let context = ctx.get_populated_context()?;
-        let ConfigInteraction::XP { stage } = data.0 else {
+        let ConfigInteraction::Xp { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -4158,7 +4160,7 @@ impl ConfigStage for AddRoleBlacklist {
                 ctx,
                 entry,
                 (
-                    &ConfigInteraction::XP {
+                    &ConfigInteraction::Xp {
                         stage: XPStage::RoleBlacklists {
                             page: *page,
                             blacklists: Some(blacklists),
@@ -4206,7 +4208,7 @@ impl ConfigStage for RemoveRoleBlacklist {
         data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
         let context = ctx.get_populated_context()?;
-        let ConfigInteraction::XP { stage } = data.0 else {
+        let ConfigInteraction::Xp { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -4231,7 +4233,7 @@ impl ConfigStage for RemoveRoleBlacklist {
                 ctx,
                 entry,
                 (
-                    &ConfigInteraction::XP {
+                    &ConfigInteraction::Xp {
                         stage: XPStage::RoleBlacklists {
                             page: *page,
                             blacklists: Some(blacklists),
@@ -4279,7 +4281,7 @@ impl ConfigStage for SaveRoleBlacklist {
         data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
         let context = ctx.get_populated_context()?;
-        let ConfigInteraction::XP { stage } = data.0 else {
+        let ConfigInteraction::Xp { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -4342,7 +4344,18 @@ impl ConfigStage for ChannelBlacklistEnter {
                 data.1,
             )
             .build(),
-            xp_interaction_builder(context.user, XPStage::ChannelBlacklistEnter, data.1).build(),
+            if data.1 {
+                interaction_builder(context.user, ConfigInteraction::Complete, data.1).build()
+            } else {
+                interaction_builder(
+                    context.user,
+                    ConfigInteraction::Boards {
+                        stage: BoardsStage::Enter,
+                    },
+                    data.1,
+                )
+                .build()
+            },
         ];
 
         Bot::global()
@@ -4394,7 +4407,7 @@ impl ChannelBlacklists {
     fn generate_interactions(
         user: User,
         single_category: bool,
-        blacklists: &Vec<i64>,
+        blacklists: &[i64],
         current_page: usize,
         max_pages: usize,
         edit_mode: Option<EditMode>,
@@ -4409,11 +4422,11 @@ impl ChannelBlacklists {
                     match edit_mode {
                         EditMode::Add => XPStage::AddChannelBlacklist {
                             page: current_page,
-                            blacklists: blacklists.clone(),
+                            blacklists: blacklists.to_owned(),
                         },
                         EditMode::Remove => XPStage::RemoveChannelBlacklist {
                             page: current_page,
-                            blacklists: blacklists.clone(),
+                            blacklists: blacklists.to_owned(),
                         },
                     },
                     single_category,
@@ -4423,7 +4436,7 @@ impl ChannelBlacklists {
                     user,
                     XPStage::ChannelBlacklists {
                         page: current_page,
-                        blacklists: Some(blacklists.clone()),
+                        blacklists: Some(blacklists.to_owned()),
                     },
                     single_category,
                 )
@@ -4454,14 +4467,14 @@ impl ChannelBlacklists {
                         .style(ButtonStyle::Danger)
                         .label("Revert"),
                 ]),
-            ])
+            ]);
         } else {
             interactions.append(&mut vec![
                 xp_interaction_builder(
                     user,
                     XPStage::ChannelBlacklists {
                         page: current_page - 1,
-                        blacklists: Some(blacklists.clone()),
+                        blacklists: Some(blacklists.to_owned()),
                     },
                     single_category,
                 )
@@ -4470,7 +4483,7 @@ impl ChannelBlacklists {
                     user,
                     XPStage::ChannelBlacklists {
                         page: current_page + 1,
-                        blacklists: Some(blacklists.clone()),
+                        blacklists: Some(blacklists.to_owned()),
                     },
                     single_category,
                 )
@@ -4479,7 +4492,7 @@ impl ChannelBlacklists {
                     user,
                     XPStage::AddChannelBlacklist {
                         page: current_page,
-                        blacklists: blacklists.clone(),
+                        blacklists: blacklists.to_owned(),
                     },
                     single_category,
                 )
@@ -4488,7 +4501,7 @@ impl ChannelBlacklists {
                     user,
                     XPStage::RemoveChannelBlacklist {
                         page: current_page,
-                        blacklists: blacklists.clone(),
+                        blacklists: blacklists.to_owned(),
                     },
                     single_category,
                 )
@@ -4496,7 +4509,7 @@ impl ChannelBlacklists {
                 xp_interaction_builder(
                     user,
                     XPStage::SaveChannelBlacklist {
-                        blacklists: blacklists.clone(),
+                        blacklists: blacklists.to_owned(),
                     },
                     single_category,
                 )
@@ -4546,7 +4559,7 @@ impl ChannelBlacklists {
     async fn generate_message(
         user: User,
         single_category: bool,
-        blacklists: &Vec<i64>,
+        blacklists: &[i64],
         current_page: usize,
         edit_mode: Option<EditMode>,
     ) -> Result<Response, ResponseError> {
@@ -4610,7 +4623,7 @@ impl ConfigStage for ChannelBlacklists {
         data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
         let context = ctx.get_populated_context()?;
-        let ConfigInteraction::XP { stage } = data.0 else {
+        let ConfigInteraction::Xp { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -4664,7 +4677,7 @@ impl ConfigStage for AddChannelBlacklist {
         data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
         let context = ctx.get_populated_context()?;
-        let ConfigInteraction::XP { stage } = data.0 else {
+        let ConfigInteraction::Xp { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -4690,7 +4703,7 @@ impl ConfigStage for AddChannelBlacklist {
                 ctx,
                 entry,
                 (
-                    &ConfigInteraction::XP {
+                    &ConfigInteraction::Xp {
                         stage: XPStage::ChannelBlacklists {
                             page: *page,
                             blacklists: Some(blacklists),
@@ -4738,7 +4751,7 @@ impl ConfigStage for RemoveChannelBlacklist {
         data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
         let context = ctx.get_populated_context()?;
-        let ConfigInteraction::XP { stage } = data.0 else {
+        let ConfigInteraction::Xp { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -4765,7 +4778,7 @@ impl ConfigStage for RemoveChannelBlacklist {
                 ctx,
                 entry,
                 (
-                    &ConfigInteraction::XP {
+                    &ConfigInteraction::Xp {
                         stage: XPStage::ChannelBlacklists {
                             page: *page,
                             blacklists: Some(blacklists),
@@ -4813,7 +4826,7 @@ impl ConfigStage for SaveChannelBlacklist {
         data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
         let context = ctx.get_populated_context()?;
-        let ConfigInteraction::XP { stage } = data.0 else {
+        let ConfigInteraction::Xp { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
             )));
@@ -4846,8 +4859,7 @@ impl ConfigStage for SaveChannelBlacklist {
         if data.1 {
             advance_to(Complete, ctx, entry, data).await
         } else {
-            // TODO: Change me
-            advance_to(ChannelBlacklistEnter, ctx, entry, data).await
+            advance_to(BoardsEnter, ctx, entry, data).await
         }
     }
 }

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use async_trait::async_trait;
 use serenity::all::{CommandInteraction, CreateCommand};
@@ -17,15 +17,15 @@ pub trait Command: Send + Sync {
     async fn router(&self, ctx: &Context<'_>, command: &CommandInteraction) -> ResponseResult;
 }
 
-fn get_command_vec() -> Vec<Box<dyn Command>> {
+fn get_command_vec() -> Vec<Arc<dyn Command>> {
     vec![
-        Box::new(privacy::PrivacyCommand),
-        Box::new(info::InfoCommand),
-        Box::new(config::ConfigCommand),
+        Arc::new(privacy::PrivacyCommand),
+        Arc::new(info::InfoCommand),
+        Arc::new(config::ConfigCommand),
     ]
 }
 
-pub fn get_commands_available() -> HashMap<&'static str, Box<dyn Command>> {
+pub fn get_commands_available() -> HashMap<&'static str, Arc<dyn Command>> {
     let mut commands = HashMap::new();
 
     for command in get_command_vec() {

@@ -7,7 +7,7 @@ use crate::{
         context::Context,
         interactions::{
             InteractionBuilder, InteractionKind,
-            config::{ConfigInteraction, LoggingStage, ModerationStage, XPStage},
+            config::{BoardsStage, ConfigInteraction, LoggingStage, ModerationStage, XPStage},
         },
         options::Options,
         permissions::Permission,
@@ -36,6 +36,7 @@ impl Command for ConfigCommand {
                 .add_string_choice("Moderation", "moderation")
                 .add_string_choice("Logging", "logging")
                 .add_string_choice("Levelling", "xp")
+                .add_string_choice("Boards", "boards")
                 .add_string_choice("Role Recovery", "role_recovery")
                 .required(false),
             )
@@ -60,8 +61,11 @@ impl Command for ConfigCommand {
                         voice: None,
                     },
                 },
-                "xp" => ConfigInteraction::XP {
+                "xp" => ConfigInteraction::Xp {
                     stage: XPStage::RandomOrSet,
+                },
+                "boards" => ConfigInteraction::Boards {
+                    stage: BoardsStage::SelectBoardChannel,
                 },
                 _ => ConfigInteraction::Moderation {
                     stage: ModerationStage::Enter,

@@ -806,6 +806,8 @@ impl ConfigStage for Escalations {
         };
         let escalations = match stage {
             ModerationStage::Escalations { escalations } => escalations,
+            ModerationStage::AddEscalation { escalations }
+            | ModerationStage::RemoveEscalation { escalations } => &Some(escalations.clone()),
             _ => &None,
         };
         let context = ctx.get_populated_context()?;
@@ -827,6 +829,31 @@ impl ConfigStage for Escalations {
 
 #[derive(Debug)]
 pub struct AddEscalation;
+
+impl AddEscalation {
+    fn modal_components(action_type: ActionType) -> Vec<CreateActionRow> {
+        let mut modal_components = vec![CreateActionRow::InputText(
+            CreateInputText::new(
+                InputTextStyle::Short,
+                "Strike Count",
+                "escalation_strike_count",
+            )
+            .placeholder("3")
+            .required(true),
+        )];
+
+        if action_type != ActionType::Kick {
+            modal_components.push(CreateActionRow::InputText(
+                CreateInputText::new(InputTextStyle::Short, "Duration", "escalation_duration")
+                    .placeholder("30d")
+                    .required(action_type == ActionType::Mute),
+            ));
+        }
+
+        modal_components
+    }
+}
+
 #[async_trait::async_trait]
 impl ConfigStage for AddEscalation {
     fn key(&self) -> (&'static str, &'static str) {
@@ -843,6 +870,19 @@ impl ConfigStage for AddEscalation {
         entry: &ConfigEntry,
         data: (&ConfigInteraction, bool),
     ) -> ResponseResult {
+        macro_rules! invalid {
+            ("strike") => {
+                Err(ResponseError::Execution(ExecutionError::Input(
+                    InputError::InvalidStrikeCount,
+                )))
+            };
+            ("duration") => {
+                Err(ResponseError::Execution(ExecutionError::Input(
+                    InputError::InvalidDuration,
+                )))
+            };
+        }
+
         let ConfigInteraction::Moderation { stage } = data.0 else {
             return Err(ResponseError::Execution(ExecutionError::Internal(
                 InternalError::InvalidInteractionType,
@@ -867,23 +907,7 @@ impl ConfigStage for AddEscalation {
             )));
         };
 
-        let mut modal_components = vec![CreateActionRow::InputText(
-            CreateInputText::new(
-                InputTextStyle::Short,
-                "Strike Count",
-                "escalation_strike_count",
-            )
-            .placeholder("3")
-            .required(true),
-        )];
-
-        if action_type != ActionType::Kick {
-            modal_components.push(CreateActionRow::InputText(
-                CreateInputText::new(InputTextStyle::Short, "Duration", "escalation_duration")
-                    .placeholder("30d")
-                    .required(action_type == ActionType::Mute),
-            ));
-        }
+        let modal_components = AddEscalation::modal_components(action_type);
 
         entry
             .modal(
@@ -913,22 +937,16 @@ impl ConfigStage for AddEscalation {
                 let Ok(strike_count) = text.value.as_ref().unwrap().parse::<i32>().map_err(|_| {
                     ResponseError::Execution(ExecutionError::Input(InputError::InvalidStrikeCount))
                 }) else {
-                    return Err(ResponseError::Execution(ExecutionError::Input(
-                        InputError::InvalidStrikeCount,
-                    )));
+                    return invalid!("strike");
                 };
 
                 if strike_count <= 0 {
-                    return Err(ResponseError::Execution(ExecutionError::Input(
-                        InputError::InvalidStrikeCount,
-                    )));
+                    return invalid!("strike");
                 }
 
                 strike_count
             } else {
-                return Err(ResponseError::Execution(ExecutionError::Input(
-                    InputError::InvalidStrikeCount,
-                )));
+                return invalid!("strike");
             };
 
             let action_duration = if action_type == ActionType::Kick {
@@ -942,16 +960,12 @@ impl ConfigStage for AddEscalation {
                 } else {
                     let duration = Duration::new(value.as_str()).to_timestamp().unwrap();
                     if duration < time::OffsetDateTime::now_utc() {
-                        return Err(ResponseError::Execution(ExecutionError::Input(
-                            InputError::InvalidDuration,
-                        )));
+                        return invalid!("duration");
                     }
                     Some(value)
                 }
             } else {
-                return Err(ResponseError::Execution(ExecutionError::Input(
-                    InputError::InvalidDuration,
-                )));
+                return invalid!("duration");
             };
 
             let mut escalations = escalations.clone();
@@ -962,20 +976,7 @@ impl ConfigStage for AddEscalation {
                 action_duration,
             });
 
-            return advance_to(
-                Escalations,
-                ctx,
-                entry,
-                (
-                    &ConfigInteraction::Moderation {
-                        stage: ModerationStage::Escalations {
-                            escalations: Some(escalations),
-                        },
-                    },
-                    data.1,
-                ),
-            )
-            .await;
+            return advance_to(Escalations, ctx, entry, data).await;
         }
 
         Err(ResponseError::Execution(ExecutionError::Input(
@@ -1033,20 +1034,7 @@ impl ConfigStage for RemoveEscalation {
         let mut escalations = escalations.clone();
         escalations.remove(index);
 
-        advance_to(
-            Escalations,
-            ctx,
-            entry,
-            (
-                &ConfigInteraction::Moderation {
-                    stage: ModerationStage::Escalations {
-                        escalations: Some(escalations),
-                    },
-                },
-                data.1,
-            ),
-        )
-        .await
+        advance_to(Escalations, ctx, entry, data).await
     }
 }
 

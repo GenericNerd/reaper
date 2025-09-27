@@ -10,7 +10,7 @@ use inflections::Inflect;
 use metrics::{counter, histogram};
 use serenity::all::{
     CommandInteraction, ComponentInteraction, Context as SerenityContext,
-    CreateInteractionResponse, CreateInteractionResponseMessage, Interaction, PartialGuild,
+    CreateInteractionResponse, CreateInteractionResponseMessage, Interaction, Member, PartialGuild,
     Permissions,
 };
 use strum::IntoEnumIterator;
@@ -74,7 +74,7 @@ impl EventRouter {
         partial_guild: &PartialGuild,
         guild: Guild,
         user: User,
-        role_ids: &[serenity::all::RoleId],
+        member: Box<Member>,
     ) -> (Vec<Permission>, u16) {
         debug!("Obtaining information required to populate context");
         let mut highest_role = 0;
@@ -88,10 +88,21 @@ impl EventRouter {
                     user_permissions.push(user_permission);
                 }
             }
-            for role in role_ids.iter().copied() {
+            for role in member.roles.iter().copied() {
                 if let Some(role) = partial_guild.roles.get(&role) {
                     if role.position > highest_role {
                         highest_role = role.position;
+                    }
+
+                    if role.permissions.contains(Permissions::KICK_MEMBERS)
+                        && !user_permissions.contains(&Permission::ModerationKick)
+                    {
+                        user_permissions.push(Permission::ModerationKick);
+                    }
+                    if role.permissions.contains(Permissions::BAN_MEMBERS)
+                        && !user_permissions.contains(&Permission::ModerationBan)
+                    {
+                        user_permissions.push(Permission::ModerationBan);
                     }
 
                     if role.permissions.contains(Permissions::ADMINISTRATOR) {
@@ -121,29 +132,118 @@ impl EventRouter {
 
         (user_permissions, highest_role)
     }
+
+    // Helper to read a global kill switch feature flag
+    async fn global_kill_active(feature: &str) -> Result<bool, ResponseError> {
+        match sqlx::query!(
+            "SELECT active FROM global_kills WHERE feature = $1",
+            feature
+        )
+        .fetch_one(Bot::global().postgres())
+        .await
+        {
+            Ok(row) => Ok(row.active),
+            Err(err) => {
+                error!("Failed to fetch global kills configuration: {err}");
+                Err(ResponseError::Sqlx(Box::new(err)))
+            }
+        }
+    }
+
+    // Helper to check if a user is disabled
+    async fn user_disabled(user: User) -> bool {
+        sqlx::query!(
+            "SELECT user_id FROM user_kills WHERE user_id = $1",
+            user.as_i64()
+        )
+        .fetch_optional(Bot::global().postgres())
+        .await
+        .unwrap_or(None)
+        .is_some()
+    }
+
+    // Helper to check if a guild is disabled
+    async fn guild_disabled(guild: Guild) -> bool {
+        sqlx::query!(
+            "SELECT guild_id FROM guild_kills WHERE guild_id = $1",
+            guild.as_i64()
+        )
+        .fetch_optional(Bot::global().postgres())
+        .await
+        .unwrap_or(None)
+        .is_some()
+    }
+
+    // Helper to construct a populated context given common inputs
+    async fn build_populated_context<'a>(
+        &self,
+        ctx: &'a SerenityContext,
+        guild: Guild,
+        user: User,
+        member: Box<Member>,
+    ) -> Result<Context<'a>, ResponseError> {
+        let partial_guild = self.fetch_partial_guild(ctx, guild).await?;
+        let (user_permissions, highest_role) = self
+            .compute_permissions_and_rank(&partial_guild, guild, user, member)
+            .await;
+
+        Ok(Context::Populated(Box::new(PopulatedContext {
+            ctx,
+            has_responded: Arc::new(AtomicBool::new(false)),
+            user,
+            user_permissions,
+            highest_role,
+            partial_guild,
+            guild,
+        })))
+    }
+
+    // Helper to ensure a required permission is present, otherwise respond with an error
+    async fn ensure_permission<T>(
+        context: &Context<'_>,
+        interaction: &T,
+        required_permission: Permission,
+    ) -> Result<(), ()>
+    where
+        for<'a> Context<'a>: ContextReply<T>,
+    {
+        let user_permissions = match context {
+            Context::Populated(ctx) => &ctx.user_permissions,
+            Context::Unpopulated(_) => return Err(()),
+        };
+
+        if !user_permissions.contains(&required_permission) {
+            let _res = context
+                .error_message(
+                    interaction,
+                    ResponseError::Execution(ExecutionError::Input(
+                        InputError::InsufficientPermission {
+                            required_permission,
+                        },
+                    )),
+                )
+                .await;
+            return Err(());
+        }
+
+        Ok(())
+    }
+
     #[tracing::instrument(skip(ctx, command), fields(command_name = command.data.name))]
     async fn on_command(&self, ctx: SerenityContext, command: CommandInteraction) {
         let timing = histogram!("bot.timing.on_command", "command" => command.data.name.clone());
         let start = std::time::Instant::now();
         let context = Context::Unpopulated(UnpopulatedContext { ctx: &ctx });
         counter!("bot.command_count").increment(1);
-
         // Check if all commands are disabled
-        let are_commands_active =
-            match sqlx::query!("SELECT active FROM global_kills WHERE feature = 'commands'")
-                .fetch_one(Bot::global().postgres())
-                .await
-            {
-                Ok(row) => row.active,
-                Err(err) => {
-                    error!("Failed to fetch global kills configuration: {err}");
-                    let _res = context
-                        .error_message(&command, ResponseError::Sqlx(Box::new(err)))
-                        .await;
-                    timing.record(start.elapsed());
-                    return;
-                }
-            };
+        let are_commands_active = match Self::global_kill_active("commands").await {
+            Ok(active) => active,
+            Err(err) => {
+                let _res = context.error_message(&command, err).await;
+                timing.record(start.elapsed());
+                return;
+            }
+        };
 
         if command.data.name != "global" && !are_commands_active {
             info!("Commands are disabled, not responding to command");
@@ -158,19 +258,14 @@ impl EventRouter {
         }
 
         // Check if this specific command is disabled
-        let is_command_active = match sqlx::query!(
-            "SELECT active FROM global_kills WHERE feature = $1",
-            format!("commands.{}", command.data.name)
+        let is_command_active = match Self::global_kill_active(
+            format!("commands.{}", command.data.name).as_str(),
         )
-        .fetch_one(Bot::global().postgres())
         .await
         {
-            Ok(row) => row.active,
+            Ok(active) => active,
             Err(err) => {
-                error!("Failed to fetch global kills configuration: {err}");
-                let _res = context
-                    .error_message(&command, ResponseError::Sqlx(Box::new(err)))
-                    .await;
+                let _res = context.error_message(&command, err).await;
                 timing.record(start.elapsed());
                 return;
             }
@@ -197,15 +292,7 @@ impl EventRouter {
         let user = User::from(command.user.id);
 
         // Check if this user is disabled
-        if sqlx::query!(
-            "SELECT user_id FROM user_kills WHERE user_id = $1",
-            user.as_i64()
-        )
-        .fetch_optional(Bot::global().postgres())
-        .await
-        .unwrap_or(None)
-        .is_some()
-        {
+        if Self::user_disabled(user).await {
             info!("User is disabled, not responding to command");
             let _res = context
                 .error_message(&command, internal_error(InternalError::UserDisabled))
@@ -246,15 +333,7 @@ impl EventRouter {
         };
 
         // Check if the guild is disabled
-        if sqlx::query!(
-            "SELECT guild_id FROM guild_kills WHERE guild_id = $1",
-            guild.as_i64()
-        )
-        .fetch_optional(Bot::global().postgres())
-        .await
-        .unwrap_or(None)
-        .is_some()
-        {
+        if Self::guild_disabled(guild).await {
             debug!("Guild is disabled, not responding to command");
             let _res = context
                 .error_message(&command, internal_error(InternalError::GuildDisabled))
@@ -262,9 +341,12 @@ impl EventRouter {
             timing.record(start.elapsed());
             return;
         }
-
-        let partial_guild = match self.fetch_partial_guild(&ctx, guild).await {
-            Ok(pg) => pg,
+        // Build populated context
+        let context = match self
+            .build_populated_context(&ctx, guild, user, command.member.clone().unwrap())
+            .await
+        {
+            Ok(ctx) => ctx,
             Err(err) => {
                 error!("Failed to fetch guild");
                 let _res = context.error_message(&command, err).await;
@@ -272,26 +354,6 @@ impl EventRouter {
                 return;
             }
         };
-
-        let (user_permissions, highest_role) = self
-            .compute_permissions_and_rank(
-                &partial_guild,
-                guild,
-                user,
-                &command.member.clone().unwrap().roles,
-            )
-            .await;
-
-        let user = User::from(command.user.id);
-        let context = Context::Populated(Box::new(PopulatedContext {
-            ctx: &ctx,
-            has_responded: Arc::new(AtomicBool::new(false)),
-            user,
-            user_permissions,
-            highest_role,
-            partial_guild,
-            guild,
-        }));
         debug!("Generated context in {:?}", start.elapsed());
 
         let Some(executing_command) = Bot::global().commands().get(&command.data.name.as_str())
@@ -326,22 +388,10 @@ impl EventRouter {
 
         if let Some(required_permission) = executing_command.required_permission() {
             debug!("Verifying whether user has permission {required_permission}");
-            let user_permissions = match &context {
-                Context::Populated(ctx) => &ctx.user_permissions,
-                Context::Unpopulated(_) => return,
-            };
-
-            if !user_permissions.contains(&required_permission) {
-                let _res = context
-                    .error_message(
-                        &command,
-                        ResponseError::Execution(ExecutionError::Input(
-                            InputError::InsufficientPermission {
-                                required_permission,
-                            },
-                        )),
-                    )
-                    .await;
+            if Self::ensure_permission(&context, &command, required_permission)
+                .await
+                .is_err()
+            {
                 timing.record(start.elapsed());
                 return;
             }
@@ -372,21 +422,14 @@ impl EventRouter {
         let context = Context::Unpopulated(UnpopulatedContext { ctx: &ctx });
         counter!("bot.component_count").increment(1);
 
-        let components_active =
-            match sqlx::query!("SELECT active FROM global_kills WHERE feature = 'commands'")
-                .fetch_one(Bot::global().postgres())
-                .await
-            {
-                Ok(row) => row.active,
-                Err(err) => {
-                    error!("Failed to fetch global kills configuration: {err}");
-                    let _res = context
-                        .error_message(&component, ResponseError::Sqlx(Box::new(err)))
-                        .await;
-                    timing.record(start.elapsed());
-                    return;
-                }
-            };
+        let components_active = match Self::global_kill_active("commands").await {
+            Ok(active) => active,
+            Err(err) => {
+                let _res = context.error_message(&component, err).await;
+                timing.record(start.elapsed());
+                return;
+            }
+        };
 
         let interaction_id = Uuid::from_str(component.data.custom_id.as_str()).unwrap();
 
@@ -415,15 +458,7 @@ impl EventRouter {
         let user = User::from(component.user.id);
 
         // Check if this user is disabled
-        if sqlx::query!(
-            "SELECT user_id FROM user_kills WHERE user_id = $1",
-            user.as_i64()
-        )
-        .fetch_optional(Bot::global().postgres())
-        .await
-        .unwrap_or(None)
-        .is_some()
-        {
+        if Self::user_disabled(user).await {
             info!("User is disabled, not responding to component");
             let _res = context
                 .error_message(&component, internal_error(InternalError::UserDisabled))
@@ -447,15 +482,7 @@ impl EventRouter {
         let guild = Guild::from(raw_guild_id);
 
         // Check if the guild is disabled
-        if sqlx::query!(
-            "SELECT guild_id FROM guild_kills WHERE guild_id = $1",
-            guild.as_i64()
-        )
-        .fetch_optional(Bot::global().postgres())
-        .await
-        .unwrap_or(None)
-        .is_some()
-        {
+        if Self::guild_disabled(guild).await {
             debug!("Guild is disabled, not responding to component");
             let _res = context
                 .error_message(&component, internal_error(InternalError::GuildDisabled))
@@ -463,9 +490,17 @@ impl EventRouter {
             timing.record(start.elapsed());
             return;
         }
-
-        let partial_guild = match self.fetch_partial_guild(&ctx, guild).await {
-            Ok(pg) => pg,
+        // Build populated context
+        let context = match self
+            .build_populated_context(
+                &ctx,
+                guild,
+                user,
+                Box::new(component.member.clone().unwrap()),
+            )
+            .await
+        {
+            Ok(ctx) => ctx,
             Err(err) => {
                 error!("Failed to fetch guild");
                 let _res = context.error_message(&component, err).await;
@@ -473,26 +508,6 @@ impl EventRouter {
                 return;
             }
         };
-
-        let (user_permissions, highest_role) = self
-            .compute_permissions_and_rank(
-                &partial_guild,
-                guild,
-                user,
-                &component.member.clone().unwrap().roles,
-            )
-            .await;
-
-        let user = User::from(component.user.id);
-        let context = Context::Populated(Box::new(PopulatedContext {
-            ctx: &ctx,
-            has_responded: Arc::new(AtomicBool::new(false)),
-            user,
-            user_permissions,
-            highest_role,
-            partial_guild,
-            guild,
-        }));
         debug!("Generated context in {:?}", start.elapsed());
 
         let Some(executing_component) = Bot::global().components().get(&interaction.route.as_str())
@@ -510,22 +525,10 @@ impl EventRouter {
 
         if let Some(required_permission) = executing_component.required_permission() {
             debug!("Verifying whether user has permission {required_permission}");
-            let user_permissions = match &context {
-                Context::Populated(ctx) => &ctx.user_permissions,
-                Context::Unpopulated(_) => return,
-            };
-
-            if !user_permissions.contains(&required_permission) {
-                let _res = context
-                    .error_message(
-                        &component,
-                        ResponseError::Execution(ExecutionError::Input(
-                            InputError::InsufficientPermission {
-                                required_permission,
-                            },
-                        )),
-                    )
-                    .await;
+            if Self::ensure_permission(&context, &component, required_permission)
+                .await
+                .is_err()
+            {
                 timing.record(start.elapsed());
                 return;
             }

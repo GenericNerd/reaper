@@ -94,6 +94,7 @@ pub enum InputError {
     NoRoleSelected,
     NoChannelSelected,
     NoActionTypeSelected,
+    NoEmoteSelected,
     InvalidEscalation,
     InvalidRole { message: String },
     InvalidDuration,
@@ -102,6 +103,8 @@ pub enum InputError {
     InvalidMinXP,
     InvalidMaxLevel,
     InvalidMultiplierCap,
+    InvalidEmote,
+    EmoteNotInServer,
     Timeout { duration: String },
     InsufficientPermission { required_permission: Permission },
 }
@@ -125,6 +128,9 @@ impl ReaperError for InputError {
             InputError::NoActionTypeSelected => {
                 "We don't see a selected action type. Please try again".to_string()
             }
+            InputError::NoEmoteSelected => {
+                "We don't see any emote selected. Please try again".to_string()
+            }
             InputError::InvalidEscalation => {
                 "The escalation you selected was invalid! Please try again".to_string()
             }
@@ -145,6 +151,12 @@ impl ReaperError for InputError {
             }
             InputError::InvalidMultiplierCap => {
                 "The multiplier cap you inputted was invalid! Please try again".to_string()
+            }
+            InputError::InvalidEmote => {
+                "The emote you selected was invalid! Please try again".to_string()
+            }
+            InputError::EmoteNotInServer => {
+                "The emote you selected is not in this server! Please try again".to_string()
             }
             InputError::Timeout { duration } => {
                 format!(

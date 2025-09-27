@@ -81,9 +81,7 @@ impl Duration {
     }
 
     pub fn to_timestamp(&self) -> Option<time::OffsetDateTime> {
-        let Some(seconds) = self.in_seconds() else {
-            return None;
-        };
+        let seconds = self.in_seconds()?;
 
         time::OffsetDateTime::now_utc().checked_add(time::Duration::seconds(seconds))
     }

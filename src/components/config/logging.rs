@@ -65,7 +65,7 @@ impl ConfigStage for LoggingEnter {
             .build(),
             interaction_builder(
                 context.user,
-                ConfigInteraction::XP {
+                ConfigInteraction::Xp {
                     stage: XPStage::Enter,
                 },
                 data.1,
@@ -583,6 +583,183 @@ impl ConfigStage for SubmitSingleLogChannel {
 
 #[derive(Debug)]
 pub struct MultipleLogChannels;
+
+impl MultipleLogChannels {
+    async fn advance_to_next_enabled_log_category(
+        log_actions: bool,
+        log_messages: bool,
+        log_voice: bool,
+        ctx: &Context<'_>,
+        entry: &ConfigEntry,
+        data: (&ConfigInteraction, bool),
+    ) -> ResponseResult {
+        let ConfigInteraction::Logging { stage } = data.0 else {
+            return Err(ResponseError::Execution(ExecutionError::Internal(
+                InternalError::InvalidInteractionType,
+            )));
+        };
+        let (LoggingStage::MultipleLogChannels { category }
+        | LoggingStage::SubmitMultipleLogChannels { category }) = stage
+        else {
+            return Err(ResponseError::Execution(ExecutionError::Internal(
+                InternalError::InvalidInteractionType,
+            )));
+        };
+
+        match category {
+            LogCategory::Actions => {
+                if !log_actions {
+                    return advance_to(
+                        MultipleLogChannels,
+                        ctx,
+                        entry,
+                        (
+                            &ConfigInteraction::Logging {
+                                stage: LoggingStage::MultipleLogChannels {
+                                    category: LogCategory::Messages,
+                                },
+                            },
+                            data.1,
+                        ),
+                    )
+                    .await;
+                }
+            }
+            LogCategory::Messages => {
+                if !log_messages {
+                    return advance_to(
+                        MultipleLogChannels,
+                        ctx,
+                        entry,
+                        (
+                            &ConfigInteraction::Logging {
+                                stage: LoggingStage::MultipleLogChannels {
+                                    category: LogCategory::Voice,
+                                },
+                            },
+                            data.1,
+                        ),
+                    )
+                    .await;
+                }
+            }
+            LogCategory::Voice => {
+                if !log_voice {
+                    if data.1 {
+                        return advance_to(Complete, ctx, entry, data).await;
+                    }
+                    return advance_to(XPEnter, ctx, entry, data).await;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn generate_response(
+        user: User,
+        category: &LogCategory,
+        single_category: bool,
+    ) -> Result<Response, ResponseError> {
+        let help_text = format!(
+            "Which channel should Reaper send {} logs to?\n\n> {}",
+            match category {
+                LogCategory::Actions => "moderation action",
+                LogCategory::Messages => "messages events",
+                LogCategory::Voice => "voice channel events",
+            },
+            match category {
+                LogCategory::Actions =>
+                    "**Actions Logging** → Records moderation actions such as strikes, mutes, kicks, and bans.",
+                LogCategory::Messages =>
+                    "**Message Logging** → Records message edits, deletions, and bulk deletions.",
+                LogCategory::Voice =>
+                    "**Voice Logging** → Records when members join, leave or move between voice channels.",
+            }
+        );
+
+        let interactions = vec![
+            logging_interaction_builder(
+                user,
+                LoggingStage::SubmitMultipleLogChannels {
+                    category: category.clone(),
+                },
+                single_category,
+            )
+            .build(),
+            match category {
+                LogCategory::Actions => logging_interaction_builder(
+                    user,
+                    LoggingStage::MultipleLogChannels {
+                        category: LogCategory::Messages,
+                    },
+                    single_category,
+                )
+                .build(),
+                LogCategory::Messages => logging_interaction_builder(
+                    user,
+                    LoggingStage::MultipleLogChannels {
+                        category: LogCategory::Voice,
+                    },
+                    single_category,
+                )
+                .build(),
+                LogCategory::Voice => {
+                    if single_category {
+                        interaction_builder(user, ConfigInteraction::Complete, single_category)
+                            .build()
+                    } else {
+                        interaction_builder(
+                            user,
+                            ConfigInteraction::Xp {
+                                stage: XPStage::Enter,
+                            },
+                            single_category,
+                        )
+                        .build()
+                    }
+                }
+            },
+            logging_interaction_builder(user, LoggingStage::OneOrMultiple, single_category).build(),
+        ];
+
+        Bot::global()
+            .interaction_state()
+            .register(interactions.clone())
+            .await?;
+
+        Ok(Response::new()
+            .embed(
+                CreateEmbed::new()
+                    .title(LOGGING_TITLE)
+                    .description(help_text)
+                    .color(EMBED_COLOR),
+            )
+            .components(vec![
+                CreateActionRow::SelectMenu(CreateSelectMenu::new(
+                    interactions[0].id.to_string(),
+                    CreateSelectMenuKind::Channel {
+                        channel_types: Some(vec![
+                            ChannelType::Text,
+                            ChannelType::Forum,
+                            ChannelType::PublicThread,
+                            ChannelType::PrivateThread,
+                        ]),
+                        default_channels: None,
+                    },
+                )),
+                CreateActionRow::Buttons(vec![
+                    CreateButton::new(interactions[1].id.to_string())
+                        .label("Skip")
+                        .style(ButtonStyle::Secondary),
+                    CreateButton::new(interactions[2].id.to_string())
+                        .label("Cancel")
+                        .style(ButtonStyle::Danger),
+                ]),
+            ]))
+    }
+}
+
 #[async_trait::async_trait]
 impl ConfigStage for MultipleLogChannels {
     fn key(&self) -> (&'static str, &'static str) {
@@ -604,14 +781,12 @@ impl ConfigStage for MultipleLogChannels {
                 InternalError::InvalidInteractionType,
             )));
         };
-        let category = match stage {
-            LoggingStage::MultipleLogChannels { category } => category,
-            LoggingStage::SubmitMultipleLogChannels { category } => category,
-            _ => {
-                return Err(ResponseError::Execution(ExecutionError::Internal(
-                    InternalError::InvalidInteractionType,
-                )));
-            }
+        let (LoggingStage::MultipleLogChannels { category }
+        | LoggingStage::SubmitMultipleLogChannels { category }) = stage
+        else {
+            return Err(ResponseError::Execution(ExecutionError::Internal(
+                InternalError::InvalidInteractionType,
+            )));
         };
 
         let context = ctx.get_populated_context()?;
@@ -623,155 +798,20 @@ impl ConfigStage for MultipleLogChannels {
         .fetch_one(Bot::global().postgres())
         .await?;
 
-        match category {
-            LogCategory::Actions => {
-                if !guild_settings.log_actions {
-                    return advance_to(
-                        MultipleLogChannels,
-                        ctx,
-                        entry,
-                        (
-                            &ConfigInteraction::Logging {
-                                stage: LoggingStage::MultipleLogChannels {
-                                    category: LogCategory::Messages,
-                                },
-                            },
-                            data.1,
-                        ),
-                    )
-                    .await;
-                }
-            }
-            LogCategory::Messages => {
-                if !guild_settings.log_messages {
-                    return advance_to(
-                        MultipleLogChannels,
-                        ctx,
-                        entry,
-                        (
-                            &ConfigInteraction::Logging {
-                                stage: LoggingStage::MultipleLogChannels {
-                                    category: LogCategory::Voice,
-                                },
-                            },
-                            data.1,
-                        ),
-                    )
-                    .await;
-                }
-            }
-            LogCategory::Voice => {
-                if !guild_settings.log_voice {
-                    if data.1 {
-                        return advance_to(Complete, ctx, entry, data).await;
-                    }
-                    return advance_to(XPEnter, ctx, entry, data).await;
-                }
-            }
-        }
+        MultipleLogChannels::advance_to_next_enabled_log_category(
+            guild_settings.log_actions,
+            guild_settings.log_messages,
+            guild_settings.log_voice,
+            ctx,
+            entry,
+            data,
+        )
+        .await?;
 
-        let help_text = format!(
-            "Which channel should Reaper send {} logs to?\n\n> {}",
-            match category {
-                LogCategory::Actions => "moderation action",
-                LogCategory::Messages => "messages events",
-                LogCategory::Voice => "voice channel events",
-            },
-            match category {
-                LogCategory::Actions =>
-                    "**Actions Logging** → Records moderation actions such as strikes, mutes, kicks, and bans.",
-                LogCategory::Messages =>
-                    "**Message Logging** → Records message edits, deletions, and bulk deletions.",
-                LogCategory::Voice =>
-                    "**Voice Logging** → Records when members join, leave or move between voice channels.",
-            }
-        );
+        let response =
+            MultipleLogChannels::generate_response(context.user, category, data.1).await?;
 
-        let interactions = vec![
-            logging_interaction_builder(
-                context.user,
-                LoggingStage::SubmitMultipleLogChannels {
-                    category: category.clone(),
-                },
-                data.1,
-            )
-            .build(),
-            match category {
-                LogCategory::Actions => logging_interaction_builder(
-                    context.user,
-                    LoggingStage::MultipleLogChannels {
-                        category: LogCategory::Messages,
-                    },
-                    data.1,
-                )
-                .build(),
-                LogCategory::Messages => logging_interaction_builder(
-                    context.user,
-                    LoggingStage::MultipleLogChannels {
-                        category: LogCategory::Voice,
-                    },
-                    data.1,
-                )
-                .build(),
-                LogCategory::Voice => {
-                    if data.1 {
-                        interaction_builder(context.user, ConfigInteraction::Complete, data.1)
-                            .build()
-                    } else {
-                        interaction_builder(
-                            context.user,
-                            ConfigInteraction::XP {
-                                stage: XPStage::Enter,
-                            },
-                            data.1,
-                        )
-                        .build()
-                    }
-                }
-            },
-            logging_interaction_builder(context.user, LoggingStage::OneOrMultiple, data.1).build(),
-        ];
-
-        Bot::global()
-            .interaction_state()
-            .register(interactions.to_vec())
-            .await?;
-
-        entry
-            .reply(
-                ctx,
-                Response::new()
-                    .embed(
-                        CreateEmbed::new()
-                            .title(LOGGING_TITLE)
-                            .description(help_text)
-                            .color(EMBED_COLOR),
-                    )
-                    .components(vec![
-                        CreateActionRow::SelectMenu(CreateSelectMenu::new(
-                            interactions[0].id.to_string(),
-                            CreateSelectMenuKind::Channel {
-                                channel_types: Some(vec![
-                                    ChannelType::Text,
-                                    ChannelType::Forum,
-                                    ChannelType::PublicThread,
-                                    ChannelType::PrivateThread,
-                                ]),
-                                default_channels: None,
-                            },
-                        )),
-                        CreateActionRow::Buttons(vec![
-                            CreateButton::new(interactions[1].id.to_string())
-                                .label("Skip")
-                                .style(ButtonStyle::Secondary),
-                            CreateButton::new(interactions[2].id.to_string())
-                                .label("Cancel")
-                                .style(ButtonStyle::Danger),
-                        ]),
-                    ]),
-            )
-            .await
-            .map(|_| ())
+        entry.reply(ctx, response).await.map(|_| ())
     }
 }
 
@@ -799,13 +839,10 @@ impl ConfigStage for SubmitMultipleLogChannels {
                 InternalError::InvalidInteractionType,
             )));
         };
-        let category = match stage {
-            LoggingStage::SubmitMultipleLogChannels { category } => category,
-            _ => {
-                return Err(ResponseError::Execution(ExecutionError::Internal(
-                    InternalError::InvalidInteractionType,
-                )));
-            }
+        let LoggingStage::SubmitMultipleLogChannels { category } = stage else {
+            return Err(ResponseError::Execution(ExecutionError::Internal(
+                InternalError::InvalidInteractionType,
+            )));
         };
 
         let ComponentInteractionDataKind::ChannelSelect { values } = &entry.component()?.data.kind
