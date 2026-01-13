@@ -28,6 +28,10 @@ impl Role {
         self.raw
     }
 
+    pub fn as_i64(&self) -> i64 {
+        self.raw as i64
+    }
+
     pub fn as_serenity_id(&self) -> RoleId {
         self.serenity_role
     }

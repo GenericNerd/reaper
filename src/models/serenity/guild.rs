@@ -28,6 +28,10 @@ impl Guild {
         self.raw
     }
 
+    pub fn as_i64(&self) -> i64 {
+        self.raw as i64
+    }
+
     pub fn as_serenity_id(&self) -> GuildId {
         self.serenity_guild
     }

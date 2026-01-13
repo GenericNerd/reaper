@@ -17,18 +17,15 @@ use crate::{
 };
 
 impl EventRouter {
-    #[tracing::instrument(skip(self, ctx, interaction))]
-    pub async fn on_interaction(&self, ctx: SerenityContext, interaction: Interaction) {
-        let result = match interaction {
-            Interaction::Command(cmd) => self.handle_command(ctx, &cmd).await,
-            Interaction::Component(comp) => self.handle_component(ctx, &comp).await,
-            Interaction::Modal(modal) => self.handle_modal(ctx, &modal).await,
-            _ => return,
-        };
-
-        if let Err(err) = result {
-            error!(error = %err, "Error handling interaction");
-        }
+    #[tracing::instrument(skip(self, ctx, _handler))]
+    async fn run_checks_and_get_context(
+        &self,
+        ctx: SerenityContext,
+        _handler: &dyn InteractionHandler,
+    ) -> ResponseResult<Context> {
+        Ok(Context::Unpopulated(UnpopulatedContext {
+            serenity_context: ctx,
+        }))
     }
 
     #[tracing::instrument(skip(self, ctx, command))]
@@ -42,7 +39,9 @@ impl EventRouter {
             .get(command.data.name.as_str())
             .ok_or(ResponseError::Reaper(ReaperError::CommandNotFound))?;
 
-        let context = self.build_context(ctx, handler.as_ref()).await?;
+        let context = self
+            .run_checks_and_get_context(ctx, handler.as_ref())
+            .await?;
 
         handler.execute(context, command).await
     }
@@ -58,9 +57,14 @@ impl EventRouter {
             .get(component.data.custom_id.as_str())
             .ok_or(ResponseError::Reaper(ReaperError::ComponentNotFound))?;
 
-        let context = self.build_context(ctx, handler.as_ref()).await?;
+        let context = self
+            .run_checks_and_get_context(ctx, handler.as_ref())
+            .await?;
 
-        handler.execute(context, component).await
+        // TODO: Handle state
+        handler
+            .execute_raw(context, component, serde_json::Value::Null)
+            .await
     }
 
     #[tracing::instrument(skip(self, ctx, modal))]
@@ -74,19 +78,27 @@ impl EventRouter {
             .get(modal.data.custom_id.as_str())
             .ok_or(ResponseError::Reaper(ReaperError::ModalNotFound))?;
 
-        let context = self.build_context(ctx, handler.as_ref()).await?;
+        let context = self
+            .run_checks_and_get_context(ctx, handler.as_ref())
+            .await?;
 
-        handler.execute(context, modal).await
+        // TODO: Handle state
+        handler
+            .execute_raw(context, modal, serde_json::Value::Null)
+            .await
     }
 
-    #[tracing::instrument(skip(self, ctx, _handler))]
-    async fn build_context(
-        &self,
-        ctx: SerenityContext,
-        _handler: &dyn InteractionHandler,
-    ) -> ResponseResult<Context> {
-        Ok(Context::Unpopulated(UnpopulatedContext {
-            serenity_context: ctx,
-        }))
+    #[tracing::instrument(skip(self, ctx, interaction))]
+    pub async fn on_interaction(&self, ctx: SerenityContext, interaction: Interaction) {
+        let result = match interaction {
+            Interaction::Command(cmd) => self.handle_command(ctx, &cmd).await,
+            Interaction::Component(comp) => self.handle_component(ctx, &comp).await,
+            Interaction::Modal(modal) => self.handle_modal(ctx, &modal).await,
+            _ => return,
+        };
+
+        if let Err(err) = result {
+            error!(error = %err, "Error handling interaction");
+        }
     }
 }

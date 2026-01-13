@@ -19,6 +19,8 @@ impl Display for ReaperError {
 pub enum ResponseError {
     Reaper(ReaperError),
     Serenity(serenity::Error),
+    Diesel(diesel::result::Error),
+    Json(serde_json::Error),
 }
 
 impl Display for ResponseError {
@@ -26,7 +28,33 @@ impl Display for ResponseError {
         match self {
             ResponseError::Reaper(err) => write!(f, "{err}"),
             ResponseError::Serenity(err) => write!(f, "{err}"),
+            ResponseError::Diesel(err) => write!(f, "{err}"),
+            ResponseError::Json(err) => write!(f, "{err}"),
         }
+    }
+}
+
+impl From<ReaperError> for ResponseError {
+    fn from(err: ReaperError) -> Self {
+        ResponseError::Reaper(err)
+    }
+}
+
+impl From<serenity::Error> for ResponseError {
+    fn from(err: serenity::Error) -> Self {
+        ResponseError::Serenity(err)
+    }
+}
+
+impl From<diesel::result::Error> for ResponseError {
+    fn from(err: diesel::result::Error) -> Self {
+        ResponseError::Diesel(err)
+    }
+}
+
+impl From<serde_json::Error> for ResponseError {
+    fn from(err: serde_json::Error) -> Self {
+        ResponseError::Json(err)
     }
 }
 

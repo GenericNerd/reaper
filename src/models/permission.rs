@@ -1,5 +1,9 @@
-use std::fmt::{self, Display, Formatter};
+use std::fmt::{Display, Formatter};
 
+use diesel::{
+    ExpressionMethods, RunQueryDsl,
+    query_dsl::methods::{FilterDsl, SelectDsl},
+};
 use tracing::{debug, error};
 
 use crate::models::{
@@ -36,7 +40,7 @@ pub enum Permission {
 }
 
 impl Display for Permission {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Permission::PermissionsView => write!(f, "permissions.view"),
             Permission::PermissionsEdit => write!(f, "permissions.edit"),
@@ -100,58 +104,58 @@ impl From<&str> for Permission {
     }
 }
 
-// impl Permission {
-//     #[tracing::instrument(skip(guild, user), fields(guild_id = guild.as_u64(), user_id = user.as_u64()))]
-//     pub async fn get_user(guild: Guild, user: User) -> Vec<Permission> {
-//         debug!("Querying main database for user permissions in guild");
-//         match sqlx::query!(
-//             "SELECT permission FROM users WHERE guild_id = $1 AND id = $2",
-//             guild.as_i64(),
-//             user.as_i64()
-//         )
-//         .fetch_all(Bot::instance().postgres())
-//         .await
-//         {
-//             Ok(rows) => {
-//                 let mut permissions = vec![];
-//                 for row in rows {
-//                     permissions.push(Permission::from(row.permission.as_str()));
-//                 }
-//                 permissions
-//             }
-//             Err(err) => {
-//                 error!(
-//                     "Attempted to query main database for user permissions, failed with error: {err}",
-//                 );
-//                 return vec![];
-//             }
-//         }
-//     }
+impl From<String> for Permission {
+    fn from(value: String) -> Self {
+        Permission::from(value.as_str())
+    }
+}
 
-//     #[tracing::instrument(skip(guild, role), fields(guild_id = guild.as_u64(), role_id = role.as_u64()))]
-//     pub async fn get_role(guild: Guild, role: Role) -> Vec<Permission> {
-//         debug!("Querying main database for role permissions in guild");
-//         match sqlx::query!(
-//             "SELECT permission FROM roles WHERE guild_id = $1 AND id = $2",
-//             guild.as_i64(),
-//             role.as_i64()
-//         )
-//         .fetch_all(Bot::instance().postgres())
-//         .await
-//         {
-//             Ok(rows) => {
-//                 let mut permissions = vec![];
-//                 for row in rows {
-//                     permissions.push(Permission::from(row.permission.as_str()));
-//                 }
-//                 permissions
-//             }
-//             Err(err) => {
-//                 error!(
-//                     "Attempted to query main database for role permissions, failed with error: {err}",
-//                 );
-//                 return vec![];
-//             }
-//         }
-//     }
-// }
+impl From<&String> for Permission {
+    fn from(value: &String) -> Self {
+        Permission::from(value.as_str())
+    }
+}
+
+impl Permission {
+    #[tracing::instrument(skip(guild, user), fields(guild_id = guild.as_u64(), user_id = user.as_u64()))]
+    pub async fn get_user(guild: Guild, user: User) -> Vec<Permission> {
+        use crate::schema::users::dsl::*;
+        debug!("Querying main database for user permissions in guild");
+
+        users
+            .filter(guild_id.eq(guild.as_i64()))
+            .filter(id.eq(user.as_i64()))
+            .select(permission)
+            .load::<String>(&mut Bot::instance().postgres())
+            .unwrap_or_else(|error| {
+                error!(
+                    error = %error, "Attempted to query main database for user permissions",
+                );
+                Vec::new()
+            })
+            .iter()
+            .map(|perm| Permission::from(perm))
+            .collect::<Vec<Permission>>()
+    }
+
+    #[tracing::instrument(skip(guild, role), fields(guild_id = guild.as_u64(), role_id = role.as_u64()))]
+    pub async fn get_role(guild: Guild, role: Role) -> Vec<Permission> {
+        use crate::schema::roles::dsl::*;
+        debug!("Querying main database for role permissions in guild");
+
+        roles
+            .filter(guild_id.eq(guild.as_i64()))
+            .filter(id.eq(role.as_i64()))
+            .select(permission)
+            .load::<String>(&mut Bot::instance().postgres())
+            .unwrap_or_else(|error| {
+                error!(
+                    error = %error, "Attempted to query main database for role permissions",
+                );
+                Vec::new()
+            })
+            .iter()
+            .map(|perm| Permission::from(perm))
+            .collect::<Vec<Permission>>()
+    }
+}

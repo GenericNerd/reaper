@@ -1,0 +1,26 @@
+-- This file should undo anything in `up.sql`
+DROP TABLE IF EXISTS guild_kills;
+DROP TABLE IF EXISTS user_kills;
+DROP TABLE IF EXISTS global_kills;
+DROP TABLE IF EXISTS xp_channel_blacklists;
+DROP TABLE IF EXISTS xp_role_blacklists;
+DROP TABLE IF EXISTS xp_rewards;
+DROP TABLE IF EXISTS xp_role_multipliers;
+DROP TABLE IF EXISTS xp_channel_multipliers;
+DROP TABLE IF EXISTS user_xp;
+DROP TABLE IF EXISTS xp_level_up_messages;
+DROP TABLE IF EXISTS xp_configuration;
+DROP TABLE IF EXISTS guild_role_recovery_config;
+DROP TABLE IF EXISTS board_entries;
+DROP TABLE IF EXISTS board_ignored_channels;
+DROP TABLE IF EXISTS board_emotes;
+DROP TABLE IF EXISTS boards;
+DROP TABLE IF EXISTS giveaway_entry;
+DROP TABLE IF EXISTS giveaways;
+DROP TABLE IF EXISTS role_recovery;
+DROP TABLE IF EXISTS logging_configuration;
+DROP TABLE IF EXISTS strike_escalations;
+DROP TABLE IF EXISTS actions;
+DROP TABLE IF EXISTS moderation_configuration;
+DROP TABLE IF EXISTS roles;
+DROP TABLE IF EXISTS users;
