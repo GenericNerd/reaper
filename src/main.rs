@@ -8,11 +8,7 @@ use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 use tracing::error;
 use tracing_subscriber::{EnvFilter, Registry, layer::SubscriberExt, util::SubscriberInitExt};
 
-use crate::models::{
-    bot::Bot,
-    permission::Permission,
-    serenity::{guild::Guild, user::User},
-};
+use crate::models::bot::Bot;
 
 mod events;
 mod interactions;

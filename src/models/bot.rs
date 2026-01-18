@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
     sync::{Arc, OnceLock},
+    time::Instant,
 };
 
 use diesel::{
@@ -14,7 +15,8 @@ use serenity::{
 
 use crate::{
     events::EventRouter,
-    models::interactions::traits::{Command, RawComponent, RawModal},
+    interactions::commands::commands,
+    models::interactions::traits::{CommandHandler, ComponentHandler, ModalHandler},
 };
 
 static BOT_INSTANCE: OnceLock<Bot> = OnceLock::new();
@@ -22,9 +24,10 @@ static BOT_INSTANCE: OnceLock<Bot> = OnceLock::new();
 pub struct Bot {
     shard_manager: Arc<ShardManager>,
     postgres_connection: Pool<ConnectionManager<PgConnection>>,
-    commands: HashMap<String, Box<dyn Command>>,
-    components: HashMap<String, Box<dyn RawComponent>>,
-    modals: HashMap<String, Box<dyn RawModal>>,
+    commands: HashMap<String, Box<dyn CommandHandler>>,
+    components: HashMap<String, Box<dyn ComponentHandler>>,
+    modals: HashMap<String, Box<dyn ModalHandler>>,
+    start_time: Instant,
 }
 
 impl Bot {
@@ -43,9 +46,13 @@ impl Bot {
         BOT_INSTANCE.get_or_init(|| Bot {
             shard_manager: client.shard_manager.clone(),
             postgres_connection,
-            commands: HashMap::new(),
+            commands: commands()
+                .into_iter()
+                .map(|command| (command.id().to_string(), command))
+                .collect(),
             components: HashMap::new(),
             modals: HashMap::new(),
+            start_time: Instant::now(),
         });
 
         Ok(client)
@@ -57,15 +64,15 @@ impl Bot {
             .expect("Bot must be initialized before use")
     }
 
-    pub fn commands(&self) -> &HashMap<String, Box<dyn Command>> {
+    pub fn commands(&self) -> &HashMap<String, Box<dyn CommandHandler>> {
         &self.commands
     }
 
-    pub fn components(&self) -> &HashMap<String, Box<dyn RawComponent>> {
+    pub fn components(&self) -> &HashMap<String, Box<dyn ComponentHandler>> {
         &self.components
     }
 
-    pub fn modals(&self) -> &HashMap<String, Box<dyn RawModal>> {
+    pub fn modals(&self) -> &HashMap<String, Box<dyn ModalHandler>> {
         &self.modals
     }
 
@@ -74,6 +81,11 @@ impl Bot {
     }
 
     pub fn postgres(&self) -> PooledConnection<ConnectionManager<PgConnection>> {
+        // TODO: Fix me
         self.postgres_connection.get().unwrap()
+    }
+
+    pub fn start_time(&self) -> Instant {
+        self.start_time
     }
 }

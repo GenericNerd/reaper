@@ -1,3 +1,3 @@
-mod commands;
-mod components;
-mod modals;
+pub mod commands;
+pub mod components;
+pub mod modals;

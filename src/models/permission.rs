@@ -11,7 +11,7 @@ use crate::models::{
     serenity::{guild::Guild, role::Role, user::User},
 };
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum Permission {
     PermissionsView,
     PermissionsEdit,
@@ -117,8 +117,35 @@ impl From<&String> for Permission {
 }
 
 impl Permission {
+    pub const ALL: [Self; 24] = [
+        Self::PermissionsView,
+        Self::PermissionsEdit,
+        Self::ConfigEdit,
+        Self::ModerationStrike,
+        Self::ModerationSearchSelf,
+        Self::ModerationSearchSelfExpired,
+        Self::ModerationSearchOthers,
+        Self::ModerationSearchOthersExpired,
+        Self::ModerationSearchUuid,
+        Self::ModerationMute,
+        Self::ModerationUnmute,
+        Self::ModerationKick,
+        Self::ModerationBan,
+        Self::ModerationUnban,
+        Self::ModerationExpire,
+        Self::ModerationRemove,
+        Self::ModerationDuration,
+        Self::ModerationReason,
+        Self::ModerationPurge,
+        Self::GiveawayCreate,
+        Self::GiveawayEnd,
+        Self::GiveawayReroll,
+        Self::GiveawayDelete,
+        Self::XPEdit,
+    ];
+
     #[tracing::instrument(skip(guild, user), fields(guild_id = guild.as_u64(), user_id = user.as_u64()))]
-    pub async fn get_user(guild: Guild, user: User) -> Vec<Permission> {
+    pub async fn get_user(guild: &Guild, user: &User) -> Vec<Permission> {
         use crate::schema::users::dsl::*;
         debug!("Querying main database for user permissions in guild");
 
@@ -139,7 +166,7 @@ impl Permission {
     }
 
     #[tracing::instrument(skip(guild, role), fields(guild_id = guild.as_u64(), role_id = role.as_u64()))]
-    pub async fn get_role(guild: Guild, role: Role) -> Vec<Permission> {
+    pub async fn get_role(guild: &Guild, role: &Role) -> Vec<Permission> {
         use crate::schema::roles::dsl::*;
         debug!("Querying main database for role permissions in guild");
 

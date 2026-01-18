@@ -1,6 +1,8 @@
 use std::fmt::Display;
 
 pub enum ReaperError {
+    UnpopulatedContext,
+    FailedToObtainShardLatency,
     CommandNotFound,
     ComponentNotFound,
     ModalNotFound,
@@ -9,6 +11,8 @@ pub enum ReaperError {
 impl Display for ReaperError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            ReaperError::UnpopulatedContext => write!(f, "Unpopulated context"),
+            ReaperError::FailedToObtainShardLatency => write!(f, "Failed to obtain shard latency"),
             ReaperError::CommandNotFound => write!(f, "Command not found"),
             ReaperError::ComponentNotFound => write!(f, "Component not found"),
             ReaperError::ModalNotFound => write!(f, "Modal not found"),

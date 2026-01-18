@@ -8,83 +8,127 @@ use crate::models::{
     response::ResponseResult,
 };
 
-pub trait InteractionHandler: Send + Sync {
+#[async_trait]
+pub trait CommandHandler: Send + Sync {
     fn id(&self) -> &'static str;
     fn permission(&self) -> Option<Permission>;
-}
-
-#[async_trait]
-pub trait Command: InteractionHandler {
     fn register(&self) -> CreateCommand;
-    async fn execute(&self, ctx: Context, command: &CommandInteraction) -> ResponseResult<()>;
+    async fn execute(&self, ctx: &Context, command: &CommandInteraction) -> ResponseResult<()>;
 }
 
 #[async_trait]
-pub trait RawComponent: InteractionHandler {
-    async fn execute_raw(
+pub trait Command: Send + Sync {
+    const ID: &'static str;
+    const PERMISSION: Option<Permission>;
+
+    fn register(&self) -> CreateCommand;
+    async fn execute(&self, ctx: &Context, command: &CommandInteraction) -> ResponseResult<()>;
+}
+
+#[async_trait]
+pub trait ComponentHandler: Send + Sync {
+    fn id(&self) -> &'static str;
+    fn permission(&self) -> Option<Permission>;
+    async fn execute(
         &self,
-        ctx: Context,
+        ctx: &Context,
         component: &ComponentInteraction,
         state: serde_json::Value,
     ) -> ResponseResult<()>;
 }
 
 #[async_trait]
-pub trait Component: InteractionHandler {
+pub trait Component: Send + Sync {
+    const ID: &'static str;
+    const PERMISSION: Option<Permission>;
+
     type State: DeserializeOwned + Send + Sync;
 
     async fn execute(
         &self,
-        ctx: Context,
+        ctx: &Context,
         interaction: &impl Responder,
         state: Self::State,
     ) -> ResponseResult<()>;
 }
 
 #[async_trait]
-impl<T: Component + Send + Sync> RawComponent for T {
-    async fn execute_raw(
+pub trait ModalHandler: Send + Sync {
+    fn id(&self) -> &'static str;
+    fn permission(&self) -> Option<Permission>;
+    async fn execute(
         &self,
-        ctx: Context,
-        component: &ComponentInteraction,
+        ctx: &Context,
+        modal: &ModalInteraction,
         state: serde_json::Value,
-    ) -> ResponseResult<()> {
-        let typed_state: T::State = serde_json::from_value(state)?;
-        self.execute(ctx, component, typed_state).await
+    ) -> ResponseResult<()>;
+}
+
+#[async_trait]
+pub trait Modal: Send + Sync {
+    const ID: &'static str;
+    const PERMISSION: Option<Permission>;
+
+    type State: DeserializeOwned + Send + Sync;
+
+    async fn execute(
+        &self,
+        ctx: &Context,
+        interaction: &impl Responder,
+        state: Self::State,
+    ) -> ResponseResult<()>;
+}
+
+#[async_trait]
+impl<T: Command> CommandHandler for T {
+    fn id(&self) -> &'static str {
+        T::ID
+    }
+    fn permission(&self) -> Option<Permission> {
+        T::PERMISSION
+    }
+    fn register(&self) -> CreateCommand {
+        <Self as Command>::register(self)
+    }
+    async fn execute(&self, ctx: &Context, command: &CommandInteraction) -> ResponseResult<()> {
+        <Self as Command>::execute(self, ctx, command).await
     }
 }
 
 #[async_trait]
-pub trait RawModal: InteractionHandler {
-    async fn execute_raw(
-        &self,
-        ctx: Context,
-        modal: &ModalInteraction,
-        state: serde_json::Value,
-    ) -> ResponseResult<()>;
-}
-
-#[async_trait]
-pub trait Modal: InteractionHandler {
-    type State: DeserializeOwned + Send + Sync;
-
+impl<T: Component> ComponentHandler for T {
+    fn id(&self) -> &'static str {
+        T::ID
+    }
+    fn permission(&self) -> Option<Permission> {
+        T::PERMISSION
+    }
     async fn execute(
         &self,
-        ctx: Context,
-        interaction: &impl Responder,
-        state: Self::State,
-    ) -> ResponseResult<()>;
+        ctx: &Context,
+        component: &ComponentInteraction,
+        state: serde_json::Value,
+    ) -> ResponseResult<()> {
+        let typed_state: T::State = serde_json::from_value(state)?;
+        <Self as Component>::execute(self, ctx, component, typed_state).await
+    }
 }
 
 #[async_trait]
-impl<T: Modal + Send + Sync> RawModal for T {
-    async fn execute_raw(
+impl<T: Modal> ModalHandler for T {
+    fn id(&self) -> &'static str {
+        T::ID
+    }
+    fn permission(&self) -> Option<Permission> {
+        T::PERMISSION
+    }
+    async fn execute(
         &self,
-        ctx: Context,
+        ctx: &Context,
         modal: &ModalInteraction,
         state: serde_json::Value,
     ) -> ResponseResult<()> {
         let typed_state: T::State = serde_json::from_value(state)?;
-        self.execute(ctx, modal, typed_state).await
+        <Self as Modal>::execute(self, ctx, modal, typed_state).await
     }
 }
