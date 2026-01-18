@@ -3,9 +3,14 @@ use std::fmt::Display;
 pub enum ReaperError {
     UnpopulatedContext,
     FailedToObtainShardLatency,
+    InvalidCustomId,
+    StateNotFound,
     CommandNotFound,
     ComponentNotFound,
     ModalNotFound,
+    FeatureFlagDisabled,
+    GuildKilled,
+    UserKilled,
 }
 
 impl Display for ReaperError {
@@ -13,9 +18,14 @@ impl Display for ReaperError {
         match self {
             ReaperError::UnpopulatedContext => write!(f, "Unpopulated context"),
             ReaperError::FailedToObtainShardLatency => write!(f, "Failed to obtain shard latency"),
+            ReaperError::InvalidCustomId => write!(f, "Invalid custom ID"),
+            ReaperError::StateNotFound => write!(f, "State not found"),
             ReaperError::CommandNotFound => write!(f, "Command not found"),
             ReaperError::ComponentNotFound => write!(f, "Component not found"),
             ReaperError::ModalNotFound => write!(f, "Modal not found"),
+            ReaperError::FeatureFlagDisabled => write!(f, "Feature flag disabled"),
+            ReaperError::GuildKilled => write!(f, "Guild killed"),
+            ReaperError::UserKilled => write!(f, "User killed"),
         }
     }
 }

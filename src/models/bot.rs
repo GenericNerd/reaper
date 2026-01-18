@@ -16,7 +16,10 @@ use serenity::{
 use crate::{
     events::EventRouter,
     interactions::commands::commands,
-    models::interactions::traits::{CommandHandler, ComponentHandler, ModalHandler},
+    models::interactions::{
+        state::StateStore,
+        traits::{CommandHandler, ComponentHandler, ModalHandler},
+    },
 };
 
 static BOT_INSTANCE: OnceLock<Bot> = OnceLock::new();
@@ -27,6 +30,7 @@ pub struct Bot {
     commands: HashMap<String, Box<dyn CommandHandler>>,
     components: HashMap<String, Box<dyn ComponentHandler>>,
     modals: HashMap<String, Box<dyn ModalHandler>>,
+    state_store: StateStore,
     start_time: Instant,
 }
 
@@ -52,6 +56,7 @@ impl Bot {
                 .collect(),
             components: HashMap::new(),
             modals: HashMap::new(),
+            state_store: StateStore::default(),
             start_time: Instant::now(),
         });
 
@@ -78,6 +83,10 @@ impl Bot {
 
     pub fn shard_manager(&self) -> &ShardManager {
         &self.shard_manager
+    }
+
+    pub fn state_store(&self) -> &StateStore {
+        &self.state_store
     }
 
     pub fn postgres(&self) -> PooledConnection<ConnectionManager<PgConnection>> {

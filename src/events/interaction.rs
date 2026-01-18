@@ -6,6 +6,7 @@ use serenity::all::{
     ModalInteraction, PartialGuild, Permissions,
 };
 use tracing::{error, trace};
+use uuid::Uuid;
 
 use crate::{
     events::EventRouter,
@@ -168,22 +169,22 @@ impl EventRouter {
         feature_flags: &[String],
         guild: Option<&Guild>,
         user: &User,
-    ) -> ResponseResult<bool> {
+    ) -> ResponseResult<()> {
         if !self.check_feature_flags(feature_flags).await? {
-            return Ok(false);
+            return Err(ResponseError::Reaper(ReaperError::FeatureFlagDisabled));
         }
 
         if let Some(guild) = guild {
             if !self.check_guild_kill(guild).await? {
-                return Ok(false);
+                return Err(ResponseError::Reaper(ReaperError::GuildKilled));
             }
         }
 
         if !self.check_user_kill(user).await? {
-            return Ok(false);
+            return Err(ResponseError::Reaper(ReaperError::UserKilled));
         }
 
-        Ok(true)
+        Ok(())
     }
 
     #[tracing::instrument(skip(self, ctx, command))]
@@ -198,16 +199,12 @@ impl EventRouter {
             .ok_or(ResponseError::Reaper(ReaperError::CommandNotFound))?;
 
         let user = User::from(command.user.id);
-        if !self
-            .run_checks(
-                &["commands".to_string(), format!("commands.{}", handler.id())],
-                command.guild_id.map(|id| Guild::from(id)).as_ref(),
-                &user,
-            )
-            .await?
-        {
-            todo!()
-        }
+        self.run_checks(
+            &["commands".to_string(), format!("commands.{}", handler.id())],
+            command.guild_id.map(|id| Guild::from(id)).as_ref(),
+            &user,
+        )
+        .await?;
 
         let context = self
             .generate_context(
@@ -227,31 +224,43 @@ impl EventRouter {
         result
     }
 
+    fn extract_state(&self, custom_id: String) -> ResponseResult<(String, Uuid)> {
+        let parts = custom_id.splitn(2, ':').collect::<Vec<_>>();
+
+        if parts.len() != 2 {
+            return Err(ResponseError::Reaper(ReaperError::InvalidCustomId));
+        }
+
+        Ok((
+            parts[0].to_string(),
+            Uuid::parse_str(parts[1])
+                .map_err(|_| ResponseError::Reaper(ReaperError::InvalidCustomId))?,
+        ))
+    }
+
     #[tracing::instrument(skip(self, ctx, component))]
     async fn handle_component(
         &self,
         ctx: SerenityContext,
         component: &ComponentInteraction,
     ) -> ResponseResult<()> {
+        let (handler_id, state_id) = self.extract_state(component.data.custom_id.clone())?;
+
         let handler = Bot::instance()
             .components()
-            .get(component.data.custom_id.as_str())
+            .get(&handler_id)
             .ok_or(ResponseError::Reaper(ReaperError::ComponentNotFound))?;
 
         let user = User::from(component.user.id);
-        if !self
-            .run_checks(
-                &[
-                    "components".to_string(),
-                    format!("components.{}", handler.id()),
-                ],
-                component.guild_id.map(|id| Guild::from(id)).as_ref(),
-                &user,
-            )
-            .await?
-        {
-            todo!()
-        }
+        self.run_checks(
+            &[
+                "components".to_string(),
+                format!("components.{}", handler.id()),
+            ],
+            component.guild_id.map(|id| Guild::from(id)).as_ref(),
+            &user,
+        )
+        .await?;
 
         let context = self
             .generate_context(
@@ -264,10 +273,13 @@ impl EventRouter {
             )
             .await?;
 
-        // TODO: Handle state
-        let result = handler
-            .execute(&context, component, serde_json::Value::Null)
-            .await;
+        let state = Bot::instance()
+            .state_store()
+            .get(state_id)
+            .await
+            .ok_or(ResponseError::Reaper(ReaperError::StateNotFound))?;
+
+        let result = handler.execute(&context, component, state.state).await;
         if let Err(ref err) = result {
             let _ = component.error_message(&context, err).await;
         }
@@ -280,22 +292,20 @@ impl EventRouter {
         ctx: SerenityContext,
         modal: &ModalInteraction,
     ) -> ResponseResult<()> {
+        let (handler_id, state_id) = self.extract_state(modal.data.custom_id.clone())?;
+
         let handler = Bot::instance()
             .modals()
-            .get(modal.data.custom_id.as_str())
+            .get(&handler_id)
             .ok_or(ResponseError::Reaper(ReaperError::ModalNotFound))?;
 
         let user = User::from(modal.user.id);
-        if !self
-            .run_checks(
-                &["modals".to_string(), format!("modals.{}", handler.id())],
-                modal.guild_id.map(|id| Guild::from(id)).as_ref(),
-                &user,
-            )
-            .await?
-        {
-            todo!()
-        }
+        self.run_checks(
+            &["modals".to_string(), format!("modals.{}", handler.id())],
+            modal.guild_id.map(|id| Guild::from(id)).as_ref(),
+            &user,
+        )
+        .await?;
 
         let context = self
             .generate_context(
@@ -308,10 +318,13 @@ impl EventRouter {
             )
             .await?;
 
-        // TODO: Handle state
-        let result = handler
-            .execute(&context, modal, serde_json::Value::Null)
-            .await;
+        let state = Bot::instance()
+            .state_store()
+            .get(state_id)
+            .await
+            .ok_or(ResponseError::Reaper(ReaperError::StateNotFound))?;
+
+        let result = handler.execute(&context, modal, state.state).await;
         if let Err(ref err) = result {
             let _ = modal.error_message(&context, err).await;
         }

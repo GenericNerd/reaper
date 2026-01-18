@@ -99,6 +99,16 @@ diesel::table! {
 }
 
 diesel::table! {
+    interaction_state (id) {
+        id -> Uuid,
+        handler_id -> Text,
+        state -> Jsonb,
+        created_at -> Timestamptz,
+        expires_at -> Nullable<Timestamptz>,
+    }
+}
+
+diesel::table! {
     logging_configuration (guild_id) {
         guild_id -> Int8,
         log_actions -> Bool,
@@ -247,6 +257,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     global_kills,
     guild_kills,
     guild_role_recovery_config,
+    interaction_state,
     logging_configuration,
     moderation_configuration,
     role_recovery,
